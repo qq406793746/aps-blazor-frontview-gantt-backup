@@ -1,0 +1,986 @@
+@page "/dynamic-scheduling"
+@implements IDisposable
+@using System.Globalization
+@using BlazorApp1.Services
+@using Microsoft.JSInterop
+@inject IApsApiService ApsApi
+@inject IJSRuntime Js
+@inject ILogger<DynamicScheduling> Logger
+
+<h3>APS 甘特排产</h3>
+
+<div class="border rounded p-3 mb-3 aps-schedule-panel">
+<h5>Project -> Work Order -> Plan -> Schedule</h5>
+    <div class="row g-2">
+        <div class="col-md-3">
+            <label class="form-label">项目</label>
+            <select class="form-select" @bind="selectedProjectId" @bind:after="OnProjectChanged">
+                <option value="0">请选择项目</option>
+                @foreach (var project in projects)
+                {
+                    <option value="@project.Id">@project.Code - @project.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">工单</label>
+            <select class="form-select" @bind="selectedWorkItemId">
+                <option value="0">请选择工单</option>
+                @foreach (var item in workItems)
+                {
+                    <option value="@item.Id">@item.OrderNo (@item.PartNo)</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-outline-primary mt-1" @onclick="CreateRandomWorkItem" disabled="@loading || selectedProjectId <= 0">随机工单</button>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">工艺路线</label>
+            <select class="form-select" @bind="selectedRouteId">
+                <option value="0">请选择路线</option>
+                @foreach (var route in routes)
+                {
+                    <option value="@route.Id">@route.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">计划</label>
+            <select class="form-select" @bind="selectedPlanId" @bind:after="OnPlanChanged">
+                <option value="0">请选择计划</option>
+                @foreach (var plan in plans)
+                {
+                    <option value="@plan.Id">@plan.PlanNo</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-outline-primary mt-1" @onclick="CreatePlan" disabled="@loading || selectedProjectId <= 0">创建计划</button>
+        </div>
+    </div>
+    <div class="mt-2">
+        <button class="btn btn-outline-secondary" @onclick="RefreshListsWithTrace" disabled="@loading">刷新列表</button>
+        <button class="btn btn-outline-success ms-2" @onclick="GenerateTasks" disabled="@loading || selectedPlanId <= 0 || selectedWorkItemId <= 0 || selectedRouteId <= 0">生成任务</button>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">PlanId</label>
+    <input class="form-control" type="number" @bind="planId" readonly />
+    <div class="form-text">Load tasks from APS backend. BaseUrl is in appsettings.json.</div>
+    <div class="row g-2 mt-1">
+        <div class="col-md-3">
+            <label class="form-label">视图</label>
+            <select class="form-select" @bind="viewMode">
+                <option value="Day">Day</option>
+                <option value="Week">Week</option>
+                <option value="Month">Month</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">时间窗(天)</label>
+            <input class="form-control" type="number" min="1" max="90" @bind="windowDays" />
+        </div>
+        <div class="col-md-6 d-flex align-items-end gap-2">
+            <button class="btn btn-outline-secondary" @onclick="PrevWindow" disabled="@loading">Prev</button>
+            <button class="btn btn-outline-secondary" @onclick="NextWindow" disabled="@loading">Next</button>
+            <span class="text-muted">@windowLabel</span>
+        </div>
+    </div>
+    <button class="btn btn-primary mt-2" @onclick="LoadTasksWithTrace" disabled="@loading">加载甘特</button>
+</div>
+
+<div class="border rounded p-3 mb-3">
+    <h5>自动排程（后端执行）</h5>
+    <div class="row g-2 align-items-end">
+        <div class="col-lg-2 col-md-4">
+            <label class="form-label">引擎</label>
+            <select class="form-select" @bind="engine">
+                <option value="heuristic">heuristic</option>
+                <option value="ortools">ortools</option>
+            </select>
+        </div>
+        <div class="col-lg-4 col-md-8">
+            <label class="form-label">排程时间范围</label>
+            <input id="schedule-range" class="form-control" placeholder="选择开始/结束时间" />
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <label class="form-label">StartAt（本地）</label>
+            <input id="schedule-start" class="form-control" type="text" @bind="scheduleStartInput" readonly />
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <label class="form-label">EndAt（本地）</label>
+            <input id="schedule-end" class="form-control" type="text" @bind="scheduleEndInput" readonly />
+        </div>
+    </div>
+    <div class="row g-2 mt-1">
+        <div class="col-md-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="allowOutsource" />
+                <label class="form-check-label">允许外协</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" @bind="forceSchedule" />
+                <label class="form-check-label">强制重排</label>
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-success mt-2" @onclick="RunAutoSchedule" disabled="@loading">Auto Schedule</button>
+    @if (autoScheduleResult != null)
+    {
+        <div class="alert alert-info mt-2">
+            scheduled=@autoScheduleResult.ScheduledCount, unscheduled=@autoScheduleResult.UnscheduledCount,
+            outsourced=@autoScheduleResult.OutsourcedCount, toolConflict=@autoScheduleResult.ToolConflictCount,
+            materialNotReady=@autoScheduleResult.MaterialNotReadyCount
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(autoScheduleError))
+    {
+        <div class="alert alert-warning mt-2">@autoScheduleError</div>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+@if (loading)
+{
+    <p>加载中...</p>
+}
+else if (tasks.Count == 0)
+{
+    <p class="text-muted">No tasks. Load a plan first.</p>
+}
+
+<div id="aps-gantt" class="border rounded bg-white" style="min-height: 320px; max-height: 520px; overflow: auto;"></div>
+
+<hr />
+
+<h4>资源甘特图</h4>
+<div class="aps-resource-gantt-wrap">
+    <div id="aps-resource-gantt-shell" class="aps-resource-gantt-shell">
+        <div id="aps-resource-gantt" class="border rounded bg-white aps-resource-gantt-container"></div>
+    </div>
+</div>
+
+<hr />
+
+<h4>拖拽移动（甘特联动）</h4>
+<div class="form-check">
+    <input class="form-check-input" type="checkbox" @bind="allowPush" />
+    <label class="form-check-label">Allow push (AllowPush)</label>
+</div>
+
+<div class="mt-2">
+    <span class="text-muted">当前选中任务：@selectedTaskId</span>
+    <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="LoadChanges" disabled="@loading || selectedTaskId <= 0">查看变更日志</button>
+</div>
+
+@if (moveResult != null)
+{
+    <div class="alert alert-success mt-2">
+        @lastMoveMessage
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(moveError))
+{
+    <div class="alert alert-warning mt-2">@moveError</div>
+}
+
+<div class="mt-3">
+    <h5>拖拽日志</h5>
+    @if (moveLogs.Count == 0)
+    {
+        <p class="text-muted">No drag logs.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-bordered">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>TaskId</th>
+                <th>OldStart</th>
+                <th>OldEnd</th>
+                <th>NewStart</th>
+                <th>NewEnd</th>
+                <th>Pushed</th>
+                <th>结果</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var log in moveLogs)
+            {
+                <tr>
+                    <td>@log.At.ToString("HH:mm:ss")</td>
+                    <td>@log.TaskId</td>
+                    <td>@log.OldStart</td>
+                    <td>@log.OldEnd</td>
+                    <td>@log.NewStart</td>
+                    <td>@log.NewEnd</td>
+                    <td>@log.Pushed</td>
+                    <td>@log.Result</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="mt-3">
+    <h5>后端变更日志</h5>
+    @if (changes.Count == 0)
+    {
+        <p class="text-muted">No records.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-bordered">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>OldStart</th>
+                <th>OldEnd</th>
+                <th>NewStart</th>
+                <th>NewEnd</th>
+                <th>Reason</th>
+                <th>Source</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var log in changes)
+            {
+                <tr>
+                    <td>@log.CreatedAt.ToLocalTime().ToString("HH:mm:ss")</td>
+                    <td>@ToLocalDisplay(log.OldStart)</td>
+                    <td>@ToLocalDisplay(log.OldEnd)</td>
+                    <td>@ToLocalDisplay(log.NewStart)</td>
+                    <td>@ToLocalDisplay(log.NewEnd)</td>
+                    <td>@log.Reason</td>
+                    <td>@log.Source</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private long planId;
+    private bool loading;
+    private bool moving;
+    private string? errorMessage;
+    private readonly List<GanttTaskDto> tasks = new();
+    private string viewMode = "Day";
+    private int windowDays = 7;
+    private int windowIndex;
+    private string windowLabel = "";
+    private string engine = "heuristic";
+    private string? scheduleStartInput;
+    private string? scheduleEndInput;
+    private bool allowOutsource = true;
+    private bool forceSchedule = true;
+    private PlanAutoScheduleResult? autoScheduleResult;
+    private string? autoScheduleError;
+    private readonly List<ProjectListItemDto> projects = new();
+    private readonly List<WorkItemListItemDto> workItems = new();
+    private readonly List<PlanListItemDto> plans = new();
+    private readonly List<ProcessRouteListItemDto> routes = new();
+    private long selectedProjectId;
+    private long selectedWorkItemId;
+    private long selectedPlanId;
+    private long selectedRouteId;
+
+    private bool allowPush = true;
+
+    private MoveScheduleTaskResult? moveResult;
+    private string? lastMoveMessage;
+    private string? moveError;
+    private long selectedTaskId;
+    private readonly List<ScheduleChangeLogItemDto> changes = new();
+    private readonly List<MoveLogItem> moveLogs = new();
+    private DotNetObjectReference<DynamicScheduling>? dotNetRef;
+    private DotNetObjectReference<DynamicScheduling>? resourceGanttRef;
+    private bool ganttRendered;
+
+    private async Task RunWithTraceAsync(string action, Func<Task> actionFunc)
+    {
+        var previous = TraceContext.TraceId;
+        var traceId = Guid.NewGuid().ToString("N");
+        TraceContext.TraceId = traceId;
+        Logger.LogInformation("UI action {Action} TraceId={TraceId}", action, traceId);
+
+        try
+        {
+            await actionFunc();
+        }
+        finally
+        {
+            TraceContext.TraceId = previous;
+        }
+    }
+
+    private Task RefreshListsWithTrace()
+        => RunWithTraceAsync("RefreshLists", RefreshLists);
+
+    private Task LoadTasksWithTrace()
+        => RunWithTraceAsync("LoadTasks", LoadTasks);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Js.InvokeVoidAsync("ApsGantt.initScheduleRange", "schedule-range", "schedule-start", "schedule-end");
+            resourceGanttRef ??= DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("ApsResourceGantt.registerDotNet", resourceGanttRef);
+            await RefreshLists();
+        }
+    }
+
+    private async Task RefreshLists()
+    {
+        projects.Clear();
+        var proj = await ApsApi.GetProjectsAsync(1, 200, CancellationToken.None);
+        projects.AddRange(proj.Items);
+
+        if (selectedProjectId > 0)
+        {
+            await LoadProjectData();
+        }
+
+        StateHasChanged();
+    }
+
+    private Task OnProjectChanged()
+        => RunWithTraceAsync("ProjectChanged", LoadProjectData);
+
+    private async Task LoadProjectData()
+    {
+        if (selectedProjectId <= 0)
+        {
+            return;
+        }
+
+        var items = await ApsApi.GetWorkItemsAsync(selectedProjectId, 1, 200, CancellationToken.None);
+        workItems.Clear();
+        workItems.AddRange(items.Items);
+
+        var planItems = await ApsApi.GetPlansAsync(selectedProjectId, 1, 200, CancellationToken.None);
+        plans.Clear();
+        plans.AddRange(planItems.Items);
+
+        var routeItems = await ApsApi.GetRoutesAsync(selectedProjectId, 1, 200, CancellationToken.None);
+        routes.Clear();
+        routes.AddRange(routeItems.Items);
+
+        StateHasChanged();
+    }
+
+    private Task OnPlanChanged()
+    {
+        planId = selectedPlanId;
+        return Task.CompletedTask;
+    }
+
+    private async Task CreateRandomWorkItem()
+    {
+        await RunWithTraceAsync("CreateRandomWorkItem", async () =>
+        {
+            if (selectedProjectId <= 0) return;
+            var now = DateTime.UtcNow;
+            var rnd = new Random();
+            var req = new WorkItemCreateRequest
+            {
+                ProjectId = selectedProjectId,
+                OrderNo = $"WO-{now:MMddHHmmss}-{rnd.Next(100, 999)}",
+                PartNo = $"PART-{rnd.Next(100, 999)}",
+                MoldNo = $"MOLD-{rnd.Next(1, 5)}",
+                Qty = rnd.Next(10, 120),
+                DueDate = now.AddDays(rnd.Next(2, 8)),
+                MaterialReadyAt = now.AddHours(rnd.Next(0, 12)),
+                Priority = rnd.Next(1, 5)
+            };
+            await ApsApi.CreateWorkItemAsync(req, CancellationToken.None);
+            await LoadProjectData();
+        });
+    }
+
+    private async Task CreatePlan()
+    {
+        await RunWithTraceAsync("CreatePlan", async () =>
+        {
+            if (selectedProjectId <= 0) return;
+            var req = new PlanCreateRequest
+            {
+                ProjectId = selectedProjectId,
+                DueDate = DateTime.UtcNow.AddDays(7),
+                Priority = 3,
+                Status = 0
+            };
+            var id = await ApsApi.CreatePlanAsync(req, CancellationToken.None);
+            selectedPlanId = id;
+            planId = id;
+            await LoadProjectData();
+        });
+    }
+
+    private async Task GenerateTasks()
+    {
+        await RunWithTraceAsync("GenerateTasks", async () =>
+        {
+            if (selectedPlanId <= 0 || selectedRouteId <= 0 || selectedWorkItemId <= 0) return;
+            await ApsApi.GenerateTasksAsync(selectedPlanId, new PlanGenerateTasksRequest
+            {
+                RouteId = selectedRouteId,
+                WorkItemId = selectedWorkItemId,
+                Force = false
+            }, CancellationToken.None);
+            await LoadTasks();
+        });
+    }
+
+    private async Task LoadTasks()
+    {
+        errorMessage = null;
+        tasks.Clear();
+        loading = true;
+
+        try
+        {
+            var list = await ApsApi.GetTasksAsync(planId, CancellationToken.None);
+            tasks.AddRange(list);
+            UpdateScheduleRangeFromTasks(list);
+            await RenderGanttAsync();
+            await RenderResourceGanttAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+    private void UpdateScheduleRangeFromTasks(IReadOnlyList<GanttTaskDto> list)
+    {
+        var planned = list
+            .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+            .ToList();
+        if (planned.Count == 0)
+        {
+            return;
+        }
+
+        var minStart = planned.Min(t => t.PlannedStart)!.Value;
+        var maxEnd = planned.Max(t => t.PlannedEnd)!.Value;
+        scheduleStartInput = ToLocalDisplay(minStart);
+        scheduleEndInput = ToLocalDisplay(maxEnd);
+        _ = Js.InvokeVoidAsync("ApsGantt.setScheduleRange", scheduleStartInput, scheduleEndInput);
+    }
+    private async Task RunAutoSchedule()
+    {
+        await RunWithTraceAsync("RunAutoSchedule", async () =>
+        {
+            autoScheduleError = null;
+            autoScheduleResult = null;
+            loading = true;
+
+            try
+            {
+                var request = new PlanAutoScheduleRequest
+                {
+                    StartAt = ParseLocalToUtc(scheduleStartInput),
+                    EndAt = ParseLocalToUtc(scheduleEndInput),
+                    AllowOutsource = allowOutsource
+                };
+                autoScheduleResult = await ApsApi.AutoScheduleAsync(planId, engine, forceSchedule, request, CancellationToken.None);
+                await LoadTasks();
+            }
+            catch (ApsApiException ex)
+            {
+                autoScheduleError = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+            }
+            catch (Exception ex)
+            {
+                autoScheduleError = ex.Message;
+            }
+            finally
+            {
+                loading = false;
+            }
+        });
+    }
+
+    private async Task RenderGanttAsync()
+    {
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        var planned = tasks
+            .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+            .OrderBy(t => t.PlannedStart)
+            .ToList();
+
+        var filtered = planned;
+        if (planned.Count > 0 && windowDays > 0)
+        {
+            var baseStart = planned[0].PlannedStart!.Value;
+            var windowStart = baseStart.AddDays(windowIndex * windowDays);
+            var windowEnd = windowStart.AddDays(windowDays);
+            filtered = planned
+                .Where(t => t.PlannedStart!.Value < windowEnd && t.PlannedEnd!.Value > windowStart)
+                .ToList();
+            windowLabel = $"{windowStart:yyyy-MM-dd} ~ {windowEnd:yyyy-MM-dd}";
+        }
+        else
+        {
+            windowLabel = "";
+        }
+
+        var items = BuildTree(filtered);
+        await Js.InvokeVoidAsync("ApsGantt.render", "aps-gantt", items, dotNetRef, new { view_mode = viewMode });
+        ganttRendered = true;
+    }
+
+    private async Task RenderResourceGanttAsync()
+    {
+        var payload = BuildResourceGanttPayload(tasks);
+        await Js.InvokeVoidAsync("ApsResourceGantt.render", "aps-resource-gantt", payload);
+    }
+
+    private static List<object> BuildTree(IReadOnlyList<GanttTaskDto> source)
+    {
+        var result = new List<object>();
+        var machineGroups = source
+            .GroupBy(t => t.MachineCode ?? "UNASSIGNED")
+            .OrderBy(g => g.Key);
+
+        foreach (var machineGroup in machineGroups)
+        {
+            var machineId = $"M-{machineGroup.Key}";
+            result.Add(new
+            {
+                id = machineId,
+                text = $"机器:{machineGroup.Key}",
+                type = "project"
+            });
+
+            var workItemGroups = machineGroup
+                .GroupBy(t => t.WorkItemId?.ToString(CultureInfo.InvariantCulture) ?? "NO-WORKITEM")
+                .OrderBy(g => g.Key);
+
+            foreach (var workGroup in workItemGroups)
+            {
+                var workId = workGroup.Key;
+                var workText = workGroup.First().OrderNo ?? workId;
+                var workNodeId = $"W-{machineGroup.Key}-{workId}";
+                result.Add(new
+                {
+                    id = workNodeId,
+                    text = $"工单:{workText}",
+                    parent = machineId,
+                    type = "project"
+                });
+
+                foreach (var task in workGroup.OrderBy(t => t.PlannedStart))
+                {
+                    result.Add(new
+                    {
+                        id = task.TaskId.ToString(CultureInfo.InvariantCulture),
+                        text = task.OperationName ?? $"Task {task.TaskId}",
+                        parent = workNodeId,
+                        start_date = ToGanttLocal(task.PlannedStart),
+                        end_date = ToGanttLocal(task.PlannedEnd),
+                        locked = task.IsLocked,
+                        urgent = task.IsUrgent == true
+                    });
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private Task PrevWindow()
+        => RunWithTraceAsync("PrevWindow", async () =>
+        {
+            if (windowIndex > 0)
+            {
+                windowIndex--;
+                await LoadTasks();
+            }
+        });
+
+    private Task NextWindow()
+        => RunWithTraceAsync("NextWindow", async () =>
+        {
+            windowIndex++;
+            await LoadTasks();
+        });
+
+    [JSInvokable]
+    public async Task OnGanttDateChange(long taskId, string newStartIso, string newEndIso)
+    {
+        await RunWithTraceAsync("GanttDateChange", async () =>
+        {
+            moveError = null;
+            moveResult = null;
+            lastMoveMessage = null;
+            moving = true;
+
+            try
+            {
+                var request = new MoveScheduleTaskRequest
+                {
+                    NewStart = ParseUtcIso(newStartIso),
+                    NewEnd = ParseUtcIso(newEndIso),
+                    AllowPush = allowPush,
+                    Reason = "blazor-dynamic-scheduling",
+                    ChangedBy = "blazor",
+                    Source = "blazor"
+                };
+                moveResult = await ApsApi.MoveTaskAsync(taskId, request, CancellationToken.None);
+                lastMoveMessage = $"moved: {moveResult.TaskId}, pushedCount={moveResult.PushedCount}, pushedIds={string.Join(",", moveResult.PushedTaskIds)} ({DateTime.Now:HH:mm:ss})";
+                moveLogs.Insert(0, new MoveLogItem
+                {
+                    At = DateTime.Now,
+                    TaskId = moveResult.TaskId,
+                    OldStart = ToLocalDisplay(moveResult.OldStart) ?? "-",
+                    OldEnd = ToLocalDisplay(moveResult.OldEnd) ?? "-",
+                    NewStart = ToLocalDisplay(moveResult.NewStart) ?? "-",
+                    NewEnd = ToLocalDisplay(moveResult.NewEnd) ?? "-",
+                    Pushed = moveResult.PushedCount,
+                    Result = "OK"
+                });
+                await LoadTasks();
+            }
+            catch (ApsApiException ex)
+            {
+                moveError = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+                moveLogs.Insert(0, new MoveLogItem
+                {
+                    At = DateTime.Now,
+                    TaskId = taskId,
+                    OldStart = "-",
+                    OldEnd = "-",
+                    NewStart = newStartIso,
+                    NewEnd = newEndIso,
+                    Pushed = 0,
+                    Result = moveError ?? "ERROR"
+                });
+            }
+            catch (Exception ex)
+            {
+                moveError = ex.Message;
+                moveLogs.Insert(0, new MoveLogItem
+                {
+                    At = DateTime.Now,
+                    TaskId = taskId,
+                    OldStart = "-",
+                    OldEnd = "-",
+                    NewStart = newStartIso,
+                    NewEnd = newEndIso,
+                    Pushed = 0,
+                    Result = moveError ?? "ERROR"
+                });
+            }
+            finally
+            {
+                moving = false;
+            }
+        });
+    }
+
+    [JSInvokable]
+    public Task OnGanttClick(long taskId)
+        => RunWithTraceAsync("GanttClick", () =>
+        {
+            selectedTaskId = taskId;
+            return Task.CompletedTask;
+        });
+
+    [JSInvokable]
+    public async Task OnResourceGanttDragEnd(ResourceGanttDragEnd payload)
+    {
+        if (!long.TryParse(payload.Id, out var taskId))
+        {
+            return;
+        }
+
+        moveError = null;
+        moveResult = null;
+        lastMoveMessage = null;
+        moving = true;
+
+        try
+        {
+            var request = new MoveScheduleTaskRequest
+            {
+                NewStart = ParseLocalToUtc(payload.StartTime),
+                NewEnd = ParseLocalToUtc(payload.EndTime),
+                AllowPush = allowPush,
+                Reason = "blazor-resource-gantt-drag",
+                ChangedBy = "blazor",
+                Source = "blazor"
+            };
+            moveResult = await ApsApi.MoveTaskAsync(taskId, request, CancellationToken.None);
+            lastMoveMessage = $"moved: {moveResult.TaskId}, pushedCount={moveResult.PushedCount}, pushedIds={string.Join(",", moveResult.PushedTaskIds)} ({DateTime.Now:HH:mm:ss})";
+            await LoadTasks();
+        }
+        catch (ApsApiException ex)
+        {
+            moveError = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+        }
+        catch (Exception ex)
+        {
+            moveError = ex.Message;
+        }
+        finally
+        {
+            moving = false;
+        }
+    }
+
+    private async Task LoadChanges()
+    {
+        await RunWithTraceAsync("LoadChanges", async () =>
+        {
+            if (selectedTaskId <= 0)
+            {
+                return;
+            }
+
+            changes.Clear();
+            loading = true;
+
+            try
+            {
+                var list = await ApsApi.GetChangesAsync(selectedTaskId, CancellationToken.None);
+                changes.AddRange(list);
+            }
+            catch (ApsApiException ex)
+            {
+                moveError = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+            }
+            catch (Exception ex)
+            {
+                moveError = ex.Message;
+            }
+            finally
+            {
+                loading = false;
+            }
+        });
+    }
+
+    private static string FormatTime(DateTime? value)
+        => ToLocalDisplay(value) ?? "-";
+
+    private static string? ToLocalDisplay(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return null;
+        }
+
+        var normalized = value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value.ToLocalTime(),
+            DateTimeKind.Local => value.Value,
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc).ToLocalTime()
+        };
+
+        return normalized.ToString("yyyy-MM-dd HH:mm");
+    }
+
+    private static string ToLocalDateTime(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return "";
+        }
+
+        var normalized = value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value.ToLocalTime(),
+            DateTimeKind.Local => value.Value,
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc).ToLocalTime()
+        };
+
+        return normalized.ToString("yyyy-MM-ddTHH:mm:ss");
+    }
+
+    private static DateTime? ParseUtcIso(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        if (DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
+    private static string ToGanttLocal(DateTime? value)
+    {
+        if (!value.HasValue)
+        {
+            return DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+        }
+
+        var local = value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value.ToLocalTime(),
+            DateTimeKind.Local => value.Value,
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc).ToLocalTime()
+        };
+
+        return local.ToString("yyyy-MM-dd HH:mm");
+    }
+
+    private static DateTime? ParseLocalToUtc(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        if (DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
+        resourceGanttRef?.Dispose();
+    }
+
+    private static ResourceGanttPayload BuildResourceGanttPayload(IReadOnlyList<GanttTaskDto> list)
+    {
+        var resources = list
+            .Where(t => !string.IsNullOrWhiteSpace(t.MachineCode))
+            .GroupBy(t => t.MachineCode!)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var children = g
+                    .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+                    .OrderBy(t => t.PlannedStart)
+                    .Select(t => new ResourceGanttTask
+                    {
+                        Id = t.TaskId.ToString(CultureInfo.InvariantCulture),
+                        Code = t.OrderNo,
+                        Name = t.OperationName,
+                        StartTime = ToLocalDateTime(t.PlannedStart),
+                        EndTime = ToLocalDateTime(t.PlannedEnd),
+                        Color = ResolveTaskColor(t),
+                        Urgent = t.IsUrgent == true,
+                        Locked = t.IsLocked
+                    })
+                    .Where(t => !string.IsNullOrWhiteSpace(t.StartTime) && !string.IsNullOrWhiteSpace(t.EndTime))
+                    .ToList();
+
+                return new ResourceGanttResource
+                {
+                    Id = g.Key,
+                    Name = g.Key,
+                    Code = g.Key,
+                    Children = children
+                };
+            })
+            .Where(r => r.Children.Count > 0)
+            .ToList();
+
+        var planned = list
+            .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+            .ToList();
+        string[] dateRange;
+        if (planned.Count > 0)
+        {
+            var minStart = planned.Min(t => t.PlannedStart)!.Value.ToLocalTime();
+            var maxEnd = planned.Max(t => t.PlannedEnd)!.Value.ToLocalTime();
+            dateRange = new[]
+            {
+                minStart.ToString("yyyy-MM-ddTHH:mm:ss"),
+                maxEnd.ToString("yyyy-MM-ddTHH:mm:ss")
+            };
+        }
+        else
+        {
+            var now = DateTime.Now;
+            dateRange = new[]
+            {
+                now.AddDays(-1).ToString("yyyy-MM-ddTHH:mm:ss"),
+                now.AddDays(1).ToString("yyyy-MM-ddTHH:mm:ss")
+            };
+        }
+
+        return new ResourceGanttPayload
+        {
+            Resources = resources,
+            DateRange = dateRange
+        };
+    }
+
+    private static string ResolveTaskColor(GanttTaskDto task)
+    {
+        if (task.IsUrgent == true) return "#ef4444";
+        if (task.IsOutsourced) return "#f59e0b";
+        if (task.IsLocked) return "#0f172a";
+        return "#60a5fa";
+    }
+
+    public sealed class ResourceGanttPayload
+    {
+        public List<ResourceGanttResource> Resources { get; set; } = new();
+        public string[]? DateRange { get; set; }
+    }
+
+    public sealed class ResourceGanttResource
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? Code { get; set; }
+        public List<ResourceGanttTask> Children { get; set; } = new();
+    }
+
+    public sealed class ResourceGanttTask
+    {
+        public string Id { get; set; } = "";
+        public string? Code { get; set; }
+        public string? Name { get; set; }
+        public string StartTime { get; set; } = "";
+        public string EndTime { get; set; } = "";
+        public string? Color { get; set; }
+        public bool Urgent { get; set; }
+        public bool Locked { get; set; }
+    }
+
+    public sealed class ResourceGanttDragEnd
+    {
+        public string Id { get; set; } = "";
+        public string StartTime { get; set; } = "";
+        public string EndTime { get; set; } = "";
+    }
+
+    private sealed class MoveLogItem
+    {
+        public DateTime At { get; set; }
+        public long TaskId { get; set; }
+        public string OldStart { get; set; } = "-";
+        public string OldEnd { get; set; } = "-";
+        public string NewStart { get; set; } = "-";
+        public string NewEnd { get; set; } = "-";
+        public int Pushed { get; set; }
+        public string Result { get; set; } = "-";
+    }
+}
