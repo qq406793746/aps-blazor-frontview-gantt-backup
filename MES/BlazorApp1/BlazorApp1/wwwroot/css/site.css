@@ -188,6 +188,12 @@ html, body {
 .aps-schedule-panel {
   max-width: 900px;
 }
+
+.schedule-readonly-time {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.2px;
+}
 .gantt .bar.urgent { fill: #e74c3c; }
 .gantt .bar.locked { fill: #7f8c8d; }
 
