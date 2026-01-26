@@ -1,0 +1,1272 @@
+@page "/project-management"
+@attribute [Authorize]
+@inject ProjectManagementService ProjectManagementService
+@using BlazorApp1.Data
+@using System.Threading
+@using System.IO
+@using Microsoft.AspNetCore.Components.Forms
+@using OfficeOpenXml
+@using Microsoft.JSInterop
+
+<PageTitle>项目管理</PageTitle>
+
+<style>
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+    
+    .status-indicator.badge-success {
+        background-color: green;
+    }
+    
+    .status-indicator.badge-warning {
+        background-color: yellow;
+    }
+    
+    .status-indicator.badge-danger {
+        background-color: red;
+    }
+    
+    .status-indicator.badge-secondary {
+        background-color: gray;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- 页面标题区域 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>项目数据列表</h1>
+        <div>
+            <button class="btn btn-success mr-2" @onclick="OpenCreateModal">
+                <span class="oi oi-plus" aria-hidden="true"></span> 新建项目
+            </button>
+            <label for="fileInput" class="btn btn-primary mr-2 cursor-pointer">
+                <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> 导入数据
+            </label>
+            <InputFile id="fileInput" OnChange="OnFileSelected" accept=".xlsx,.xls" class="d-none" />
+            <button class="btn btn-secondary">
+                <span class="oi oi-data-transfer-download" aria-hidden="true"></span> 导出模板
+            </button>
+        </div>
+    </div>
+
+    <!-- 操作按钮区域 -->
+    <div class="mb-4">
+        <button class="btn btn-success mr-2" @onclick="StartProjects">
+            <span class="oi oi-play-circle" aria-hidden="true"></span> 项目启动
+        </button>
+        <button class="btn btn-warning mr-2" @onclick="PauseProjects">
+            <span class="oi oi-pause" aria-hidden="true"></span> 暂停
+        </button>
+        <button class="btn btn-danger mr-2" @onclick="TerminateProjects">
+            <span class="oi oi-stop" aria-hidden="true"></span> 终止
+        </button>
+        <button class="btn btn-danger mr-2" @onclick="ShowDeleteConfirmationModal">
+            <span class="oi oi-trash" aria-hidden="true"></span> 删除项目
+        </button>
+        <button class="btn btn-info mr-2" @onclick="OpenModifyModal">
+            <span class="oi oi-pencil" aria-hidden="true"></span> 修改信息
+        </button>
+        <button class="btn btn-secondary" @onclick="ManualRefresh">
+            <span class="oi oi-reload" aria-hidden="true"></span> 刷新数据
+        </button>
+    </div>
+
+    <!-- 导入状态提示 -->
+    @if (!string.IsNullOrEmpty(importStatus))
+    {
+        <div class="alert @(importStatusType == "success" ? "alert-success" : "alert-danger") mb-4">
+            @importStatus
+        </div>
+    }
+
+    <!-- 搜索过滤区域 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" placeholder="搜索项目名称/项目代码/模具号" @bind="searchText">
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100" @onclick="OnSearch">
+                        <span class="oi oi-magnifying-glass" aria-hidden="true"></span> 搜索
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据列表区域 -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="projectTable" style="table-layout: fixed;">
+                    <thead class="thead-light">
+                        <tr>
+                            <th><input type="checkbox" checked="@isAllSelected" @onchange="e => ToggleSelectAll((bool?)e.Value ?? false)"></th>
+                            <th>项目名称</th>
+                            <th>项目代码</th>
+                            <th>模具号</th>
+                            <th>行业</th>
+                            <th>客户</th>
+                            <th>产品名称</th>
+                            <th>内部交期</th>
+                            <th>客户交期</th>
+                            <th>优先级</th>
+                            <th>精度</th>
+                            <th>项目状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var project in currentPageProjects)
+                        {
+                            <tr>
+                                <td><input type="checkbox" checked="@project.IsSelected" @onchange="(e) => { project.IsSelected = (bool)e.Value; OnProjectSelectionChanged(); }"></td>
+                                <td>@project.ProjectName</td>
+                                <td>@project.ProjectCode</td>
+                                <td>@project.MoldCode</td>
+                                <td>@project.Industry</td>
+                                <td>@project.CustomerInfo</td>
+                                <td>@project.ProductName</td>
+                                <td>@(project.InternalDeadline?.ToString("yyyy-MM-dd"))</td>
+                                <td>@(project.CustomerDeadline?.ToString("yyyy-MM-dd"))</td>
+                                <td>@project.Priority</td>
+                                <td>@project.Accuracy</td>
+                                <td>
+                                    <span class="status-indicator @project.ProjectStatusClass"></span>
+                                    <span>@project.ProjectStatus</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" @onclick="async () => await OpenModifyModalForProject(project)">
+                                        <span class="oi oi-pencil" aria-hidden="true"></span> 修改
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页控件 -->
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <div class="me-3">显示 @((currentPage - 1) * pageSize + 1) 到 @Math.Min(currentPage * pageSize, totalItems) 条，共 @totalItems 条记录</div>
+            <div>
+                <label for="pageSizeSelect" class="me-1">每页显示：</label>
+                <select id="pageSizeSelect" class="form-select form-select-sm" @onchange="OnPageSizeChanged" value="@pageSize">
+                    @foreach (var size in pageSizeOptions)
+                    {
+                        <option value="@size">@size</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="PreviousPage" @onclick:preventDefault tabindex="-1">上一页</a>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    <li class="page-item @(i == currentPage ? "active" : "")">
+                        <a class="page-link" href="#" @onclick="() => GoToPage(i)" @onclick:preventDefault>@i</a>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="NextPage" @onclick:preventDefault>下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+
+
+
+
+<style>
+    /* 确保表格使用固定布局 */
+    #projectTable {
+        table-layout: fixed;
+        width: 100%;
+    }
+    
+    /* 表格单元格样式 */
+    #projectTable td, #projectTable th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 8px;
+    }
+    
+    /* 拖拽手柄基础样式 */
+    .table-column-resizer {
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+    }
+</style>
+
+<!-- 修改项目信息弹窗 -->
+@if (isModifyModalOpen && editingProject != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">修改项目信息</h5>
+                    <button type="button" class="close" @onclick="CancelChanges">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="projectName" class="form-label">项目名称</label>
+                                <input type="text" class="form-control" id="projectName" @bind="editingProject.ProjectName">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="projectCode" class="form-label">项目代码</label>
+                                <input type="text" class="form-control" id="projectCode" @bind="editingProject.ProjectCode">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="moldNumber" class="form-label">模具号</label>
+                                <input type="text" class="form-control" id="moldNumber" @bind="editingProject.MoldCode">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="industry" class="form-label">行业</label>
+                                <input type="text" class="form-control" id="industry" @bind="editingProject.Industry">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer" class="form-label">客户</label>
+                                <input type="text" class="form-control" id="customer" @bind="editingProject.CustomerInfo">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="productName" class="form-label">产品名称</label>
+                                <input type="text" class="form-control" id="productName" @bind="editingProject.ProductName">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="internalDeadline" class="form-label">内部交期</label>
+                                <input type="date" class="form-control" id="internalDeadline" @bind="editingProject.InternalDeadline">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="customerDeadline" class="form-label">客户交期</label>
+                                <input type="date" class="form-control" id="customerDeadline" @bind="editingProject.CustomerDeadline">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="priority" class="form-label">优先级</label>
+                                <select class="form-control" id="priority" @bind="editingProject.Priority">
+                                    <option value="500">500</option>
+                                    <option value="600">600</option>
+                                    <option value="700">700</option>
+                                    <option value="800">800</option>
+                                    <option value="900">900</option>
+                                    <option value="1000">1000</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="accuracy" class="form-label">精度</label>
+                                <input type="text" class="form-control" id="accuracy" @bind="editingProject.Accuracy">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="projectStatus" class="form-label">项目状态</label>
+                                <select class="form-control" id="projectStatus" @bind="editingProject.ProjectStatus">
+                                    <option value="进行中">进行中</option>
+                                    <option value="暂停">暂停</option>
+                                    <option value="未启动">未启动</option>
+                                    <option value="终止">终止</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelChanges">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveChanges">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- 删除项目确认弹窗 -->
+@if (isDeleteModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认删除项目</h5>
+                    <button type="button" class="close" @onclick="CancelDelete">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除选中的 @selectedProjectsCount 个项目吗？此操作将删除数据库中的项目记录，且无法恢复。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">取消</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    // 项目数据模型 - 与数据库表结构匹配
+    public class ProjectData
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public string ProjectCode { get; set; } = string.Empty;
+        public string MoldCode { get; set; } = string.Empty;
+        public string Industry { get; set; } = string.Empty;
+        public string CustomerInfo { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public DateTime? InternalDeadline { get; set; }
+        public DateTime? CustomerDeadline { get; set; }
+        public int? Priority { get; set; }
+        public string ProjectStatus { get; set; } = string.Empty;
+        public string Accuracy { get; set; } = string.Empty;
+        public string PriorityClass { get; set; } = string.Empty;
+        public string ProjectStatusClass { get; set; } = string.Empty;
+        public bool IsSelected { get; set; }
+    }
+
+    // 分页相关变量
+    private int currentPage = 1;
+    private int pageSize = 8;
+    private int totalItems;
+    private int totalPages;
+    // 可选的每页记录数
+    private List<int> pageSizeOptions = new List<int> { 5, 10, 20, 50 };
+    private List<ProjectData> allProjects = new List<ProjectData>();
+    private List<ProjectData> filteredProjects = new List<ProjectData>(); // 保存过滤后的项目列表
+    private List<ProjectData> currentPageProjects = new List<ProjectData>();
+    // 全选相关变量
+    private bool isAllSelected = false;
+    // 弹窗相关变量
+    private bool isModifyModalOpen = false;
+    private ProjectData? selectedProject = null;
+    private ProjectData? editingProject = null;
+    private string originalProjectCode = string.Empty;
+    // 删除项目相关变量
+    private bool isDeleteModalOpen = false;
+    private int selectedProjectsCount = 0;
+
+    // 注入JSInterop服务
+    [Inject]
+    private IJSRuntime? JSRuntime { get; set; }
+
+    // 导入相关变量
+    private string importStatus = string.Empty;
+    private string importStatusType = string.Empty;
+    
+    // 搜索相关变量
+    private string searchText = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // 从数据库获取数据
+        LoadProjectsFromDatabase();
+        // 更新分页数据
+        UpdateCurrentPageData();
+    }
+    
+    // 表格列宽拖拽功能初始化
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && JSRuntime != null)
+        {
+            // 使用JavaScript初始化拖拽功能
+            await JSRuntime.InvokeVoidAsync("initProjectTableResizer");
+        }
+    }
+
+    // 手动刷新数据
+    private void ManualRefresh()
+    {
+        LoadProjectsFromDatabase();
+        UpdateCurrentPageData();
+    }
+
+    // 从数据库加载项目数据
+    private void LoadProjectsFromDatabase()
+    {
+        try
+        {
+            // 直接调用服务获取数据库数据
+            var dbProjects = ProjectManagementService.GetAllProjects();
+            
+            // 转换为UI使用的数据模型
+            var convertedProjects = dbProjects.Select(p => new ProjectData
+            {
+                ProjectName = p.ProjectName,
+                ProjectCode = p.ProjectCode,
+                MoldCode = p.MoldCode,
+                Industry = p.Industry,
+                CustomerInfo = p.CustomerInfo,
+                ProductName = p.ProductName,
+                InternalDeadline = p.InternalLeadTime,
+                CustomerDeadline = p.CustomerLeadTime,
+                Priority = p.Priority,
+                ProjectStatus = p.ProjectStatus,
+                Accuracy = p.AccuracyLevel,
+                IsSelected = false
+            }).ToList();
+
+            // 直接使用转换后的项目列表，绝不回退到模拟数据
+            allProjects = convertedProjects;
+
+            // 更新优先级和项目状态的样式类
+            foreach (var project in allProjects)
+            {
+                UpdatePriorityClass(project);
+                UpdateProjectStatusClass(project);
+            }
+        }
+        catch (Exception)
+        {
+            // 发生错误时，使用空列表，而不是模拟数据
+            allProjects = new List<ProjectData>();
+        }
+        
+        // 执行搜索
+        PerformSearch();
+    }
+    
+    // 执行搜索
+    private void PerformSearch()
+    {
+        List<ProjectData> filteredProjects;
+        
+        // 如果搜索文本为空，显示所有项目
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredProjects = allProjects;
+        }
+        else
+        {
+            // 过滤项目：匹配项目名称、项目代码或模具号
+            string searchLower = searchText.ToLower();
+            filteredProjects = allProjects.Where(p =>
+                p.ProjectName.ToLower().Contains(searchLower) ||
+                p.ProjectCode.ToLower().Contains(searchLower) ||
+                p.MoldCode.ToLower().Contains(searchLower)
+            ).ToList();
+        }
+        
+        totalItems = filteredProjects.Count;
+        totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        
+        // 确保当前页不超过总页数
+        if (currentPage > totalPages)
+        {
+            currentPage = Math.Max(1, totalPages);
+        }
+        
+        // 更新当前页数据
+        UpdateCurrentPageData(filteredProjects);
+    }
+    
+    // 点击搜索按钮
+    private void OnSearch()
+    {
+        currentPage = 1; // 搜索时重置到第一页
+        PerformSearch();
+    }
+
+
+
+    // 更新当前页面的数据
+    private void UpdateCurrentPageData()
+    {
+        // 如果filteredProjects为空，则使用allProjects
+        var projectsToUse = filteredProjects.Any() ? filteredProjects : allProjects;
+        // 调用重载版本，传入要使用的项目列表
+        UpdateCurrentPageData(projectsToUse);
+    }
+    
+    // 更新当前页面的数据（重载版本，接受过滤后的项目列表）
+    private void UpdateCurrentPageData(List<ProjectData> filteredProjects)
+    {
+        currentPageProjects = filteredProjects
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        StateHasChanged();
+    }
+
+    // 跳转到指定页面
+    private void GoToPage(int pageNumber)
+    {
+        if (pageNumber >= 1 && pageNumber <= totalPages)
+        {
+            currentPage = pageNumber;
+            // 直接更新当前页数据，不调用中间方法
+            var projectsToUse = filteredProjects.Any() ? filteredProjects : allProjects;
+            currentPageProjects = projectsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 重置全选状态
+            isAllSelected = false;
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+    
+    // 全选/取消全选
+    private void ToggleSelectAll(bool checkedValue)
+    {
+        isAllSelected = checkedValue;
+        foreach (var project in allProjects)
+        {
+            project.IsSelected = checkedValue;
+        }
+    }
+    
+    // 单个项目选择状态改变
+    private void OnProjectSelectionChanged()
+    {
+        // 如果有任何一个项目未选中，则取消全选状态
+        isAllSelected = allProjects.All(p => p.IsSelected);
+    }
+
+    // 上一页
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            // 直接更新当前页数据，不调用中间方法
+            var projectsToUse = filteredProjects.Any() ? filteredProjects : allProjects;
+            currentPageProjects = projectsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+
+    // 下一页
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            // 直接更新当前页数据，不调用中间方法
+            var projectsToUse = filteredProjects.Any() ? filteredProjects : allProjects;
+            currentPageProjects = projectsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+    
+    // 页面大小变更事件
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            pageSize = Convert.ToInt32(e.Value);
+            currentPage = 1; // 重置到第一页
+            PerformSearch(); // 重新搜索并更新分页数据
+        }
+    }
+    
+    // 打开修改信息弹窗（通过复选框选择）
+    private async Task OpenModifyModal()
+    {
+        // 获取选中的项目
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        
+        // 只允许选中一个项目进行修改
+        if (selectedProjects.Count == 1)
+        {
+            selectedProject = selectedProjects.First();
+            // 保存原始ProjectCode
+            originalProjectCode = selectedProject.ProjectCode;
+            // 创建一个深拷贝用于编辑
+                editingProject = new ProjectData()
+                {
+                    ProjectName = selectedProject.ProjectName,
+                    ProjectCode = selectedProject.ProjectCode,
+                    MoldCode = selectedProject.MoldCode,
+                    Industry = selectedProject.Industry,
+                    CustomerInfo = selectedProject.CustomerInfo,
+                    ProductName = selectedProject.ProductName,
+                    InternalDeadline = selectedProject.InternalDeadline,
+                    CustomerDeadline = selectedProject.CustomerDeadline,
+                    Priority = selectedProject.Priority,
+                    ProjectStatus = selectedProject.ProjectStatus,
+                    Accuracy = selectedProject.Accuracy,
+                    IsSelected = selectedProject.IsSelected
+                };
+            
+            // 打开弹窗
+            isModifyModalOpen = true;
+        }
+        else
+        {
+            // 使用JSInterop显示提示信息
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "请选择一个项目");
+            }
+        }
+    }
+    
+    // 打开修改信息弹窗（通过点击眼睛图标）
+    private async Task OpenModifyModalForProject(ProjectData project)
+    {
+        // 直接使用传入的项目
+        selectedProject = project;
+        // 保存原始ProjectCode
+        originalProjectCode = selectedProject.ProjectCode;
+        // 创建一个深拷贝用于编辑
+        editingProject = new ProjectData()
+        {
+            ProjectName = selectedProject.ProjectName,
+            ProjectCode = selectedProject.ProjectCode,
+            MoldCode = selectedProject.MoldCode,
+            Industry = selectedProject.Industry,
+            CustomerInfo = selectedProject.CustomerInfo,
+            ProductName = selectedProject.ProductName,
+            InternalDeadline = selectedProject.InternalDeadline,
+            CustomerDeadline = selectedProject.CustomerDeadline,
+            Priority = selectedProject.Priority,
+            ProjectStatus = selectedProject.ProjectStatus,
+            Accuracy = selectedProject.Accuracy,
+            IsSelected = selectedProject.IsSelected
+        };
+        
+        // 打开弹窗
+        isModifyModalOpen = true;
+    }
+    
+    // 保存修改
+    private async Task SaveChanges()
+    {
+        Console.WriteLine("===== SaveChanges Start =====");
+        Console.WriteLine($"editingProject is null: {editingProject == null}");
+        Console.WriteLine($"selectedProject is null: {selectedProject == null}");
+        
+        if (editingProject != null && selectedProject != null)
+        {
+            Console.WriteLine($"editingProject.ProjectCode: '{editingProject.ProjectCode}'");
+            Console.WriteLine($"editingProject.ProjectName: '{editingProject.ProjectName}'");
+            Console.WriteLine($"editingProject.ProjectStatus: '{editingProject.ProjectStatus}'");
+            
+            // 更新优先级和项目状态的样式类
+            UpdatePriorityClass(editingProject);
+            UpdateProjectStatusClass(editingProject);
+            
+            // 将修改应用到数据库
+            var dbProject = new MESProjectManagement
+            {
+                ProjectName = editingProject.ProjectName,
+                ProjectCode = editingProject.ProjectCode,
+                MoldCode = editingProject.MoldCode,
+                Industry = editingProject.Industry,
+                CustomerInfo = editingProject.CustomerInfo,
+                ProductName = editingProject.ProductName,
+                InternalLeadTime = editingProject.InternalDeadline,
+                CustomerLeadTime = editingProject.CustomerDeadline,
+                Priority = editingProject.Priority,
+                ProjectStatus = editingProject.ProjectStatus,
+                AccuracyLevel = editingProject.Accuracy
+            };
+            
+            Console.WriteLine("Calling UpdateProjectAsync...");
+            Console.WriteLine($"Original ProjectCode: '{originalProjectCode}'");
+            var result = await ProjectManagementService.UpdateProjectAsync(dbProject, originalProjectCode);
+            Console.WriteLine($"UpdateProjectAsync result: {result} rows affected");
+            
+            // 更新本地数据
+            selectedProject.ProjectName = editingProject.ProjectName;
+            selectedProject.ProjectCode = editingProject.ProjectCode;
+            selectedProject.MoldCode = editingProject.MoldCode;
+            selectedProject.Industry = editingProject.Industry;
+            selectedProject.CustomerInfo = editingProject.CustomerInfo;
+            selectedProject.ProductName = editingProject.ProductName;
+            selectedProject.InternalDeadline = editingProject.InternalDeadline;
+            selectedProject.CustomerDeadline = editingProject.CustomerDeadline;
+            selectedProject.Priority = editingProject.Priority;
+            selectedProject.PriorityClass = editingProject.PriorityClass;
+            selectedProject.ProjectStatus = editingProject.ProjectStatus;
+            selectedProject.ProjectStatusClass = editingProject.ProjectStatusClass;
+            selectedProject.Accuracy = editingProject.Accuracy;
+            
+            // 关闭弹窗
+            isModifyModalOpen = false;
+            // 更新当前页面数据
+            UpdateCurrentPageData();
+            Console.WriteLine("Page data updated");
+        }
+        Console.WriteLine("===== SaveChanges End =====");
+    }
+    
+    // 取消修改
+    private void CancelChanges()
+    {
+        // 关闭弹窗
+        isModifyModalOpen = false;
+        // 重置编辑项目
+        editingProject = null;
+        selectedProject = null;
+    }
+    
+    // 更新优先级样式类
+    private void UpdatePriorityClass(ProjectData project)
+    {
+        // 根据数值范围设置优先级样式类
+        if (project.Priority.HasValue)
+        {
+            int priorityValue = project.Priority.GetValueOrDefault();
+            if (priorityValue >= 1000)
+            {
+                project.PriorityClass = "badge-danger";
+            }
+            else if (priorityValue >= 900)
+            {
+                project.PriorityClass = "badge-danger";
+            }
+            else if (priorityValue >= 800)
+            {
+                project.PriorityClass = "badge-warning";
+            }
+            else if (priorityValue >= 700)
+            {
+                project.PriorityClass = "badge-warning";
+            }
+            else if (priorityValue >= 600)
+            {
+                project.PriorityClass = "badge-secondary";
+            }
+            else if (priorityValue >= 500)
+            {
+                project.PriorityClass = "badge-secondary";
+            }
+            else
+            {
+                project.PriorityClass = "badge-secondary";
+            }
+        }
+        else
+        {
+            project.PriorityClass = "badge-secondary";
+        }
+    }
+    
+    // 更新项目状态样式类
+    private void UpdateProjectStatusClass(ProjectData project)
+    {
+        switch (project.ProjectStatus)
+        {
+            case "进行中":
+                project.ProjectStatusClass = "badge-success";
+                break;
+            case "暂停":
+                project.ProjectStatusClass = "badge-warning";
+                break;
+            case "未启动":
+                project.ProjectStatusClass = "badge-secondary";
+                break;
+            case "终止":
+                project.ProjectStatusClass = "badge-danger";
+                break;
+            default:
+                project.ProjectStatusClass = "badge-secondary";
+                break;
+        }
+    }
+    
+    // 项目启动
+    private async Task StartProjects()
+    {
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        if (selectedProjects.Count > 0)
+        {
+            foreach (var project in selectedProjects)
+            {
+                project.ProjectStatus = "进行中";
+                UpdateProjectStatusClass(project);
+                
+                // 更新到数据库
+                var dbProject = new MESProjectManagement
+                {
+                    ProjectName = project.ProjectName,
+                    ProjectCode = project.ProjectCode,
+                    MoldCode = project.MoldCode,
+                    Industry = project.Industry,
+                    CustomerInfo = project.CustomerInfo,
+                    ProductName = project.ProductName,
+                    InternalLeadTime = project.InternalDeadline,
+                    CustomerLeadTime = project.CustomerDeadline,
+                    Priority = project.Priority,
+                    ProjectStatus = project.ProjectStatus,
+                    AccuracyLevel = project.Accuracy
+                };
+                await ProjectManagementService.UpdateProjectAsync(dbProject, project.ProjectCode);
+            }
+            UpdateCurrentPageData();
+        }
+        else
+        {
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "请选择项目");
+            }
+        }
+    }
+
+    // 显示删除确认模态框
+    private async Task ShowDeleteConfirmationModal()
+    {
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        if (selectedProjects.Count > 0)
+        {
+            selectedProjectsCount = selectedProjects.Count;
+            isDeleteModalOpen = true;
+        }
+        else
+        {
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "请选择要删除的项目");
+            }
+        }
+    }
+
+    // 取消删除
+    private void CancelDelete()
+    {
+        isDeleteModalOpen = false;
+        selectedProjectsCount = 0;
+    }
+
+    // 确认删除
+    private async Task ConfirmDelete()
+    {
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        if (selectedProjects.Count > 0)
+        {
+            foreach (var project in selectedProjects)
+            {
+                // 从数据库删除项目
+                await ProjectManagementService.DeleteProjectAsync(project.ProjectCode);
+            }
+            
+            // 从本地列表中删除项目
+            allProjects = allProjects.Where(p => !p.IsSelected).ToList();
+            
+            // 更新分页数据
+            totalItems = allProjects.Count;
+            totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+            if (currentPage > totalPages)
+            {
+                currentPage = Math.Max(1, totalPages);
+            }
+            UpdateCurrentPageData();
+            
+            // 关闭弹窗
+            isDeleteModalOpen = false;
+            selectedProjectsCount = 0;
+            
+            // 重置全选状态
+            isAllSelected = false;
+        }
+    }
+    
+    // 项目暂停
+    private async Task PauseProjects()
+    {
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        if (selectedProjects.Count > 0)
+        {
+            foreach (var project in selectedProjects)
+            {
+                project.ProjectStatus = "暂停";
+                UpdateProjectStatusClass(project);
+                
+                // 更新到数据库
+                var dbProject = new MESProjectManagement
+                {
+                    ProjectName = project.ProjectName,
+                    ProjectCode = project.ProjectCode,
+                    MoldCode = project.MoldCode,
+                    Industry = project.Industry,
+                    CustomerInfo = project.CustomerInfo,
+                    ProductName = project.ProductName,
+                    InternalLeadTime = project.InternalDeadline,
+                    CustomerLeadTime = project.CustomerDeadline,
+                    Priority = project.Priority,
+                    ProjectStatus = project.ProjectStatus,
+                    AccuracyLevel = project.Accuracy
+                };
+                await ProjectManagementService.UpdateProjectAsync(dbProject, project.ProjectCode);
+            }
+            UpdateCurrentPageData();
+        }
+        else
+        {
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "请选择项目");
+            }
+        }
+    }
+    
+    // 项目终止
+    private async Task TerminateProjects()
+    {
+        var selectedProjects = allProjects.Where(p => p.IsSelected).ToList();
+        if (selectedProjects.Count > 0)
+        {
+            foreach (var project in selectedProjects)
+            {
+                project.ProjectStatus = "终止";
+                UpdateProjectStatusClass(project);
+                
+                // 更新到数据库
+                var dbProject = new MESProjectManagement
+                {
+                    ProjectName = project.ProjectName,
+                    ProjectCode = project.ProjectCode,
+                    MoldCode = project.MoldCode,
+                    Industry = project.Industry,
+                    CustomerInfo = project.CustomerInfo,
+                    ProductName = project.ProductName,
+                    InternalLeadTime = project.InternalDeadline,
+                    CustomerLeadTime = project.CustomerDeadline,
+                    Priority = project.Priority,
+                    ProjectStatus = project.ProjectStatus,
+                    AccuracyLevel = project.Accuracy
+                };
+                await ProjectManagementService.UpdateProjectAsync(dbProject, project.ProjectCode);
+            }
+            UpdateCurrentPageData();
+        }
+        else
+        {
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "请选择项目");
+            }
+        }
+    }
+    
+    // 文件选择事件处理
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        importStatus = string.Empty;
+        importStatusType = string.Empty;
+        try
+        {
+            var file = e.File;
+            if (file == null)
+            {
+                importStatus = "请选择有效的Excel文件";
+                importStatusType = "danger";
+                return;
+            }
+            
+            // 验证文件类型
+            var fileExtension = Path.GetExtension(file.Name).ToLower();
+            if (fileExtension != ".xlsx" && fileExtension != ".xls")
+            {
+                importStatus = "请选择有效的Excel文件(.xlsx或.xls格式)";
+                importStatusType = "danger";
+                return;
+            }
+            
+            using var stream = new MemoryStream();
+            await file.OpenReadStream().CopyToAsync(stream);
+            stream.Position = 0;
+            
+            // 解析Excel文件
+            var projects = ParseExcelFile(stream);
+            if (projects.Count == 0)
+            {
+                importStatus = "Excel文件中没有有效数据";
+                importStatusType = "danger";
+                return;
+            }
+            
+            // 导入到数据库
+            var importedCount = await ProjectManagementService.BulkImportProjectsAsync(projects);
+            if (importedCount > 0)
+            {
+                importStatus = $"成功导入 {importedCount} 条项目数据";
+                importStatusType = "success";
+                // 重新加载数据
+                LoadProjectsFromDatabase();
+                UpdateCurrentPageData();
+            }
+            else
+            {
+                importStatus = "导入失败，请检查Excel文件格式";
+                importStatusType = "danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            importStatus = $"导入失败: {ex.Message}";
+            importStatusType = "danger";
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+        }
+    }
+    
+    // Excel文件解析逻辑
+    private List<MESProjectManagement> ParseExcelFile(Stream stream)
+    {
+        var projects = new List<MESProjectManagement>();
+        try
+        {
+            using var package = new ExcelPackage(stream);
+            var worksheet = package.Workbook.Worksheets.First();
+            int rowCount = worksheet.Dimension.Rows;
+            
+            // 从第二行开始读取数据（第一行是标题）
+            for (int row = 2; row <= rowCount; row++)
+            {
+                try
+                {
+                    var project = new MESProjectManagement();
+                    project.ProjectName = worksheet.Cells[row, 1].Text?.Trim();
+                    project.ProjectCode = worksheet.Cells[row, 2].Text?.Trim();
+                    project.MoldCode = worksheet.Cells[row, 3].Text?.Trim();
+                    project.Industry = worksheet.Cells[row, 4].Text?.Trim();
+                    project.CustomerInfo = worksheet.Cells[row, 5].Text?.Trim();
+                    project.ProductName = worksheet.Cells[row, 6].Text?.Trim();
+                    
+                    // 解析内部交期
+                    if (DateTime.TryParse(worksheet.Cells[row, 7].Text, out DateTime internalLeadTime))
+                        project.InternalLeadTime = internalLeadTime;
+                    
+                    // 解析客户交期
+                    if (DateTime.TryParse(worksheet.Cells[row, 8].Text, out DateTime customerLeadTime))
+                        project.CustomerLeadTime = customerLeadTime;
+                    
+                    project.AccuracyLevel = worksheet.Cells[row, 9].Text?.Trim();
+                    
+                    // 解析优先级
+                    if (int.TryParse(worksheet.Cells[row, 10].Text, out int priority))
+                        project.Priority = priority;
+                    
+                    project.ProjectStatus = worksheet.Cells[row, 11].Text?.Trim();
+                    
+                    // 只有当项目代码不为空时才添加
+                    if (!string.IsNullOrEmpty(project.ProjectCode))
+                        projects.Add(project);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"解析第 {row} 行数据失败: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"解析Excel文件失败: {ex.Message}");
+            throw;
+        }
+        return projects;
+    }
+    
+    // 新建项目模态框相关变量
+    private bool isCreateModalOpen = false;
+    private MESProjectManagement newProject = new MESProjectManagement();
+    private string createStatus = string.Empty;
+    private string createStatusType = string.Empty;
+    
+    // 打开新建项目模态框
+    private void OpenCreateModal()
+    {
+        newProject = new MESProjectManagement();
+        createStatus = string.Empty;
+        isCreateModalOpen = true;
+    }
+    
+    // 关闭新建项目模态框
+    private void CloseCreateModal()
+    {
+        isCreateModalOpen = false;
+        createStatus = string.Empty;
+    }
+    
+    // 保存新项目
+    private async Task SaveNewProject()
+    {
+        try
+        {
+            // 验证必填项
+            if (string.IsNullOrEmpty(newProject.ProjectName) || 
+                string.IsNullOrEmpty(newProject.ProjectCode) || 
+                string.IsNullOrEmpty(newProject.MoldCode) || 
+                string.IsNullOrEmpty(newProject.ProductName))
+            {
+                createStatus = "请填写所有必填项（项目名称、项目代码、模具号、产品名称）";
+                createStatusType = "danger";
+                return;
+            }
+            
+            // 设置默认值
+            if (string.IsNullOrEmpty(newProject.ProjectStatus))
+            {
+                newProject.ProjectStatus = "新建";
+            }
+            
+            // 保存到数据库
+            int result = await ProjectManagementService.AddProjectAsync(newProject);
+            if (result > 0)
+            {
+                createStatus = "新项目创建成功";
+                createStatusType = "success";
+                
+                // 重新加载数据
+                LoadProjectsFromDatabase();
+                UpdateCurrentPageData();
+                
+                // 延迟关闭模态框，让用户看到成功提示
+                await Task.Delay(1500);
+                CloseCreateModal();
+            }
+            else
+            {
+                createStatus = "新项目创建失败，请稍后重试";
+                createStatusType = "danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            createStatus = $"新建项目失败: {ex.Message}";
+            createStatusType = "danger";
+            Console.WriteLine(ex);
+        }
+    }
+}
+
+<!-- 新建项目模态框 -->
+@if (isCreateModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">新建项目</h5>
+                    <button type="button" class="close" @onclick="CloseCreateModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(createStatus))
+                    {
+                        <div class="alert @(createStatusType == "success" ? "alert-success" : "alert-danger") mb-3">
+                            @createStatus
+                        </div>
+                    }
+                    
+                    <div class="form-group">
+                        <label for="projectName">项目名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="projectName" @bind="newProject.ProjectName" placeholder="请输入项目名称">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="projectCode">项目代码 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="projectCode" @bind="newProject.ProjectCode" placeholder="请输入项目代码">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="moldCode">模具号 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="moldCode" @bind="newProject.MoldCode" placeholder="请输入模具号">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="industry">行业</label>
+                        <input type="text" class="form-control" id="industry" @bind="newProject.Industry" placeholder="请输入行业">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="customerInfo">客户信息</label>
+                        <input type="text" class="form-control" id="customerInfo" @bind="newProject.CustomerInfo" placeholder="请输入客户信息">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="productName">产品名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="productName" @bind="newProject.ProductName" placeholder="请输入产品名称">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="internalLeadTime">内部交期</label>
+                        <input type="datetime-local" class="form-control" id="internalLeadTime" @bind="newProject.InternalLeadTime">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="customerLeadTime">客户交期</label>
+                        <input type="datetime-local" class="form-control" id="customerLeadTime" @bind="newProject.CustomerLeadTime">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accuracyLevel">精度等级</label>
+                        <input type="text" class="form-control" id="accuracyLevel" @bind="newProject.AccuracyLevel" placeholder="请输入精度等级">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="priority">优先级</label>
+                        <select class="form-control" id="priority" @bind="newProject.Priority">
+                            <option value="">请选择优先级</option>
+                            <option value="500">500</option>
+                            <option value="600">600</option>
+                            <option value="700">700</option>
+                            <option value="800">800</option>
+                            <option value="900">900</option>
+                            <option value="1000">1000</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="projectStatus">项目状态</label>
+                        <select class="form-control" id="projectStatus" @bind="newProject.ProjectStatus">
+                            <option value="新建">新建</option>
+                            <option value="进行中">进行中</option>
+                            <option value="已完成">已完成</option>
+                            <option value="已暂停">已暂停</option>
+                            <option value="已终止">已终止</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCreateModal">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveNewProject">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}

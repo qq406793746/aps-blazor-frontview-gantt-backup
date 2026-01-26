@@ -1,0 +1,770 @@
+@page "/bom-management"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+
+<PageTitle>BOM管理</PageTitle>
+
+@code {
+    // 注入BOM管理服务
+    [Inject]
+    private BOMManagementService? BOMManagementService { get; set; }
+    
+    // 注入JS运行时服务
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+
+    // BOM数据模型
+    public class BOMData
+    {
+        public int Id { get; set; }
+        public string Drawing { get; set; } = string.Empty;
+        public string ImageData { get; set; } = string.Empty;
+        public string ReportStatus { get; set; } = string.Empty;
+        public string ReportStatusClass { get; set; } = string.Empty;
+        public string Project { get; set; } = string.Empty;
+        public string PartNumber { get; set; } = string.Empty;
+        public string WorkOrderType { get; set; } = string.Empty;
+        public string WorkOrderNumber { get; set; } = string.Empty;
+        public string Material { get; set; } = string.Empty;
+        public string BarcodeInfo { get; set; } = string.Empty;
+        public string ProcessPersonnel { get; set; } = string.Empty;
+        public bool IsSelected { get; set; }
+        // 原始值，用于数据库更新时定位记录
+        public string OriginalProject { get; set; } = string.Empty;
+        public string OriginalPartNumber { get; set; } = string.Empty;
+        public string OriginalWorkOrderNumber { get; set; } = string.Empty;
+    }
+
+    // 分页相关变量
+    private int currentPage = 1;
+    private int pageSize = 8;
+    private int totalItems;
+    private int totalPages;
+    // 可选的每页记录数
+    private List<int> pageSizeOptions = new List<int> { 5, 10, 20, 50 };
+    private List<BOMData> allBOMs = new List<BOMData>();
+    private List<BOMData> filteredBOMs = new List<BOMData>(); // 保存过滤后的BOM列表
+    private List<BOMData> currentPageBOMs = new List<BOMData>();
+    // 搜索相关变量
+    private string searchText = string.Empty;
+    // 全选相关变量
+    private bool isAllSelected = false;
+    // 弹窗相关变量
+    private bool isModifyModalOpen = false;
+    private BOMData selectedBOM = null!;
+    private BOMData editingBOM = null!;
+    // 删除确认弹窗相关变量
+    private bool isDeleteModalOpen = false;
+    private List<BOMData> selectedBOMs = new List<BOMData>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 从数据库加载BOM数据
+        await LoadBOMsFromDatabase();
+        // 初始化过滤后的BOM列表
+        filteredBOMs = allBOMs;
+        // 执行初始搜索
+        PerformSearch();
+    }
+
+    // 手动刷新数据
+    private async Task ManualRefresh()
+    {
+        await LoadBOMsFromDatabase();
+        // 初始化过滤后的BOM列表
+        filteredBOMs = allBOMs;
+        // 执行搜索以更新分页数据
+        PerformSearch();
+    }
+
+    // 从数据库加载BOM数据
+    private async Task LoadBOMsFromDatabase()
+    {
+        // 从数据库加载BOM数据
+        if (BOMManagementService != null)
+        {
+            allBOMs = (await BOMManagementService.GetAllBOMsAsync()).ToList();
+        }
+    }
+
+
+
+    // 更新当前页面的数据
+    private void UpdateCurrentPageData()
+    {
+        // 如果filteredBOMs为空，则使用allBOMs
+        var bomsToUse = filteredBOMs.Any() ? filteredBOMs : allBOMs;
+        // 调用重载版本，传入要使用的BOM列表
+        UpdateCurrentPageData(bomsToUse);
+    }
+    
+    // 更新当前页面的数据（重载版本，接受过滤后的BOM列表）
+    private void UpdateCurrentPageData(List<BOMData> filteredBOMs)
+    {
+        currentPageBOMs = filteredBOMs
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+        StateHasChanged();
+    }
+
+    // 跳转到指定页面
+    private void GoToPage(int pageNumber)
+    {
+        if (pageNumber >= 1 && pageNumber <= totalPages)
+        {
+            currentPage = pageNumber;
+            // 使用过滤后的BOM列表
+            var bomsToUse = filteredBOMs.Any() ? filteredBOMs : allBOMs;
+            currentPageBOMs = bomsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 重置全选状态
+            isAllSelected = false;
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+    
+    // 全选/取消全选
+    private void ToggleSelectAll(bool checkedValue)
+    {
+        isAllSelected = checkedValue;
+        foreach (var bom in allBOMs)
+        {
+            bom.IsSelected = checkedValue;
+        }
+    }
+    
+    // 单个BOM选择状态改变
+    private void OnBOMSelectionChanged()
+    {
+        // 如果有任何一个BOM未选中，则取消全选状态
+        isAllSelected = allBOMs.All(b => b.IsSelected);
+    }
+
+    // 上一页
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            // 使用过滤后的BOM列表
+            var bomsToUse = filteredBOMs.Any() ? filteredBOMs : allBOMs;
+            currentPageBOMs = bomsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+
+    // 下一页
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            // 使用过滤后的BOM列表
+            var bomsToUse = filteredBOMs.Any() ? filteredBOMs : allBOMs;
+            currentPageBOMs = bomsToUse
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            // 通知UI更新
+            StateHasChanged();
+        }
+    }
+    
+    // 页面大小变更事件
+    private void OnPageSizeChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            pageSize = Convert.ToInt32(e.Value);
+            currentPage = 1; // 重置到第一页
+            PerformSearch(); // 重新搜索并更新分页数据
+        }
+    }
+    
+    // 点击搜索按钮
+    private void OnSearch()
+    {
+        currentPage = 1; // 搜索时重置到第一页
+        PerformSearch();
+    }
+    
+    // 执行搜索
+    private void PerformSearch()
+    {
+        // 如果搜索文本为空，显示所有BOM
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredBOMs = allBOMs;
+        }
+        else
+        {
+            // 过滤BOM：匹配模具号、零件号或工单号
+            string searchLower = searchText.ToLower();
+            filteredBOMs = allBOMs.Where(b =>
+                b.Project.ToLower().Contains(searchLower) || // 模具号
+                b.PartNumber.ToLower().Contains(searchLower) || // 零件号
+                b.WorkOrderNumber.ToLower().Contains(searchLower) // 工单号
+            ).ToList();
+        }
+        
+        totalItems = filteredBOMs.Count;
+        totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        
+        // 确保当前页不超过总页数
+        if (currentPage > totalPages)
+        {
+            currentPage = Math.Max(1, totalPages);
+        }
+        
+        // 更新当前页数据
+        UpdateCurrentPageData(filteredBOMs);
+    }
+    
+
+    
+    // 打开修改信息弹窗
+    private void OpenModifyModal()
+    {
+        // 获取选中的BOM
+        var selectedBOMs = allBOMs.Where(b => b.IsSelected).ToList();
+        
+        // 只允许选中一个BOM进行修改
+        if (selectedBOMs.Count == 1)
+        {
+            selectedBOM = selectedBOMs.First();
+            // 创建一个深拷贝用于编辑
+            editingBOM = new BOMData()
+            {
+                Id = selectedBOM.Id,
+                Drawing = selectedBOM.Drawing,
+                ImageData = selectedBOM.ImageData,
+                ReportStatus = selectedBOM.ReportStatus,
+                ReportStatusClass = selectedBOM.ReportStatusClass,
+                Project = selectedBOM.Project,
+                PartNumber = selectedBOM.PartNumber,
+                WorkOrderType = selectedBOM.WorkOrderType,
+                WorkOrderNumber = selectedBOM.WorkOrderNumber,
+                Material = selectedBOM.Material,
+                BarcodeInfo = selectedBOM.BarcodeInfo,
+                ProcessPersonnel = selectedBOM.ProcessPersonnel,
+                IsSelected = selectedBOM.IsSelected,
+                // 保存原始值用于后续更新操作
+                OriginalProject = selectedBOM.Project,
+                OriginalPartNumber = selectedBOM.PartNumber,
+                OriginalWorkOrderNumber = selectedBOM.WorkOrderNumber
+            };
+            
+            // 打开弹窗
+            isModifyModalOpen = true;
+        }        
+        else
+        {
+            // 使用JSInterop显示提示信息
+            if (JSRuntime != null)
+            {
+                JSRuntime.InvokeVoidAsync("alert", "请选择一个BOM");
+            }
+        }
+    }
+    
+    // 保存修改
+    private async Task SaveChanges()
+    {
+        if (editingBOM != null && selectedBOM != null && BOMManagementService != null)
+        {
+            // 更新报工状态的样式类
+            UpdateReportStatusClass(editingBOM);
+            
+            // 将修改应用到原始BOM
+            selectedBOM.Drawing = editingBOM.Drawing;
+            selectedBOM.ImageData = editingBOM.ImageData;
+            selectedBOM.ReportStatus = editingBOM.ReportStatus;
+            selectedBOM.ReportStatusClass = editingBOM.ReportStatusClass;
+            selectedBOM.Project = editingBOM.Project;
+            selectedBOM.PartNumber = editingBOM.PartNumber;
+            selectedBOM.WorkOrderType = editingBOM.WorkOrderType;
+            selectedBOM.WorkOrderNumber = editingBOM.WorkOrderNumber;
+            selectedBOM.Material = editingBOM.Material;
+            selectedBOM.BarcodeInfo = editingBOM.BarcodeInfo;
+            selectedBOM.ProcessPersonnel = editingBOM.ProcessPersonnel;
+            // 保存原始值用于数据库更新
+            selectedBOM.OriginalProject = editingBOM.OriginalProject;
+            selectedBOM.OriginalPartNumber = editingBOM.OriginalPartNumber;
+            selectedBOM.OriginalWorkOrderNumber = editingBOM.OriginalWorkOrderNumber;
+            
+            // 保存到数据库
+            await BOMManagementService.UpdateBOMAsync(selectedBOM);
+            
+            // 关闭弹窗
+            isModifyModalOpen = false;
+            // 更新当前页面数据
+            UpdateCurrentPageData();
+        }
+    }
+    
+    // 取消修改
+    private void CancelChanges()
+    {
+        // 关闭弹窗
+        isModifyModalOpen = false;
+        // 重置编辑BOM
+        editingBOM = null!;
+        selectedBOM = null!;
+    }
+
+    // 显示删除确认模态框
+    private void ShowDeleteConfirmationModal()
+    {
+        // 获取选中的BOM
+        selectedBOMs = allBOMs.Where(b => b.IsSelected).ToList();
+        
+        // 检查是否有选中的BOM
+        if (selectedBOMs.Count > 0)
+        {
+            // 打开删除确认弹窗
+            isDeleteModalOpen = true;
+        }
+        else
+        {
+            // 使用JSInterop显示提示信息
+            if (JSRuntime != null)
+            {
+                JSRuntime.InvokeVoidAsync("alert", "请选择至少一个零件");
+            }
+        }
+    }
+
+    // 取消删除
+    private void CancelDelete()
+    {
+        // 关闭删除确认弹窗
+        isDeleteModalOpen = false;
+        // 清空选中的BOM列表
+        selectedBOMs.Clear();
+    }
+
+    // 确认删除
+    private async Task ConfirmDelete()
+    {
+        if (selectedBOMs.Count > 0 && BOMManagementService != null)
+        {
+            // 遍历选中的BOM，逐个删除
+            foreach (var bom in selectedBOMs)
+            {
+                // 从数据库删除BOM
+                await BOMManagementService.DeleteBOMAsync(bom);
+                
+                // 从本地列表中移除
+                allBOMs.Remove(bom);
+            }
+            
+            // 关闭删除确认弹窗
+            isDeleteModalOpen = false;
+            // 清空选中的BOM列表
+            selectedBOMs.Clear();
+            
+            // 重置全选状态
+            isAllSelected = false;
+            
+            // 更新分页数据
+            UpdateCurrentPageData();
+        }
+    }
+    
+    // 更新报工状态样式类
+    private void UpdateReportStatusClass(BOMData bom)
+    {
+        switch (bom.ReportStatus)
+        {
+            case "已报工":
+                bom.ReportStatusClass = "badge-success";
+                break;
+            case "未报工":
+                bom.ReportStatusClass = "badge-secondary";
+                break;
+            default:
+                bom.ReportStatusClass = "badge-secondary";
+                break;
+        }
+    }
+
+    // 图片上传处理
+    private async Task HandleImageUpload(InputFileChangeEventArgs e, BOMData bom)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            try
+            {
+                using (var stream = file.OpenReadStream(file.Size))
+                using (var memoryStream = new MemoryStream())
+                {
+                    await stream.CopyToAsync(memoryStream);
+                    byte[] imageBytes = memoryStream.ToArray();
+                    bom.ImageData = $"data:{file.ContentType};base64,{Convert.ToBase64String(imageBytes)}";
+                }
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                if (JSRuntime != null)
+                {
+                    await JSRuntime.InvokeVoidAsync("alert", $"图片上传失败: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    // 删除图片
+    private void RemoveImage(BOMData bom)
+    {
+        bom.ImageData = string.Empty;
+        StateHasChanged();
+    }
+
+    // 文件上传相关变量
+    private IBrowserFile? selectedFile;
+    private string importStatus = string.Empty;
+    private string importStatusClass = string.Empty;
+
+    // 处理文件选择
+    private async Task HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            // 验证文件类型
+            if (file.ContentType == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || 
+                file.ContentType == "application/vnd.ms-excel")
+            {
+                selectedFile = file;
+                importStatus = string.Empty;
+                // 文件选择后自动触发导入
+                await ImportBOMData();
+            }
+            else
+            {
+                selectedFile = null;
+                importStatus = "请选择有效的Excel文件（.xlsx或.xls格式）";
+                importStatusClass = "alert-danger";
+            }
+        }
+    }
+
+    // 处理文件导入
+    private async Task ImportBOMData()
+    {
+        if (selectedFile != null && BOMManagementService != null)
+        {
+            try
+            {
+                using var stream = selectedFile.OpenReadStream(selectedFile.Size);
+                var importedCount = await BOMManagementService.ImportBOMsFromExcelAsync(stream);
+                
+                importStatus = $"成功导入 {importedCount} 条BOM数据";
+                importStatusClass = "alert-success";
+                
+                // 重新加载数据以显示导入的内容
+                await LoadBOMsFromDatabase();
+                UpdateCurrentPageData();
+                
+                // 重置选择的文件
+                selectedFile = null;
+            }
+            catch (Exception ex)
+            {
+                importStatus = $"导入失败：{ex.Message}";
+                importStatusClass = "alert-danger";
+                Console.WriteLine($"Import error: {ex.Message}");
+            }
+        }
+        else
+        {
+            importStatus = "请先选择一个Excel文件";
+            importStatusClass = "alert-danger";
+        }
+    }
+    
+    // 表格列宽拖拽功能初始化
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // 使用JavaScript初始化拖拽功能
+            await JSRuntime.InvokeVoidAsync("initBomTableResizer");
+        }
+    }
+}
+
+<div class="container-fluid">
+    <!-- 页面标题区域 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>BOM管理</h1>
+        <div class="d-flex align-items-center">
+            <label for="bomImportFileInput" class="btn btn-primary mr-2 cursor-pointer">
+                <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> 导入数据
+            </label>
+            <InputFile id="bomImportFileInput" OnChange="HandleFileSelection" accept=".xlsx,.xls" class="d-none" />
+            <button class="btn btn-secondary">
+                <span class="oi oi-data-transfer-download" aria-hidden="true"></span> 导出模板
+            </button>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(importStatus))
+        {
+            <div class="alert @importStatusClass mt-2">
+                @importStatus
+            </div>
+        }
+    </div>
+
+    <!-- 操作按钮区域 -->
+    <div class="mb-4">
+        <button class="btn btn-info mr-2" @onclick="OpenModifyModal">
+            <span class="oi oi-pencil" aria-hidden="true"></span> 修改信息
+        </button>
+        <button class="btn btn-danger mr-2" @onclick="ShowDeleteConfirmationModal">
+            <span class="oi oi-trash" aria-hidden="true"></span> 删除零件
+        </button>
+        <button class="btn btn-secondary" @onclick="async () => await ManualRefresh()">
+            <span class="oi oi-reload" aria-hidden="true"></span> 刷新数据
+        </button>
+    </div>
+
+    <!-- 搜索过滤区域 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" placeholder="搜索模具号/零件号/工单号" @bind="searchText">
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100" @onclick="OnSearch">
+                        <span class="oi oi-magnifying-glass" aria-hidden="true"></span> 搜索
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 表格区域 -->
+    <div class="card">
+        <div class="card-header">
+            BOM管理表
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered" id="bomTable" style="table-layout: fixed;">
+                <thead class="thead-light">
+                    <tr>
+                        <th><input type="checkbox" checked="@isAllSelected" @onchange="e => ToggleSelectAll((bool?)e.Value ?? false)"></th>
+                        <th>图档</th>
+                        <th>报工状态</th>
+                        <th>模具号</th>
+                        <th>零件号</th>
+                        <th>工单类型</th>
+                        <th>工单号</th>
+                        <th>材质</th>
+                        <th>条码信息</th>
+                        <th>工艺人员</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var bom in currentPageBOMs)
+                    {
+                        <tr>
+                            <td><input type="checkbox" checked="@bom.IsSelected" @onchange="e => { bom.IsSelected = (bool?)e.Value ?? false; OnBOMSelectionChanged(); }"></td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(bom.ImageData))
+                                {
+                                    <div class="d-flex align-items-center">
+                                        <img src="@bom.ImageData" alt="图档" style="max-width: 60px; max-height: 60px; margin-right: 10px; cursor: pointer;" onclick="@(() => { })">
+                                        <button class="btn btn-sm btn-danger" @onclick="() => RemoveImage(bom)">删除</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <InputFile OnChange="e => HandleImageUpload(e, bom)" accept="image/*">
+                                        <button class="btn btn-sm btn-primary">上传图片</button>
+                                    </InputFile>
+                                }
+                            </td>
+                            <td><span class="badge @bom.ReportStatusClass">@bom.ReportStatus</span></td>
+                            <td>@bom.Project</td>
+                            <td>@bom.PartNumber</td>
+                            <td>@bom.WorkOrderType</td>
+                            <td>@bom.WorkOrderNumber</td>
+                            <td>@bom.Material</td>
+                            <td>@bom.BarcodeInfo</td>
+                            <td>@bom.ProcessPersonnel</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" @onclick="() => { bom.IsSelected = true; OnBOMSelectionChanged(); OpenModifyModal(); }">
+                                    <span class="oi oi-pencil" aria-hidden="true"></span> 修改
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 分页区域 -->
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="d-flex align-items-center">
+            <div class="me-3">显示 @((currentPage - 1) * pageSize + 1) 到 @Math.Min(currentPage * pageSize, totalItems) 条，共 @totalItems 条记录</div>
+            <div>
+                <label for="pageSizeSelect" class="me-1">每页显示：</label>
+                <select id="pageSizeSelect" class="form-select form-select-sm" @onchange="OnPageSizeChanged" value="@pageSize">
+                    @foreach (var size in pageSizeOptions)
+                    {
+                        <option value="@size">@size</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="PreviousPage" @onclick:preventDefault tabindex="-1">上一页</a>
+                </li>
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    <li class="page-item @(currentPage == i ? "active" : "")">
+                        <a class="page-link" href="#" @onclick="() => GoToPage(i)" @onclick:preventDefault>@i</a>
+                    </li>
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <a class="page-link" href="#" @onclick="NextPage" @onclick:preventDefault>下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- 修改信息弹窗 -->
+    @if (isModifyModalOpen)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">修改BOM信息</h5>
+                        <button type="button" class="close" @onclick="CancelChanges">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        @if (editingBOM != null)
+                        {
+                            <form>
+                                <div class="form-group">
+                                    <label for="drawing">图档</label>
+                                    <input type="text" class="form-control" id="drawing" @bind="editingBOM.Drawing">
+                                </div>
+                                <div class="form-group">
+                                    <label for="reportStatus">报工状态</label>
+                                    <select class="form-control" id="reportStatus" @bind="editingBOM.ReportStatus">
+                                        <option value="已报工">已报工</option>
+                                        <option value="未报工">未报工</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="project">项目</label>
+                                    <input type="text" class="form-control" id="project" @bind="editingBOM.Project">
+                                </div>
+                                <div class="form-group">
+                                    <label for="partNumber">零件号</label>
+                                    <input type="text" class="form-control" id="partNumber" @bind="editingBOM.PartNumber">
+                                </div>
+                                <div class="form-group">
+                                    <label for="workOrderType">工单类型</label>
+                                    <input type="text" class="form-control" id="workOrderType" @bind="editingBOM.WorkOrderType">
+                                </div>
+                                <div class="form-group">
+                                    <label for="workOrderNumber">工单号</label>
+                                    <input type="text" class="form-control" id="workOrderNumber" @bind="editingBOM.WorkOrderNumber">
+                                </div>
+                                <div class="form-group">
+                                    <label for="material">材质</label>
+                                    <input type="text" class="form-control" id="material" @bind="editingBOM.Material">
+                                </div>
+                                <div class="form-group">
+                                    <label for="barcodeInfo">条码信息</label>
+                                    <input type="text" class="form-control" id="barcodeInfo" @bind="editingBOM.BarcodeInfo">
+                                </div>
+                                <div class="form-group">
+                                    <label for="processPersonnel">工艺人员</label>
+                                    <input type="text" class="form-control" id="processPersonnel" @bind="editingBOM.ProcessPersonnel">
+                                </div>
+                            </form>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelChanges">取消</button>
+                        <button type="button" class="btn btn-primary" @onclick="async () => await SaveChanges()">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+    <!-- 删除确认弹窗 -->
+    @if (isDeleteModalOpen)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">删除确认</h5>
+                        <button type="button" class="close" @onclick="CancelDelete">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>您确定要删除选中的 @selectedBOMs.Count 个零件吗？此操作不可撤销。</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelDelete">取消</button>
+                        <button type="button" class="btn btn-danger" @onclick="async () => await ConfirmDelete()">确认删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>
+    }
+
+
+    
+
+    
+    <style>
+        /* 确保表格使用固定布局 */
+        #bomTable {
+            table-layout: fixed;
+            width: 100%;
+        }
+        
+        /* 表格单元格样式 */
+        #bomTable td, #bomTable th {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 8px;
+        }
+        
+        /* 拖拽手柄基础样式 */
+        .table-column-resizer {
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+    </style>
+</div>

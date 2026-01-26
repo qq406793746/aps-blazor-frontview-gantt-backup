@@ -1,0 +1,2309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物料物流管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色主色调
+                        secondary: '#2a4365',    // 次要蓝色
+                        accent: '#ed8936',       // 橙色强调色
+                        success: '#38a169',      // 绿色 - 充足/成功
+                        warning: '#ed8936',      // 橙色 - 预警
+                        danger: '#e53e3e',       // 红色 - 紧缺/危险
+                        light: '#f7fafc',        // 浅色背景
+                        dark: '#1a202c',         // 深色文本
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .scrollbar-thin {
+                scrollbar-width: thin;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            .pulse-animation {
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0.7);
+                }
+                70% {
+                    box-shadow: 0 0 0 10px rgba(237, 137, 54, 0);
+                }
+                100% {
+                    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0);
+                }
+            }
+            .fade-in {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .slide-in {
+                animation: slideIn 0.3s ease-in-out;
+            }
+            @keyframes slideIn {
+                from { transform: translateY(10px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .rotate-icon {
+                transition: transform 0.3s ease;
+            }
+            .rotate-icon.open {
+                transform: rotate(180deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-gradient-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-shadow">UNITED MACHINING</h1>
+                <span class="hidden md:inline-block text-sm">|</span>
+                <span class="hidden md:inline-block text-sm">模具制造MES系统</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">首页</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">项目管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">工艺管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">排产管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">制造信息</a></li>
+                        <li><a href="#" class="text-accent font-medium transition-all-300">物料物流</a></li>
+                    </ul>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm">管理员</span>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-primary">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 左侧功能菜单 -->
+        <div class="w-full md:w-1/4 lg:w-1/5">
+            <div class="bg-white rounded-lg shadow-card p-4 sticky top-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-cubes mr-2"></i>物料管理
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <span id="currentDateTime" class="text-xs text-gray-500"></span>
+                    </div>
+                </div>
+                
+                <nav class="space-y-1">
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md bg-blue-50 text-primary font-medium transition-all-300" data-tab="dashboard">
+                        <div class="flex items-center">
+                            <i class="fa fa-dashboard w-5 text-center mr-2"></i>
+                            <span>物料看板</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="inbound">
+                        <div class="flex items-center">
+                            <i class="fa fa-sign-in w-5 text-center mr-2"></i>
+                            <span>物料入库</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="outbound">
+                        <div class="flex items-center">
+                            <i class="fa fa-sign-out w-5 text-center mr-2"></i>
+                            <span>物料出库</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="inventory">
+                        <div class="flex items-center">
+                            <i class="fa fa-list w-5 text-center mr-2"></i>
+                            <span>库存查询</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="tracking">
+                        <div class="flex items-center">
+                            <i class="fa fa-map-signs w-5 text-center mr-2"></i>
+                            <span>物料流转</span>
+                        </div>
+                    </button>
+                </nav>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-700 mb-3">快速操作</h4>
+                    <div class="space-y-2">
+                        <button id="quickScanBtn" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-accent text-white hover:bg-orange-600 transition-all-300">
+                            <i class="fa fa-qrcode mr-2"></i>
+                            <span>扫码操作</span>
+                        </button>
+                        
+                        <button id="quickInventoryCheckBtn" class="w-full flex items-center justify-center px-3 py-2 rounded-md border border-primary text-primary hover:bg-blue-50 transition-all-300">
+                            <i class="fa fa-check-square-o mr-2"></i>
+                            <span>库存盘点</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-700 mb-3">库存预警</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">紧缺物料</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-danger text-white">5项</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">预警物料</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-warning text-white">8项</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-gray-600">待入库物料</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-blue-500 text-white">12项</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主内容区 -->
+        <div class="w-full md:w-3/4 lg:w-4/5">
+            <!-- 页面标题 -->
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-primary">物料物流管理</h2>
+                <p class="text-gray-600">管理物料入库、出库、库存和流转</p>
+            </div>
+
+            <!-- 内容区域 -->
+            <div id="contentArea">
+                <!-- 物料看板 -->
+                <div id="dashboardTab" class="tab-content fade-in">
+                    <!-- 统计卡片 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">总物料种类</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">248</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                                    <i class="fa fa-cubes"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-success flex items-center">
+                                    <i class="fa fa-arrow-up mr-1"></i>5.2%
+                                </span>
+                                <span class="text-gray-500 ml-2">较上月</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">库存总量</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">15,246</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-success">
+                                    <i class="fa fa-archive"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-success flex items-center">
+                                    <i class="fa fa-arrow-up mr-1"></i>3.8%
+                                </span>
+                                <span class="text-gray-500 ml-2">较上月</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">本月入库</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">3,254</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-accent">
+                                    <i class="fa fa-sign-in"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-success flex items-center">
+                                    <i class="fa fa-arrow-up mr-1"></i>12.5%
+                                </span>
+                                <span class="text-gray-500 ml-2">较上月</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">本月出库</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">2,879</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-danger">
+                                    <i class="fa fa-sign-out"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-danger flex items-center">
+                                    <i class="fa fa-arrow-down mr-1"></i>2.1%
+                                </span>
+                                <span class="text-gray-500 ml-2">较上月</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 库存状态图表 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-primary">物料类别分布</h3>
+                                <div class="flex space-x-2">
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-download"></i>
+                                    </button>
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="materialCategoryChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-primary">库存状态分布</h3>
+                                <div class="flex space-x-2">
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-download"></i>
+                                    </button>
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="inventoryStatusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 库存预警列表 -->
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">库存预警</h3>
+                            <button class="text-sm text-primary hover:text-secondary">
+                                查看全部 <i class="fa fa-angle-right ml-1"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料编码
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料名称
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            规格型号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            当前库存
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            安全库存
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">45号钢材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ100×2000mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                紧缺
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">采购</button>
+                                            <button class="text-primary hover:text-secondary">查看</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-005</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">铝合金板材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">20mm×1200×2400mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">25</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                紧缺
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">采购</button>
+                                            <button class="text-primary hover:text-secondary">查看</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-023</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">导柱</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ20×150mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">35</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                预警
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">采购</button>
+                                            <button class="text-primary hover:text-secondary">查看</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-045</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">弹簧</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ8×40mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">42</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">40</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                预警
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">采购</button>
+                                            <button class="text-primary hover:text-secondary">查看</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 最近物料流转记录 -->
+                    <div class="bg-white rounded-lg shadow-card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">最近物料流转记录</h3>
+                            <button class="text-sm text-primary hover:text-secondary">
+                                查看全部 <i class="fa fa-angle-right ml-1"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料编码
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料名称
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作类型
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            数量
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作人
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            备注
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 15:30:45</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">45号钢材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                入库
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">+5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">采购入库</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 14:25:12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-023</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">导柱</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                出库
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-10</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">生产领用</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 13:15:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-005</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">铝合金板材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                入库
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">+12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">采购入库</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 11:45:20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-045</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">弹簧</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                出库
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-8</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">王五</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">生产领用</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 物料入库 -->
+                <div id="inboundTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">物料入库</h3>
+                            <div class="flex space-x-2">
+                                <button id="newInboundBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-plus mr-1"></i> 新建入库单
+                                </button>
+                                <button id="scanInboundBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-qrcode mr-1"></i> 扫码入库
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 入库表单 -->
+                        <div id="inboundForm" class="mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label for="inboundType" class="block text-sm font-medium text-gray-700 mb-1">入库类型 <span class="text-danger">*</span></label>
+                                    <select id="inboundType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择入库类型</option>
+                                        <option value="purchase">采购入库</option>
+                                        <option value="production">生产入库</option>
+                                        <option value="return">退货入库</option>
+                                        <option value="other">其他入库</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="inboundDate" class="block text-sm font-medium text-gray-700 mb-1">入库日期 <span class="text-danger">*</span></label>
+                                    <input type="date" id="inboundDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">供应商</label>
+                                    <select id="supplier" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择供应商</option>
+                                        <option value="supplier1">上海金属材料有限公司</option>
+                                        <option value="supplier2">江苏精密零件制造有限公司</option>
+                                        <option value="supplier3">广东模具配件有限公司</option>
+                                        <option value="supplier4">浙江标准件厂</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label for="invoiceNo" class="block text-sm font-medium text-gray-700 mb-1">发票号</label>
+                                    <input type="text" id="invoiceNo" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入发票号">
+                                </div>
+                                <div>
+                                    <label for="orderNo" class="block text-sm font-medium text-gray-700 mb-1">采购订单号</label>
+                                    <input type="text" id="orderNo" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入采购订单号">
+                                </div>
+                                <div>
+                                    <label for="inboundOperator" class="block text-sm font-medium text-gray-700 mb-1">操作员 <span class="text-danger">*</span></label>
+                                    <select id="inboundOperator" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择操作员</option>
+                                        <option value="user1">张三</option>
+                                        <option value="user2">李四</option>
+                                        <option value="user3">王五</option>
+                                        <option value="user4">赵六</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="inboundRemark" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                                <textarea id="inboundRemark" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入备注信息"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 物料明细 -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-md font-medium text-gray-700">物料明细</h4>
+                                <button id="addMaterialBtn" class="px-2 py-1 bg-success text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all-300">
+                                    <i class="fa fa-plus mr-1"></i> 添加物料
+                                </button>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料编码
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料名称
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                规格型号
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                单位
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                数量
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                单价
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                金额
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                批次号
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                操作
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inboundMaterialsTable" class="bg-white divide-y divide-gray-200">
+                                        <!-- 物料明细将通过JavaScript动态生成 -->
+                                        <tr>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料编码">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料名称">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入规格型号">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <select class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                    <option value="">请选择</option>
+                                                    <option value="kg">千克</option>
+                                                    <option value="m">米</option>
+                                                    <option value="mm">毫米</option>
+                                                    <option value="个">个</option>
+                                                    <option value="件">件</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="number" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入数量">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="number" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入单价">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="number" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="自动计算" readonly>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入批次号">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                <button class="text-danger hover:text-red-700">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="flex justify-end space-x-3">
+                            <button id="cancelInboundBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                取消
+                            </button>
+                            <button id="saveDraftInboundBtn" class="px-4 py-2 border border-primary text-primary rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                保存草稿
+                            </button>
+                            <button id="submitInboundBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                提交入库
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 最近入库记录 -->
+                    <div class="bg-white rounded-lg shadow-card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">最近入库记录</h3>
+                            <div class="flex space-x-2">
+                                <input type="text" placeholder="搜索入库记录..." class="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <button class="p-1 text-primary hover:text-secondary">
+                                    <i class="fa fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            入库单号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            入库日期
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            入库类型
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            供应商
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料种类
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            总数量
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作员
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">IN-2025-07-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">采购入库</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">上海金属材料有限公司</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">17</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">IN-2025-07-002</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">采购入库</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">广东模具配件有限公司</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">3</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">120</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">IN-2025-07-003</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-19</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">生产入库</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-sm text-gray-500">
+                                显示 1 至 3 条，共 3 条记录
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    上一页
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                    1
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 物料出库 -->
+                <div id="outboundTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">物料出库</h3>
+                            <div class="flex space-x-2">
+                                <button id="newOutboundBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-plus mr-1"></i> 新建出库单
+                                </button>
+                                <button id="scanOutboundBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-qrcode mr-1"></i> 扫码出库
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 出库表单 -->
+                        <div id="outboundForm" class="mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label for="outboundType" class="block text-sm font-medium text-gray-700 mb-1">出库类型 <span class="text-danger">*</span></label>
+                                    <select id="outboundType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择出库类型</option>
+                                        <option value="production">生产领用</option>
+                                        <option value="outsourcing">外协加工</option>
+                                        <option value="scrap">报废出库</option>
+                                        <option value="other">其他出库</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="outboundDate" class="block text-sm font-medium text-gray-700 mb-1">出库日期 <span class="text-danger">*</span></label>
+                                    <input type="date" id="outboundDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label for="workOrder" class="block text-sm font-medium text-gray-700 mb-1">工单编号</label>
+                                    <input type="text" id="workOrder" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入工单编号">
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                <div>
+                                    <label for="department" class="block text-sm font-medium text-gray-700 mb-1">领用部门 <span class="text-danger">*</span></label>
+                                    <select id="department" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择领用部门</option>
+                                        <option value="dept1">CNC加工车间</option>
+                                        <option value="dept2">电火花车间</option>
+                                        <option value="dept3">线切割车间</option>
+                                        <option value="dept4">装配车间</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="recipient" class="block text-sm font-medium text-gray-700 mb-1">领用人 <span class="text-danger">*</span></label>
+                                    <input type="text" id="recipient" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入领用人">
+                                </div>
+                                <div>
+                                    <label for="outboundOperator" class="block text-sm font-medium text-gray-700 mb-1">操作员 <span class="text-danger">*</span></label>
+                                    <select id="outboundOperator" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="">请选择操作员</option>
+                                        <option value="user1">张三</option>
+                                        <option value="user2">李四</option>
+                                        <option value="user3">王五</option>
+                                        <option value="user4">赵六</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="outboundRemark" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                                <textarea id="outboundRemark" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入备注信息"></textarea>
+                            </div>
+                        </div>
+                        
+                        <!-- 物料明细 -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-md font-medium text-gray-700">物料明细</h4>
+                                <button id="addOutboundMaterialBtn" class="px-2 py-1 bg-success text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all-300">
+                                    <i class="fa fa-plus mr-1"></i> 添加物料
+                                </button>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料编码
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料名称
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                规格型号
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                单位
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                库存数量
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                出库数量
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                批次号
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                用途
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                操作
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="outboundMaterialsTable" class="bg-white divide-y divide-gray-200">
+                                        <!-- 物料明细将通过JavaScript动态生成 -->
+                                        <tr>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料编码">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料名称">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入规格型号">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <select class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                    <option value="">请选择</option>
+                                                    <option value="kg">千克</option>
+                                                    <option value="m">米</option>
+                                                    <option value="mm">毫米</option>
+                                                    <option value="个">个</option>
+                                                    <option value="件">件</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="number" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="0" readonly>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="number" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入数量">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <select class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                    <option value="">请选择</option>
+                                                    <option value="batch1">B20250701</option>
+                                                    <option value="batch2">B20250625</option>
+                                                    <option value="batch3">B20250610</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <input type="text" class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入用途">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                <button class="text-danger hover:text-red-700">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="flex justify-end space-x-3">
+                            <button id="cancelOutboundBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                取消
+                            </button>
+                            <button id="saveDraftOutboundBtn" class="px-4 py-2 border border-primary text-primary rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                保存草稿
+                            </button>
+                            <button id="submitOutboundBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                提交出库
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 最近出库记录 -->
+                    <div class="bg-white rounded-lg shadow-card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">最近出库记录</h3>
+                            <div class="flex space-x-2">
+                                <input type="text" placeholder="搜索出库记录..." class="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <button class="p-1 text-primary hover:text-secondary">
+                                    <i class="fa fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            出库单号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            出库日期
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            出库类型
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            工单编号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            领用部门
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            领用人
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料种类
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            总数量
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作员
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">OUT-2025-07-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">生产领用</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">WO-2025-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">CNC加工车间</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">18</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">王五</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">OUT-2025-07-002</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">外协加工</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">WO-2025-002</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">赵六</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">3</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">OUT-2025-07-003</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-19</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">报废出库</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">质检部</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">钱七</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                已完成
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">打印</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-sm text-gray-500">
+                                显示 1 至 3 条，共 3 条记录
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    上一页
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                    1
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 库存查询 -->
+                <div id="inventoryTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">库存查询</h3>
+                            <div class="flex space-x-2">
+                                <button id="exportInventoryBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-download mr-1"></i> 导出数据
+                                </button>
+                                <button id="printInventoryBtn" class="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                    <i class="fa fa-print mr-1"></i> 打印报表
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 查询条件 -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label for="inventoryMaterialCode" class="block text-sm font-medium text-gray-700 mb-1">物料编码</label>
+                                <input type="text" id="inventoryMaterialCode" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料编码">
+                            </div>
+                            <div>
+                                <label for="inventoryMaterialName" class="block text-sm font-medium text-gray-700 mb-1">物料名称</label>
+                                <input type="text" id="inventoryMaterialName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料名称">
+                            </div>
+                            <div>
+                                <label for="inventoryCategory" class="block text-sm font-medium text-gray-700 mb-1">物料类别</label>
+                                <select id="inventoryCategory" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">全部类别</option>
+                                    <option value="raw_material">原材料</option>
+                                    <option value="standard_part">标准件</option>
+                                    <option value="outsourcing">外协件</option>
+                                    <option value="consumable">消耗品</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="inventoryStatus" class="block text-sm font-medium text-gray-700 mb-1">库存状态</label>
+                                <select id="inventoryStatus" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">全部状态</option>
+                                    <option value="sufficient">充足</option>
+                                    <option value="warning">预警</option>
+                                    <option value="shortage">紧缺</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-2 mb-4">
+                            <button id="resetInventorySearchBtn" class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                重置
+                            </button>
+                            <button id="searchInventoryBtn" class="px-3 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                查询
+                            </button>
+                        </div>
+                        
+                        <!-- 库存列表 -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料编码
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料名称
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            规格型号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            物料类别
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            单位
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            当前库存
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            安全库存
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            最高库存
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            库存状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            仓库
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            货位
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            最近出入库
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">45号钢材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ100×2000mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">根</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900 font-medium">5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">50</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                紧缺
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料仓</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">A-1-05</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">采购</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-005</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">铝合金板材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">20mm×1200×2400mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900 font-medium">12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">25</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">50</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                紧缺
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料仓</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">B-2-08</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">采购</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-023</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">导柱</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ20×150mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">标准件</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">个</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900 font-medium">35</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">100</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                预警
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">标准件仓</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">C-3-12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">采购</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">SP-045</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">弹簧</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Φ8×40mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">标准件</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">个</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900 font-medium">42</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">40</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">200</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                预警
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">标准件仓</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">C-4-05</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">采购</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">RM-010</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">不锈钢板材</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">10mm×1200×2400mm</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900 font-medium">50</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">100</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                充足
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">原材料仓</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">B-1-15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">查看</button>
+                                            <button class="text-primary hover:text-secondary">采购</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-sm text-gray-500">
+                                显示 1 至 5 条，共 248 条记录
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    上一页
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                    1
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    2
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    3
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    4
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    5
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 物料流转 -->
+                <div id="trackingTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">物料流转跟踪</h3>
+                            <div class="flex space-x-2">
+                                <button id="exportTrackingBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-download mr-1"></i> 导出数据
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 查询条件 -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label for="trackingMaterialCode" class="block text-sm font-medium text-gray-700 mb-1">物料编码</label>
+                                <input type="text" id="trackingMaterialCode" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料编码">
+                            </div>
+                            <div>
+                                <label for="trackingBatchNo" class="block text-sm font-medium text-gray-700 mb-1">批次号</label>
+                                <input type="text" id="trackingBatchNo" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入批次号">
+                            </div>
+                            <div>
+                                <label for="trackingWorkOrder" class="block text-sm font-medium text-gray-700 mb-1">工单编号</label>
+                                <input type="text" id="trackingWorkOrder" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入工单编号">
+                            </div>
+                            <div>
+                                <label for="trackingDateRange" class="block text-sm font-medium text-gray-700 mb-1">日期范围</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="date" id="trackingStartDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <span>至</span>
+                                    <input type="date" id="trackingEndDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-2 mb-4">
+                            <button id="resetTrackingSearchBtn" class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                重置
+                            </button>
+                            <button id="searchTrackingBtn" class="px-3 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                查询
+                            </button>
+                        </div>
+                        
+                        <!-- 物料流转可视化 -->
+                        <div class="mb-6">
+                            <h4 class="text-md font-medium text-gray-700 mb-3">物料流转可视化</h4>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <div class="flex items-center justify-center mb-4">
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-archive text-2xl text-blue-500"></i>
+                                        </div>
+                                        <div class="text-sm font-medium">原材料仓</div>
+                                        <div class="text-xs text-gray-500">A-1-05</div>
+                                    </div>
+                                    
+                                    <div class="w-16 h-1 bg-gray-300 mx-2 relative">
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-0 w-full h-0.5 bg-blue-500"></div>
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 right-0 w-2 h-2 rounded-full bg-blue-500"></div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-cogs text-2xl text-green-500"></i>
+                                        </div>
+                                        <div class="text-sm font-medium">CNC加工车间</div>
+                                        <div class="text-xs text-gray-500">2025-07-21 10:30</div>
+                                    </div>
+                                    
+                                    <div class="w-16 h-1 bg-gray-300 mx-2 relative">
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-0 w-1/2 h-0.5 bg-blue-500"></div>
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-1/2 w-2 h-2 rounded-full bg-blue-500 pulse-animation"></div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-flash text-2xl text-yellow-500"></i>
+                                        </div>
+                                        <div class="text-sm font-medium">电火花车间</div>
+                                        <div class="text-xs text-gray-500">进行中</div>
+                                    </div>
+                                    
+                                    <div class="w-16 h-1 bg-gray-300 mx-2">
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-0 w-0 h-0.5 bg-blue-500"></div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-scissors text-2xl text-gray-400"></i>
+                                        </div>
+                                        <div class="text-sm font-medium text-gray-400">线切割车间</div>
+                                        <div class="text-xs text-gray-400">待处理</div>
+                                    </div>
+                                    
+                                    <div class="w-16 h-1 bg-gray-300 mx-2">
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-0 w-0 h-0.5 bg-blue-500"></div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-check-square-o text-2xl text-gray-400"></i>
+                                        </div>
+                                        <div class="text-sm font-medium text-gray-400">质检部</div>
+                                        <div class="text-xs text-gray-400">待处理</div>
+                                    </div>
+                                    
+                                    <div class="w-16 h-1 bg-gray-300 mx-2">
+                                        <div class="absolute top-1/2 transform -translate-y-1/2 left-0 w-0 h-0.5 bg-blue-500"></div>
+                                    </div>
+                                    
+                                    <div class="text-center">
+                                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                                            <i class="fa fa-cube text-2xl text-gray-400"></i>
+                                        </div>
+                                        <div class="text-sm font-medium text-gray-400">成品仓</div>
+                                        <div class="text-xs text-gray-400">待入库</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center text-sm text-gray-500 mt-2">
+                                    物料编码: RM-001 | 物料名称: 45号钢材 | 规格型号: Φ100×2000mm | 批次号: B20250701
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 流转记录 -->
+                        <div>
+                            <h4 class="text-md font-medium text-gray-700 mb-3">流转记录</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                时间
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                操作类型
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料编码
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                物料名称
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                数量
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                来源位置
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                目标位置
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                操作人
+                                            </th>
+                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                备注
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">2025-07-21 10:30:15</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                    生产领用
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">RM-001</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">45号钢材</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">-2</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">原材料仓 (A-1-05)</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">CNC加工车间</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">李四</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">WO-2025-001 汽车模具A</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">2025-07-21 15:45:30</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                    工序流转
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">RM-001</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">45号钢材</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">0</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">CNC加工车间</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">电火花车间</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">王五</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">CNC粗加工完成，转电火花加工</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">2025-07-21 08:00:00</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                    采购入库
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">RM-001</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">45号钢材</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">+5</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">上海金属材料有限公司</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">原材料仓 (A-1-05)</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">张三</div>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <div class="text-sm text-gray-900">采购订单: PO-2025-07-001</div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 扫码操作模态框 -->
+    <div id="scanModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">扫码操作</h3>
+                <button id="closeScanModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <div class="flex justify-center mb-4">
+                    <div class="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                        <div class="text-center">
+                            <i class="fa fa-qrcode text-4xl text-gray-400 mb-2"></i>
+                            <p class="text-sm text-gray-500">点击下方按钮启动摄像头扫码</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center space-x-4">
+                    <button id="startScanBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-camera mr-2"></i> 启动摄像头
+                    </button>
+                    <button id="inputCodeBtn" class="px-4 py-2 border border-primary text-primary rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-keyboard-o mr-2"></i> 手动输入
+                    </button>
+                </div>
+            </div>
+            
+            <div id="manualInputSection" class="mb-4 hidden">
+                <label for="manualCodeInput" class="block text-sm font-medium text-gray-700 mb-1">物料编码/批次号</label>
+                <input type="text" id="manualCodeInput" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入物料编码或批次号">
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelScanBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    取消
+                </button>
+                <button id="confirmScanBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确认
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存成功提示模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold text-center text-gray-900 mb-2">操作成功</h3>
+            <p id="successMessage" class="text-gray-600 text-center mb-6">操作已成功完成</p>
+            <div class="flex justify-center">
+                <button id="closeSuccessModalBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentTab = 'dashboard';
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前日期时间
+            updateCurrentDateTime();
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 设置自动刷新
+            setInterval(function() {
+                updateCurrentDateTime();
+            }, 60000); // 每分钟刷新一次
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // 标签页切换事件
+            document.querySelectorAll('[data-tab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    switchTab(tabId);
+                    
+                    // 更新标签样式
+                    document.querySelectorAll('[data-tab]').forEach(t => {
+                        t.classList.remove('bg-blue-50', 'text-primary', 'font-medium');
+                        t.classList.add('hover:bg-gray-50', 'text-gray-700');
+                    });
+                    this.classList.remove('hover:bg-gray-50', 'text-gray-700');
+                    this.classList.add('bg-blue-50', 'text-primary', 'font-medium');
+                });
+            });
+            
+            // 扫码操作按钮事件
+            document.getElementById('quickScanBtn').addEventListener('click', function() {
+                showScanModal();
+            });
+            
+            document.getElementById('scanInboundBtn').addEventListener('click', function() {
+                showScanModal('inbound');
+            });
+            
+            document.getElementById('scanOutboundBtn').addEventListener('click', function() {
+                showScanModal('outbound');
+            });
+            
+            // 扫码模态框事件
+            document.getElementById('closeScanModalBtn').addEventListener('click', function() {
+                document.getElementById('scanModal').classList.add('hidden');
+            });
+            
+            document.getElementById('cancelScanBtn').addEventListener('click', function() {
+                document.getElementById('scanModal').classList.add('hidden');
+            });
+            
+            document.getElementById('startScanBtn').addEventListener('click', function() {
+                // 模拟启动摄像头
+                alert('摄像头已启动，请将二维码对准摄像头');
+            });
+            
+            document.getElementById('inputCodeBtn').addEventListener('click', function() {
+                document.getElementById('manualInputSection').classList.remove('hidden');
+                document.getElementById('manualCodeInput').focus();
+            });
+            
+            document.getElementById('confirmScanBtn').addEventListener('click', function() {
+                const code = document.getElementById('manualCodeInput').value.trim();
+                if (code) {
+                    // 模拟扫码成功
+                    document.getElementById('scanModal').classList.add('hidden');
+                    showSuccessMessage('扫码成功，物料信息已获取');
+                } else {
+                    alert('请输入物料编码或批次号');
+                }
+            });
+            
+            // 成功提示模态框事件
+            document.getElementById('closeSuccessModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+            
+            // 物料入库表单事件
+            document.getElementById('addMaterialBtn').addEventListener('click', function() {
+                // 模拟添加物料行
+                alert('物料行已添加');
+            });
+            
+            document.getElementById('saveDraftInboundBtn').addEventListener('click', function() {
+                showSuccessMessage('入库单草稿已保存');
+            });
+            
+            document.getElementById('submitInboundBtn').addEventListener('click', function() {
+                showSuccessMessage('入库单已提交，物料已入库');
+            });
+            
+            // 物料出库表单事件
+            document.getElementById('addOutboundMaterialBtn').addEventListener('click', function() {
+                // 模拟添加物料行
+                alert('物料行已添加');
+            });
+            
+            document.getElementById('saveDraftOutboundBtn').addEventListener('click', function() {
+                showSuccessMessage('出库单草稿已保存');
+            });
+            
+            document.getElementById('submitOutboundBtn').addEventListener('click', function() {
+                showSuccessMessage('出库单已提交，物料已出库');
+            });
+            
+            // 库存查询事件
+            document.getElementById('searchInventoryBtn').addEventListener('click', function() {
+                showSuccessMessage('库存查询完成');
+            });
+            
+            document.getElementById('exportInventoryBtn').addEventListener('click', function() {
+                showSuccessMessage('库存数据已导出');
+            });
+            
+            document.getElementById('printInventoryBtn').addEventListener('click', function() {
+                showSuccessMessage('库存报表已发送到打印机');
+            });
+            
+            // 物料流转事件
+            document.getElementById('searchTrackingBtn').addEventListener('click', function() {
+                showSuccessMessage('物料流转查询完成');
+            });
+            
+            document.getElementById('exportTrackingBtn').addEventListener('click', function() {
+                showSuccessMessage('物料流转数据已导出');
+            });
+            
+            // 快速操作事件
+            document.getElementById('quickInventoryCheckBtn').addEventListener('click', function() {
+                showSuccessMessage('库存盘点功能已启动');
+            });
+        }
+
+        // 切换标签页
+        function switchTab(tabId) {
+            currentTab = tabId;
+            
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // 显示选中的标签内容
+            const selectedContent = document.getElementById(`${tabId}Tab`);
+            if (selectedContent) {
+                selectedContent.classList.remove('hidden');
+                selectedContent.classList.add('fade-in');
+            }
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 物料类别分布图表
+            const materialCategoryCtx = document.getElementById('materialCategoryChart').getContext('2d');
+            new Chart(materialCategoryCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['原材料', '标准件', '外协件', '消耗品', '其他'],
+                    datasets: [{
+                        data: [45, 25, 15, 10, 5],
+                        backgroundColor: [
+                            '#3182ce',
+                            '#38a169',
+                            '#ed8936',
+                            '#805ad5',
+                            '#718096'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: '物料类别分布'
+                        }
+                    }
+                }
+            });
+            
+            // 库存状态分布图表
+            const inventoryStatusCtx = document.getElementById('inventoryStatusChart').getContext('2d');
+            new Chart(inventoryStatusCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['充足', '正常', '预警', '紧缺'],
+                    datasets: [{
+                        label: '物料数量',
+                        data: [150, 65, 25, 8],
+                        backgroundColor: [
+                            '#38a169',
+                            '#3182ce',
+                            '#ed8936',
+                            '#e53e3e'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 50
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '库存状态分布'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新当前日期时间
+        function updateCurrentDateTime() {
+            const now = new Date();
+            document.getElementById('currentDateTime').textContent = now.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // 显示扫码模态框
+        function showScanModal(type = 'general') {
+            document.getElementById('scanModal').classList.remove('hidden');
+            document.getElementById('manualInputSection').classList.add('hidden');
+            document.getElementById('manualCodeInput').value = '';
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // 暂时注释掉直接跳转，避免可能的循环重定向
+        // NavigationManager.NavigateTo("/project-management", forceLoad: true);
+    }
+}

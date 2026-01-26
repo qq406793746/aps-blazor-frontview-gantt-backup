@@ -1,0 +1,149 @@
+@page "/"
+@attribute [Authorize]
+
+<PageTitle>首页</PageTitle>
+
+<div class="container-fluid">
+    <!-- 欢迎区域 -->
+    <div class="card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h2>欢迎使用UNITED MACHINING 模具制造MES系统</h2>
+                <p>实时监控生产状态，优化制造流程，提高生产效率。</p>
+                <div class="mt-3">
+                    <button class="btn btn-primary mr-2">
+                        <span class="oi oi-play-circle" aria-hidden="true"></span> 开始
+                    </button>
+                    <button class="btn btn-secondary">
+                        <span class="oi oi-data-transfer-download" aria-hidden="true"></span> 导出报告
+                    </button>
+                </div>
+            </div>
+            <div>
+                <img src="/images/logo.png" alt="MES系统" style="max-width: 300px; height: auto;" />
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI指标卡片 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>今日产量</h5>
+                    <div class="display-4">128</div>
+                    <div class="text-success">
+                        <span class="oi oi-arrow-top" aria-hidden="true"></span> 12% 较昨日
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>设备利用率</h5>
+                    <div class="display-4">87%</div>
+                    <div class="text-success">
+                        <span class="oi oi-arrow-top" aria-hidden="true"></span> 5% 较上周
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>质量合格率</h5>
+                    <div class="display-4">96.8%</div>
+                    <div class="text-danger">
+                        <span class="oi oi-arrow-bottom" aria-hidden="true"></span> 1.2% 较上周
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>异常部件</h5>
+                    <div class="display-4">3</div>
+                    <div class="text-success">
+                        <span class="oi oi-arrow-top" aria-hidden="true"></span> 2 较昨日
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>生产趋势</h5>
+                    <div class="chart-container" style="height: 300px;">
+                        <!-- 模拟生产趋势图 -->
+                        <svg width="100%" height="100%" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- 坐标轴 -->
+                            <line x1="50" y1="250" x2="550" y2="250" stroke="#ccc" stroke-width="2" />
+                            <line x1="50" y1="50" x2="50" y2="250" stroke="#ccc" stroke-width="2" />
+                            
+                            <!-- 数据点和线条 - 注塑模具 -->
+                            <path d="M50,200 L100,180 L150,170 L200,165 L250,155 L300,150 L350,140 L400,130 L450,120 L500,110 L550,100" 
+                                  stroke="#0066CC" stroke-width="3" fill="none" />
+                            
+                            <!-- 数据点和线条 - 冲压模具 -->
+                            <path d="M50,190 L100,185 L150,180 L200,175 L250,170 L300,165 L350,160 L400,155 L450,150 L500,145 L550,140" 
+                                  stroke="#22BB22" stroke-width="3" fill="none" />
+                            
+                            <!-- 数据点和线条 - 压铸模具 -->
+                            <path d="M50,180 L100,175 L150,170 L200,165 L250,160 L300,155 L350,150 L400,145 L450,140 L500,135 L550,130" 
+                                  stroke="#FF6600" stroke-width="3" fill="none" />
+                            
+                            <!-- 图例 -->
+                            <rect x="50" y="20" width="15" height="15" fill="#0066CC" />
+                            <text x="70" y="32" font-family="Arial, sans-serif" font-size="12" fill="#666666">注塑模具</text>
+                            
+                            <rect x="150" y="20" width="15" height="15" fill="#22BB22" />
+                            <text x="170" y="32" font-family="Arial, sans-serif" font-size="12" fill="#666666">冲压模具</text>
+                            
+                            <rect x="250" y="20" width="15" height="15" fill="#FF6600" />
+                            <text x="270" y="32" font-family="Arial, sans-serif" font-size="12" fill="#666666">压铸模具</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>设备状态</h5>
+                    <div class="chart-container" style="height: 300px;">
+                        <!-- 设备状态饼图 -->
+                        <svg width="100%" height="100%" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+                            <!-- 运行中 -->
+                            <path d="M150,150 L150,0 A150,150 0 0,1 280.9,70.5 Z" fill="#22BB22" />
+                            <!-- 待机 -->
+                            <path d="M150,150 L280.9,70.5 A150,150 0 0,1 201.5,275.5 Z" fill="#0066CC" />
+                            <!-- 故障 -->
+                            <path d="M150,150 L201.5,275.5 A150,150 0 0,1 98.5,275.5 Z" fill="#FF0000" />
+                            <!-- 维护 -->
+                            <path d="M150,150 L98.5,275.5 A150,150 0 0,1 19.1,70.5 Z" fill="#FFCC00" />
+                            
+                            <!-- 图例 -->
+                            <rect x="20" y="220" width="15" height="15" fill="#22BB22" />
+                            <text x="40" y="232" font-family="Arial, sans-serif" font-size="12" fill="#666666">运行中</text>
+                            
+                            <rect x="100" y="220" width="15" height="15" fill="#0066CC" />
+                            <text x="120" y="232" font-family="Arial, sans-serif" font-size="12" fill="#666666">待机</text>
+                            
+                            <rect x="180" y="220" width="15" height="15" fill="#FF0000" />
+                            <text x="200" y="232" font-family="Arial, sans-serif" font-size="12" fill="#666666">故障</text>
+                            
+                            <rect x="250" y="220" width="15" height="15" fill="#FFCC00" />
+                            <text x="270" y="232" font-family="Arial, sans-serif" font-size="12" fill="#666666">维护</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,303 @@
+@using Microsoft.AspNetCore.Components.Web
+@namespace BlazorApp1.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="~/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css" />
+    <link rel="stylesheet" href="/aps-gantt/aps-resource-gantt.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link href="BlazorApp1.styles.css" rel="stylesheet" />
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+</head>
+<body>
+    @RenderBody()
+
+    <div id="blazor-error-ui">
+        <environment include="Staging,Production">
+            An error has occurred. This application may no longer respond until reloaded.
+        </environment>
+        <environment include="Development">
+            An unhandled exception has occurred. See browser dev tools for details.
+        </environment>
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="/aps-gantt/aps-resource-gantt.js"></script>
+    <script src="/js/aps-gantt.js"></script>
+    <script src="_framework/blazor.server.js"></script>
+    <script src="/js/login-background.js"></script>
+    <script>
+        // 表格列宽拖拽功能 - BOM管理页面专用
+        window.initBomTableResizer = function() {
+            const tableId = 'bomTable';
+            const table = document.getElementById(tableId);
+            if (!table) {
+                console.log('Table not found:', tableId);
+                return;
+            }
+            
+            const ths = table.querySelectorAll('thead th');
+            let isResizing = false;
+            let currentTh = null;
+            let startX = 0;
+            let startWidth = 0;
+            
+            console.log('Found table:', tableId, 'with', ths.length, 'columns');
+            
+            // 为每个表头添加拖拽手柄
+            ths.forEach((th, index) => {
+                // 如果是最后一个列（操作列），不添加拖拽功能
+                if (index === ths.length - 1) {
+                    return;
+                }
+                
+                // 设置相对定位
+                th.style.position = 'relative';
+                // 确保表头有明确的宽度
+                if (!th.style.width) {
+                    th.style.width = th.offsetWidth + 'px';
+                }
+                
+                // 创建并添加拖拽手柄
+                const resizer = document.createElement('div');
+                resizer.classList.add('table-column-resizer');
+                resizer.style.position = 'absolute';
+                resizer.style.right = '-5px'; // 调整位置使其在表格缝隙中更明显
+                resizer.style.top = '0';
+                resizer.style.height = '100%';
+                resizer.style.width = '10px'; // 增加宽度提高可点击性
+                resizer.style.cursor = 'col-resize';
+                resizer.style.zIndex = '10000'; // 提高z-index确保能接收到鼠标事件
+                resizer.style.backgroundColor = 'rgba(0, 123, 255, 0.2)'; // 半透明背景，提高可见性
+                resizer.style.transition = 'background-color 0.2s ease, opacity 0.2s ease'; // 添加过渡效果
+                resizer.style.opacity = '1'; // 默认不透明，提高可见性
+                resizer.style.pointerEvents = 'auto'; // 确保能接收到鼠标事件
+                
+                // 添加悬停效果
+                resizer.addEventListener('mouseenter', () => {
+                    resizer.style.backgroundColor = '#007bff';
+                    resizer.style.opacity = '0.8';
+                    // 改变整个表格的鼠标指针
+                    table.style.cursor = 'col-resize';
+                    console.log('Mouse entered resizer for column', index);
+                });
+                
+                resizer.addEventListener('mouseleave', () => {
+                    if (!isResizing) {
+                        resizer.style.backgroundColor = 'rgba(0, 123, 255, 0.2)';
+                        resizer.style.opacity = '1';
+                        // 恢复默认鼠标指针
+                        table.style.cursor = '';
+                        console.log('Mouse left resizer for column', index);
+                    }
+                });
+                
+                // 添加拖拽事件
+                resizer.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    currentTh = th;
+                    startX = e.clientX;
+                    startWidth = th.offsetWidth;
+                    
+                    // 防止文本选择
+                    document.body.style.userSelect = 'none';
+                    // 防止拖动时选中文本
+                    document.body.style.cursor = 'col-resize';
+                    
+                    // 拖拽开始时高亮显示
+                    resizer.style.backgroundColor = '#0056b3';
+                    resizer.style.opacity = '0.8';
+                    
+                    // 添加全局事件监听器
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                
+                th.appendChild(resizer);
+                console.log('Added resizer to column', index);
+            });
+            
+            function handleMouseMove(e) {
+                if (!isResizing || !currentTh) return;
+                
+                const deltaX = e.clientX - startX;
+                const newWidth = Math.max(50, startWidth + deltaX);
+                
+                // 设置新宽度
+                currentTh.style.width = newWidth + 'px';
+                currentTh.style.minWidth = newWidth + 'px';
+                
+                // 调整表格布局
+                table.style.width = '100%';
+                
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function handleMouseUp(e) {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                currentTh = null;
+                
+                // 恢复文本选择
+                document.body.style.userSelect = '';
+                // 恢复默认鼠标指针
+                document.body.style.cursor = '';
+                table.style.cursor = '';
+                
+                // 移除全局事件监听器
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+        
+        // 表格列宽拖拽功能 - 项目管理页面专用
+        window.initProjectTableResizer = function() {
+            const tableId = 'projectTable';
+            const table = document.getElementById(tableId);
+            if (!table) {
+                console.log('Table not found:', tableId);
+                return;
+            }
+            
+            const ths = table.querySelectorAll('thead th');
+            let isResizing = false;
+            let currentTh = null;
+            let startX = 0;
+            let startWidth = 0;
+            
+            console.log('Found table:', tableId, 'with', ths.length, 'columns');
+            
+            // 为每个表头添加拖拽手柄
+            ths.forEach((th, index) => {
+                // 如果是最后一个列（操作列），不添加拖拽功能
+                if (index === ths.length - 1) {
+                    return;
+                }
+                
+                // 设置相对定位
+                th.style.position = 'relative';
+                // 确保表头有明确的宽度
+                if (!th.style.width) {
+                    th.style.width = th.offsetWidth + 'px';
+                }
+                
+                // 创建并添加拖拽手柄
+                const resizer = document.createElement('div');
+                resizer.classList.add('table-column-resizer');
+                resizer.style.position = 'absolute';
+                resizer.style.right = '-5px'; // 调整位置使其在表格缝隙中更明显
+                resizer.style.top = '0';
+                resizer.style.height = '100%';
+                resizer.style.width = '10px'; // 增加宽度提高可点击性
+                resizer.style.cursor = 'col-resize';
+                resizer.style.zIndex = '10000'; // 提高z-index确保能接收到鼠标事件
+                resizer.style.backgroundColor = 'rgba(0, 123, 255, 0.2)'; // 半透明背景，提高可见性
+                resizer.style.transition = 'background-color 0.2s ease, opacity 0.2s ease'; // 添加过渡效果
+                resizer.style.opacity = '1'; // 默认不透明，提高可见性
+                resizer.style.pointerEvents = 'auto'; // 确保能接收到鼠标事件
+                
+                // 添加悬停效果
+                resizer.addEventListener('mouseenter', () => {
+                    resizer.style.backgroundColor = '#007bff';
+                    resizer.style.opacity = '0.8';
+                    // 改变整个表格的鼠标指针
+                    table.style.cursor = 'col-resize';
+                    console.log('Mouse entered resizer for column', index);
+                });
+                
+                resizer.addEventListener('mouseleave', () => {
+                    if (!isResizing) {
+                        resizer.style.backgroundColor = 'rgba(0, 123, 255, 0.2)';
+                        resizer.style.opacity = '1';
+                        // 恢复默认鼠标指针
+                        table.style.cursor = '';
+                        console.log('Mouse left resizer for column', index);
+                    }
+                });
+                
+                // 添加拖拽事件
+                resizer.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    currentTh = th;
+                    startX = e.clientX;
+                    startWidth = th.offsetWidth;
+                    
+                    // 防止文本选择
+                    document.body.style.userSelect = 'none';
+                    // 防止拖动时选中文本
+                    document.body.style.cursor = 'col-resize';
+                    
+                    // 拖拽开始时高亮显示
+                    resizer.style.backgroundColor = '#0056b3';
+                    resizer.style.opacity = '0.8';
+                    
+                    // 添加全局事件监听器
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                
+                th.appendChild(resizer);
+                console.log('Added resizer to column', index);
+            });
+            
+            function handleMouseMove(e) {
+                if (!isResizing || !currentTh) return;
+                
+                const deltaX = e.clientX - startX;
+                const newWidth = Math.max(50, startWidth + deltaX);
+                
+                // 设置新宽度
+                currentTh.style.width = newWidth + 'px';
+                currentTh.style.minWidth = newWidth + 'px';
+                
+                // 调整表格布局
+                table.style.width = '100%';
+                
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function handleMouseUp(e) {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                currentTh = null;
+                
+                // 恢复文本选择
+                document.body.style.userSelect = '';
+                // 恢复默认鼠标指针
+                document.body.style.cursor = '';
+                table.style.cursor = '';
+                
+                // 移除全局事件监听器
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+    </script>
+</body>
+</html>

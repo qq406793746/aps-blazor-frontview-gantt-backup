@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>制造信息管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色主色调
+                        secondary: '#2a4365',    // 次要蓝色
+                        accent: '#ed8936',       // 橙色强调色
+                        success: '#38a169',      // 绿色 - 成功/正常
+                        warning: '#ed8936',      // 橙色 - 警告
+                        danger: '#e53e3e',       // 红色 - 危险/异常
+                        light: '#f7fafc',        // 浅色背景
+                        dark: '#1a202c',         // 深色文本
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .scrollbar-thin {
+                scrollbar-width: thin;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            .pulse-animation {
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.7);
+                }
+                70% {
+                    box-shadow: 0 0 0 10px rgba(56, 161, 105, 0);
+                }
+                100% {
+                    box-shadow: 0 0 0 0 rgba(56, 161, 105, 0);
+                }
+            }
+            .progress-bar {
+                position: relative;
+                height: 8px;
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            .progress-bar-fill {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                transition: width 0.5s ease;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-gradient-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-shadow">UNITED MACHINING</h1>
+                <span class="hidden md:inline-block text-sm">|</span>
+                <span class="hidden md:inline-block text-sm">模具制造MES系统</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">首页</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">项目管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">工艺管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">排产管理</a></li>
+                        <li><a href="#" class="text-accent font-medium transition-all-300">制造信息</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">设备管理</a></li>
+                    </ul>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm">管理员</span>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-primary">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 左侧机床选择区 -->
+        <div class="w-full md:w-1/4 lg:w-1/5">
+            <div class="bg-white rounded-lg shadow-card p-4 sticky top-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-cogs mr-2"></i>机床列表
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <span id="currentDateTime" class="text-xs text-gray-500"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <input type="text" id="machineSearchInput" placeholder="搜索机床..." class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <div class="mb-3 flex items-center justify-between">
+                    <div class="flex space-x-2">
+                        <button id="filterAllMachinesBtn" class="px-2 py-1 text-xs rounded bg-primary text-white">全部</button>
+                        <button id="filterRunningBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">运行中</button>
+                        <button id="filterIdleBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">空闲</button>
+                        <button id="filterAlarmBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">报警</button>
+                    </div>
+                </div>
+                
+                <div id="machineList" class="max-h-[600px] overflow-y-auto scrollbar-thin">
+                    <!-- 机床列表将通过 JavaScript 动态生成 -->
+                </div>
+                
+                <div class="mt-4 pt-3 border-t border-gray-200">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="text-gray-600">
+                            总计: <span id="machineTotalCount" class="font-medium">0</span> 台
+                        </div>
+                        <div class="text-gray-600">
+                            运行中: <span id="machineRunningCount" class="font-medium text-success">0</span> 台
+                        </div>
+                        <div class="text-gray-600">
+                            空闲: <span id="machineIdleCount" class="font-medium text-gray-600">0</span> 台
+                        </div>
+                        <div class="text-gray-600">
+                            报警: <span id="machineAlarmCount" class="font-medium text-danger">0</span> 台
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主内容区 -->
+        <div class="w-full md:w-3/4 lg:w-4/5">
+            <!-- 页面标题 -->
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-primary">制造信息管理</h2>
+                <p class="text-gray-600">实时监控机床状态，管理生产任务</p>
+            </div>
+
+            <!-- 机床当前状态卡片 -->
+            <div id="machineStatusCard" class="bg-white rounded-lg shadow-card p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-tachometer mr-2"></i>机床当前状态
+                        <span id="selectedMachineName" class="ml-2 text-sm font-normal text-gray-500">- 请选择机床</span>
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <button id="refreshStatusBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="刷新状态">
+                            <i class="fa fa-refresh"></i>
+                        </button>
+                        <button id="exportDataBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="导出数据">
+                            <i class="fa fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="noMachineSelected" class="text-center py-12">
+                    <div class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fa fa-cog text-3xl text-gray-400"></i>
+                    </div>
+                    <h4 class="text-lg font-medium text-gray-500 mb-2">请从左侧选择一台机床</h4>
+                    <p class="text-sm text-gray-500">选择机床后将显示其当前状态和任务信息</p>
+                </div>
+                
+                <div id="machineStatusContent" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- 机床状态 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">机床状态</p>
+                                    <h4 id="machineStatus" class="text-xl font-bold text-success mt-1">运行中</h4>
+                                </div>
+                                <div id="statusIndicator" class="w-10 h-10 rounded-full bg-success flex items-center justify-center text-white pulse-animation">
+                                    <i class="fa fa-check"></i>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <div>运行时长: <span id="runningTime">12小时30分钟</span></div>
+                                <div>最后更新: <span id="lastUpdate">2025-07-21 15:30:45</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 当前任务 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-sm text-gray-500">当前任务</p>
+                            <h4 id="currentTaskName" class="text-lg font-bold text-primary mt-1">CNC粗加工</h4>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <div>工单: <span id="currentWorkOrder">WO-2025-001</span></div>
+                                <div>工序: <span id="currentOperation">OP-001</span></div>
+                                <div>操作员: <span id="currentOperator">张三</span></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 加工进度 -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-sm text-gray-500">加工进度</p>
+                            <div class="flex items-center justify-between mt-1">
+                                <h4 id="progressPercentage" class="text-xl font-bold text-primary">65%</h4>
+                                <span id="remainingTime" class="text-sm text-gray-600">剩余 2小时15分钟</span>
+                            </div>
+                            <div class="progress-bar bg-gray-200 mt-2">
+                                <div id="progressBar" class="progress-bar-fill bg-success" style="width: 65%"></div>
+                            </div>
+                            <div class="flex justify-between mt-1 text-xs text-gray-500">
+                                <span id="startTime">开始: 08:00</span>
+                                <span id="endTime">预计完成: 16:30</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 实时数据 -->
+                    <div class="mb-6">
+                        <h4 class="text-md font-medium text-gray-700 mb-3">实时加工数据</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">主轴转速</p>
+                                <p id="spindleSpeed" class="text-lg font-bold text-primary">8,500 rpm</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">进给速度</p>
+                                <p id="feedRate" class="text-lg font-bold text-primary">150 mm/min</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">切削深度</p>
+                                <p id="cuttingDepth" class="text-lg font-bold text-primary">2.5 mm</p>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <p class="text-xs text-gray-500">功率负载</p>
+                                <p id="powerLoad" class="text-lg font-bold text-primary">75%</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 加工时间记录 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-md font-medium text-gray-700">加工时间记录</h4>
+                            <button id="recordTimeBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                记录实际时间
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            工序
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            计划时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            实际时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            偏差
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作员
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            记录时间
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="timeRecordsTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 时间记录将通过JavaScript动态生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当日任务看板 -->
+            <div class="bg-white rounded-lg shadow-card p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-calendar-check-o mr-2"></i>当日任务看板
+                        <span id="currentDate" class="ml-2 text-sm font-normal text-gray-500">-</span>
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <button id="refreshTasksBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="刷新任务">
+                            <i class="fa fa-refresh"></i>
+                        </button>
+                        <button id="printTasksBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="打印任务">
+                            <i class="fa fa-print"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- 已完成任务 -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-medium text-gray-700 flex items-center">
+                                <i class="fa fa-check-circle text-blue-600 mr-2"></i>已完成任务
+                            </h4>
+                            <span id="completedTasksCount" class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">0</span>
+                        </div>
+                        <div id="completedTasksList" class="space-y-3 max-h-[400px] overflow-y-auto scrollbar-thin">
+                            <!-- 已完成任务将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 进行中任务 -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-medium text-gray-700 flex items-center">
+                                <i class="fa fa-spinner text-success mr-2"></i>进行中任务
+                            </h4>
+                            <span id="inProgressTasksCount" class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">0</span>
+                        </div>
+                        <div id="inProgressTasksList" class="space-y-3 max-h-[400px] overflow-y-auto scrollbar-thin">
+                            <!-- 进行中任务将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 待完成任务 -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-medium text-gray-700 flex items-center">
+                                <i class="fa fa-clock-o text-gray-600 mr-2"></i>待完成任务
+                            </h4>
+                            <span id="pendingTasksCount" class="bg-gray-200 text-gray-800 text-xs px-2 py-0.5 rounded-full">0</span>
+                        </div>
+                        <div id="pendingTasksList" class="space-y-3 max-h-[400px] overflow-y-auto scrollbar-thin">
+                            <!-- 待完成任务将通过JavaScript动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未来任务预览 -->
+            <div class="bg-white rounded-lg shadow-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-calendar mr-2"></i>未来任务预览
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <button id="prevDayBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="前一天">
+                            <i class="fa fa-chevron-left"></i>
+                        </button>
+                        <div class="flex space-x-4">
+                            <button id="tomorrowBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                明天
+                            </button>
+                            <button id="dayAfterTomorrowBtn" class="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                后天
+                            </button>
+                        </div>
+                        <button id="nextDayBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="后一天">
+                            <i class="fa fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="futureTasksContent">
+                    <div class="mb-4">
+                        <h4 id="previewDate" class="text-md font-medium text-gray-700 mb-3">2025年7月22日 (明天)</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            机床
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            工单
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            工序
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作员
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            预计时长
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="futureTasksTable" class="bg-white divide-y divide-gray-200">
+                                    <!-- 未来任务将通过JavaScript动态生成 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 任务分布图表 -->
+                    <div>
+                        <h4 class="text-md font-medium text-gray-700 mb-3">任务分布</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <canvas id="machineDistributionChart" height="250"></canvas>
+                            </div>
+                            <div>
+                                <canvas id="timeDistributionChart" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 记录实际时间模态框 -->
+    <div id="recordTimeModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">记录实际加工时间</h3>
+                <button id="closeRecordTimeModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <div class="mb-3">
+                    <label for="recordOperation" class="block text-sm font-medium text-gray-700 mb-1">工序 <span class="text-danger">*</span></label>
+                    <select id="recordOperation" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择工序</option>
+                        <option value="OP-001">OP-001 - CNC粗加工</option>
+                        <option value="OP-002">OP-002 - CNC精加工</option>
+                        <option value="OP-003">OP-003 - 线切割加工</option>
+                        <option value="OP-004">OP-004 - 放电加工</option>
+                        <option value="OP-005">OP-005 - 三坐标测量</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="recordPlanTime" class="block text-sm font-medium text-gray-700 mb-1">计划时间 (小时) <span class="text-danger">*</span></label>
+                    <input type="number" id="recordPlanTime" min="0.1" step="0.1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="recordActualTime" class="block text-sm font-medium text-gray-700 mb-1">实际时间 (小时) <span class="text-danger">*</span></label>
+                    <input type="number" id="recordActualTime" min="0.1" step="0.1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="recordOperator" class="block text-sm font-medium text-gray-700 mb-1">操作员 <span class="text-danger">*</span></label>
+                    <select id="recordOperator" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择操作员</option>
+                        <option value="user1">张三 - 高级技师</option>
+                        <option value="user2">李四 - 技师</option>
+                        <option value="user3">王五 - 技师</option>
+                        <option value="user4">赵六 - 初级技师</option>
+                        <option value="user5">钱七 - 初级技师</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="recordRemark" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                    <textarea id="recordRemark" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelRecordTimeBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    取消
+                </button>
+                <button id="confirmRecordTimeBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确认记录
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存成功提示模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold text-center text-gray-900 mb-2">操作成功</h3>
+            <p id="successMessage" class="text-gray-600 text-center mb-6">操作已成功完成</p>
+            <div class="flex justify-center">
+                <button id="closeSuccessModalBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let machines = [];
+        let filteredMachines = [];
+        let selectedMachineId = null;
+        let currentDate = new Date();
+        let previewDate = new Date();
+        previewDate.setDate(currentDate.getDate() + 1); // 默认预览明天
+        
+        // 机床状态映射
+        const machineStatusMap = {
+            'running': { text: '运行中', class: 'bg-success text-white', icon: 'fa-check', pulse: true },
+            'idle': { text: '空闲', class: 'bg-gray-500 text-white', icon: 'fa-circle-o', pulse: false },
+            'alarm': { text: '报警', class: 'bg-danger text-white', icon: 'fa-exclamation-circle', pulse: true },
+            'maintenance': { text: '维护中', class: 'bg-warning text-white', icon: 'fa-wrench', pulse: false }
+        };
+        
+        // 任务状态映射
+        const taskStatusMap = {
+            'completed': { text: '已完成', class: 'bg-blue-100 text-blue-800', icon: 'fa-check-circle' },
+            'in_progress': { text: '进行中', class: 'bg-green-100 text-green-800', icon: 'fa-spinner' },
+            'pending': { text: '待完成', class: 'bg-gray-100 text-gray-800', icon: 'fa-clock-o' },
+            'paused': { text: '已暂停', class: 'bg-yellow-100 text-yellow-800', icon: 'fa-pause-circle' },
+            'delayed': { text: '已延期', class: 'bg-red-100 text-red-800', icon: 'fa-exclamation-triangle' }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前日期
+            document.getElementById('currentDate').textContent = formatDate(currentDate);
+            document.getElementById('previewDate').textContent = formatDate(previewDate);
+            updateCurrentDateTime();
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 加载示例数据
+            loadSampleData();
+            
+            // 渲染机床列表
+            renderMachineList();
+            
+            // 渲染当日任务看板
+            renderTodayTasks();
+            
+            // 渲染未来任务预览
+            renderFutureTasks();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 设置自动刷新
+            setInterval(function() {
+                updateCurrentDateTime();
+                if (selectedMachineId) {
+                    updateMachineStatus();
+                }
+            }, 30000); // 每30秒刷新一次
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // 机床搜索事件
+            document.getElementById('machineSearchInput').addEventListener('input', function() {
+                searchMachines();
+            });
+            
+            // 机床筛选事件
+            document.getElementById('filterAllMachinesBtn').addEventListener('click', function() {
+                filterMachines('all');
+                updateFilterButtons('all');
+            });
+            
+            document.getElementById('filterRunningBtn').addEventListener('click', function() {
+                filterMachines('running');
+                updateFilterButtons('running');
+            });
+            
+            document.getElementById('filterIdleBtn').addEventListener('click', function() {
+                filterMachines('idle');
+                updateFilterButtons('idle');
+            });
+            
+            document.getElementById('filterAlarmBtn').addEventListener('click', function() {
+                filterMachines('alarm');
+                updateFilterButtons('alarm');
+            });
+            
+            // 刷新状态事件
+            document.getElementById('refreshStatusBtn').addEventListener('click', function() {
+                if (selectedMachineId) {
+                    updateMachineStatus();
+                    showSuccessMessage('状态已刷新');
+                }
+            });
+            
+            document.getElementById('refreshTasksBtn').addEventListener('click', function() {
+                renderTodayTasks();
+                renderFutureTasks();
+                showSuccessMessage('任务列表已刷新');
+            });
+            
+            // 导出数据事件
+            document.getElementById('exportDataBtn').addEventListener('click', function() {
+                if (selectedMachineId) {
+                    exportMachineData();
+                }
+            });
+            
+            // 打印任务事件
+            document.getElementById('printTasksBtn').addEventListener('click', function() {
+                printTasks();
+            });
+            
+            // 记录实际时间事件
+            document.getElementById('recordTimeBtn').addEventListener('click', function() {
+                if (selectedMachineId) {
+                    showRecordTimeModal();
+                }
+            });
+            
+            document.getElementById('closeRecordTimeModalBtn').addEventListener('click', function() {
+                document.getElementById('recordTimeModal').classList.add('hidden');
+            });
+            
+            document.getElementById('cancelRecordTimeBtn').addEventListener('click', function() {
+                document.getElementById('recordTimeModal').classList.add('hidden');
+            });
+            
+            document.getElementById('confirmRecordTimeBtn').addEventListener('click', function() {
+                recordActualTime();
+            });
+            
+            // 未来任务预览日期切换事件
+            document.getElementById('tomorrowBtn').addEventListener('click', function() {
+                previewDate.setDate(currentDate.getDate() + 1);
+                document.getElementById('previewDate').textContent = formatDate(previewDate);
+                document.getElementById('tomorrowBtn').classList.remove('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                document.getElementById('tomorrowBtn').classList.add('bg-primary', 'text-white', 'hover:bg-secondary');
+                document.getElementById('dayAfterTomorrowBtn').classList.remove('bg-primary', 'text-white', 'hover:bg-secondary');
+                document.getElementById('dayAfterTomorrowBtn').classList.add('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                renderFutureTasks();
+            });
+            
+            document.getElementById('dayAfterTomorrowBtn').addEventListener('click', function() {
+                previewDate.setDate(currentDate.getDate() + 2);
+                document.getElementById('previewDate').textContent = formatDate(previewDate);
+                document.getElementById('dayAfterTomorrowBtn').classList.remove('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                document.getElementById('dayAfterTomorrowBtn').classList.add('bg-primary', 'text-white', 'hover:bg-secondary');
+                document.getElementById('tomorrowBtn').classList.remove('bg-primary', 'text-white', 'hover:bg-secondary');
+                document.getElementById('tomorrowBtn').classList.add('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                renderFutureTasks();
+            });
+            
+            document.getElementById('prevDayBtn').addEventListener('click', function() {
+                const diffDays = Math.floor((previewDate - currentDate) / (1000 * 60 * 60 * 24));
+                if (diffDays > 0) {
+                    previewDate.setDate(previewDate.getDate() - 1);
+                    document.getElementById('previewDate').textContent = formatDate(previewDate);
+                    
+                    if (diffDays === 1) {
+                        document.getElementById('tomorrowBtn').classList.remove('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                        document.getElementById('tomorrowBtn').classList.add('bg-primary', 'text-white', 'hover:bg-secondary');
+                        document.getElementById('dayAfterTomorrowBtn').classList.remove('bg-primary', 'text-white', 'hover:bg-secondary');
+                        document.getElementById('dayAfterTomorrowBtn').classList.add('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                    }
+                    
+                    renderFutureTasks();
+                }
+            });
+            
+            document.getElementById('nextDayBtn').addEventListener('click', function() {
+                const diffDays = Math.floor((previewDate - currentDate) / (1000 * 60 * 60 * 24));
+                if (diffDays < 7) { // 最多预览未来7天
+                    previewDate.setDate(previewDate.getDate() + 1);
+                    document.getElementById('previewDate').textContent = formatDate(previewDate);
+                    
+                    if (diffDays === 1) {
+                        document.getElementById('dayAfterTomorrowBtn').classList.remove('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                        document.getElementById('dayAfterTomorrowBtn').classList.add('bg-primary', 'text-white', 'hover:bg-secondary');
+                        document.getElementById('tomorrowBtn').classList.remove('bg-primary', 'text-white', 'hover:bg-secondary');
+                        document.getElementById('tomorrowBtn').classList.add('border', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                    }
+                    
+                    renderFutureTasks();
+                }
+            });
+            
+            // 成功提示模态框事件
+            document.getElementById('closeSuccessModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+        }
+
+        // 加载示例数据
+        function loadSampleData() {
+            // 机床数据
+            machines = [
+                {
+                    id: 'GF-CNC-001',
+                    name: 'GF-CNC-001 - Mikron MILL P 500',
+                    type: 'cnc_mill',
+                    status: 'running',
+                    runningTime: '12小时30分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: {
+                        workOrder: 'WO-2025-001',
+                        workOrderName: '汽车模具A',
+                        operation: 'OP-001',
+                        operationName: 'CNC粗加工',
+                        operator: '张三',
+                        progress: 65,
+                        startTime: '08:00',
+                        estimatedEndTime: '16:30',
+                        remainingTime: '2小时15分钟'
+                    },
+                    realTimeData: {
+                        spindleSpeed: '8,500 rpm',
+                        feedRate: '150 mm/min',
+                        cuttingDepth: '2.5 mm',
+                        powerLoad: '75%'
+                    },
+                    timeRecords: [
+                        {
+                            operation: 'OP-001',
+                            operationName: 'CNC粗加工',
+                            planTime: 4.0,
+                            actualTime: 3.8,
+                            deviation: '-0.2',
+                            operator: '张三',
+                            recordTime: '2025-07-21 12:15:30'
+                        },
+                        {
+                            operation: 'OP-002',
+                            operationName: 'CNC精加工',
+                            planTime: 3.0,
+                            actualTime: 3.2,
+                            deviation: '+0.2',
+                            operator: '张三',
+                            recordTime: '2025-07-21 15:45:20'
+                        }
+                    ]
+                },
+                {
+                    id: 'GF-CNC-002',
+                    name: 'GF-CNC-002 - Mikron MILL S 400',
+                    type: 'cnc_mill',
+                    status: 'running',
+                    runningTime: '8小时15分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: {
+                        workOrder: 'WO-2025-002',
+                        workOrderName: '手机外壳模具',
+                        operation: 'OP-002',
+                        operationName: 'CNC精加工',
+                        operator: '李四',
+                        progress: 40,
+                        startTime: '09:30',
+                        estimatedEndTime: '17:30',
+                        remainingTime: '4小时0分钟'
+                    },
+                    realTimeData: {
+                        spindleSpeed: '12,000 rpm',
+                        feedRate: '200 mm/min',
+                        cuttingDepth: '0.5 mm',
+                        powerLoad: '60%'
+                    },
+                    timeRecords: [
+                        {
+                            operation: 'OP-001',
+                            operationName: 'CNC粗加工',
+                            planTime: 2.0,
+                            actualTime: 1.9,
+                            deviation: '-0.1',
+                            operator: '李四',
+                            recordTime: '2025-07-21 11:45:10'
+                        }
+                    ]
+                },
+                {
+                    id: 'GF-CNC-003',
+                    name: 'GF-CNC-003 - Mikron MILL E 300',
+                    type: 'cnc_mill',
+                    status: 'idle',
+                    runningTime: '0小时0分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: null,
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '0 mm/min',
+                        cuttingDepth: '0 mm',
+                        powerLoad: '0%'
+                    },
+                    timeRecords: [
+                        {
+                            operation: 'OP-001',
+                            operationName: 'CNC粗加工',
+                            planTime: 3.0,
+                            actualTime: 3.0,
+                            deviation: '0.0',
+                            operator: '王五',
+                            recordTime: '2025-07-21 15:15:45'
+                        }
+                    ]
+                },
+                {
+                    id: 'GF-EDM-001',
+                    name: 'GF-EDM-001 - AgieCharmilles FORM 300',
+                    type: 'edm',
+                    status: 'running',
+                    runningTime: '6小时45分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: {
+                        workOrder: 'WO-2025-003',
+                        workOrderName: '医疗设备模具',
+                        operation: 'OP-004',
+                        operationName: '放电加工',
+                        operator: '王五',
+                        progress: 75,
+                        startTime: '09:00',
+                        estimatedEndTime: '18:00',
+                        remainingTime: '2小时30分钟'
+                    },
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '5 mm/min',
+                        cuttingDepth: '0.1 mm',
+                        powerLoad: '80%'
+                    },
+                    timeRecords: []
+                },
+                {
+                    id: 'GF-EDM-002',
+                    name: 'GF-EDM-002 - AgieCharmilles FORM 200',
+                    type: 'edm',
+                    status: 'alarm',
+                    runningTime: '0小时0分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: null,
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '0 mm/min',
+                        cuttingDepth: '0 mm',
+                        powerLoad: '0%'
+                    },
+                    timeRecords: [],
+                    alarmInfo: {
+                        code: 'E1024',
+                        message: '伺服系统故障',
+                        startTime: '2025-07-21 14:25:10'
+                    }
+                },
+                {
+                    id: 'GF-WEDM-001',
+                    name: 'GF-WEDM-001 - AgieCharmilles CUT 2000',
+                    type: 'wire_edm',
+                    status: 'running',
+                    runningTime: '10小时20分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: {
+                        workOrder: 'WO-2025-001',
+                        workOrderName: '汽车模具A',
+                        operation: 'OP-003',
+                        operationName: '线切割加工',
+                        operator: '赵六',
+                        progress: 50,
+                        startTime: '06:10',
+                        estimatedEndTime: '20:10',
+                        remainingTime: '4小时40分钟'
+                    },
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '2 mm/min',
+                        cuttingDepth: '0.2 mm',
+                        powerLoad: '65%'
+                    },
+                    timeRecords: []
+                },
+                {
+                    id: 'GF-WEDM-002',
+                    name: 'GF-WEDM-002 - AgieCharmilles CUT 1000',
+                    type: 'wire_edm',
+                    status: 'idle',
+                    runningTime: '0小时0分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: null,
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '0 mm/min',
+                        cuttingDepth: '0 mm',
+                        powerLoad: '0%'
+                    },
+                    timeRecords: []
+                },
+                {
+                    id: 'GF-CMM-001',
+                    name: 'GF-CMM-001 - Leitz Reference Xi',
+                    type: 'cmm',
+                    status: 'idle',
+                    runningTime: '0小时0分钟',
+                    lastUpdate: '2025-07-21 15:30:45',
+                    currentTask: null,
+                    realTimeData: {
+                        spindleSpeed: '0 rpm',
+                        feedRate: '0 mm/min',
+                        cuttingDepth: '0 mm',
+                        powerLoad: '0%'
+                    },
+                    timeRecords: [
+                        {
+                            operation: 'OP-005',
+                            operationName: '三坐标测量',
+                            planTime: 1.0,
+                            actualTime: 1.2,
+                            deviation: '+0.2',
+                            operator: '钱七',
+                            recordTime: '2025-07-21 14:30:20'
+                        }
+                    ]
+                }
+            ];
+            
+            filteredMachines = [...machines];
+        }
+
+        // 渲染机床列表
+        function renderMachineList() {
+            const machineList = document.getElementById('machineList');
+            machineList.innerHTML = '';
+            
+            if (filteredMachines.length === 0) {
+                machineList.innerHTML = `
+                    <div class="text-center text-gray-500 py-4">
+                        暂无机床数据
+                    </div>
+                `;
+            } else {
+                filteredMachines.forEach(machine => {
+                    const status = machineStatusMap[machine.status];
+                    
+                    const machineItem = document.createElement('div');
+                    machineItem.className = `p-2 hover:bg-gray-50 rounded cursor-pointer mb-1 border border-transparent hover:border-gray-200 transition-all-300 ${selectedMachineId === machine.id ? 'bg-blue-50 border-blue-200' : ''}`;
+                    machineItem.dataset.id = machine.id;
+                    
+                    let alarmInfo = '';
+                    if (machine.status === 'alarm' && machine.alarmInfo) {
+                        alarmInfo = `
+                            <div class="text-xs text-danger mt-1">
+                                <i class="fa fa-exclamation-circle mr-1"></i>${machine.alarmInfo.code}: ${machine.alarmInfo.message}
+                            </div>
+                        `;
+                    }
+                    
+                    machineItem.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-sm">${machine.name}</div>
+                                <div class="text-xs text-gray-500">${getMachineTypeText(machine.type)}</div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-2 h-2 rounded-full ${status.class} mr-1 ${status.pulse ? 'pulse-animation' : ''}"></div>
+                                <div class="text-xs">${status.text}</div>
+                            </div>
+                        </div>
+                        ${alarmInfo}
+                    `;
+                    
+                    machineItem.addEventListener('click', function() {
+                        selectMachine(machine.id);
+                    });
+                    
+                    machineList.appendChild(machineItem);
+                });
+            }
+            
+            // 更新统计信息
+            updateMachineStatistics();
+        }
+
+        // 选择机床
+        function selectMachine(machineId) {
+            selectedMachineId = machineId;
+            
+            // 更新机床列表选中状态
+            document.querySelectorAll('#machineList > div').forEach(item => {
+                if (item.dataset.id === machineId) {
+                    item.classList.add('bg-blue-50', 'border-blue-200');
+                } else {
+                    item.classList.remove('bg-blue-50', 'border-blue-200');
+                }
+            });
+            
+            // 更新机床状态显示
+            const machine = machines.find(m => m.id === machineId);
+            if (machine) {
+                document.getElementById('selectedMachineName').textContent = ` - ${machine.name}`;
+                document.getElementById('noMachineSelected').classList.add('hidden');
+                document.getElementById('machineStatusContent').classList.remove('hidden');
+                
+                // 更新机床状态信息
+                updateMachineStatusInfo(machine);
+            }
+        }
+
+        // 更新机床状态信息
+        function updateMachineStatusInfo(machine) {
+            const status = machineStatusMap[machine.status];
+            
+            // 更新状态
+            document.getElementById('machineStatus').textContent = status.text;
+            document.getElementById('machineStatus').className = `text-xl font-bold ${status.class.replace('bg-', 'text-').replace('text-white', '')} mt-1`;
+            
+            // 更新状态指示器
+            const statusIndicator = document.getElementById('statusIndicator');
+            statusIndicator.className = `w-10 h-10 rounded-full ${status.class} flex items-center justify-center text-white ${status.pulse ? 'pulse-animation' : ''}`;
+            statusIndicator.innerHTML = `<i class="fa ${status.icon}"></i>`;
+            
+            // 更新运行时长和最后更新时间
+            document.getElementById('runningTime').textContent = machine.runningTime;
+            document.getElementById('lastUpdate').textContent = machine.lastUpdate;
+            
+            if (machine.currentTask) {
+                // 更新当前任务信息
+                document.getElementById('currentTaskName').textContent = machine.currentTask.operationName;
+                document.getElementById('currentWorkOrder').textContent = machine.currentTask.workOrder;
+                document.getElementById('currentOperation').textContent = machine.currentTask.operation;
+                document.getElementById('currentOperator').textContent = machine.currentTask.operator;
+                
+                // 更新加工进度
+                document.getElementById('progressPercentage').textContent = `${machine.currentTask.progress}%`;
+                document.getElementById('remainingTime').textContent = `剩余 ${machine.currentTask.remainingTime}`;
+                document.getElementById('progressBar').style.width = `${machine.currentTask.progress}%`;
+                document.getElementById('startTime').textContent = `开始: ${machine.currentTask.startTime}`;
+                document.getElementById('endTime').textContent = `预计完成: ${machine.currentTask.estimatedEndTime}`;
+                
+                // 更新实时加工数据
+                document.getElementById('spindleSpeed').textContent = machine.realTimeData.spindleSpeed;
+                document.getElementById('feedRate').textContent = machine.realTimeData.feedRate;
+                document.getElementById('cuttingDepth').textContent = machine.realTimeData.cuttingDepth;
+                document.getElementById('powerLoad').textContent = machine.realTimeData.powerLoad;
+                
+                // 更新加工时间记录
+                renderTimeRecords(machine.timeRecords);
+            } else {
+                // 没有当前任务时清空相关信息
+                document.getElementById('currentTaskName').textContent = '-';
+                document.getElementById('currentWorkOrder').textContent = '-';
+                document.getElementById('currentOperation').textContent = '-';
+                document.getElementById('currentOperator').textContent = '-';
+                
+                document.getElementById('progressPercentage').textContent = '0%';
+                document.getElementById('remainingTime').textContent = '-';
+                document.getElementById('progressBar').style.width = '0%';
+                document.getElementById('startTime').textContent = '-';
+                document.getElementById('endTime').textContent = '-';
+                
+                document.getElementById('spindleSpeed').textContent = machine.realTimeData.spindleSpeed;
+                document.getElementById('feedRate').textContent = machine.realTimeData.feedRate;
+                document.getElementById('cuttingDepth').textContent = machine.realTimeData.cuttingDepth;
+                document.getElementById('powerLoad').textContent = machine.realTimeData.powerLoad;
+                
+                // 清空加工时间记录
+                renderTimeRecords([]);
+            }
+        }
+
+        // 渲染加工时间记录
+        function renderTimeRecords(timeRecords) {
+            const timeRecordsTable = document.getElementById('timeRecordsTable');
+            timeRecordsTable.innerHTML = '';
+            
+            if (timeRecords.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="6" class="px-4 py-4 text-center text-gray-500">
+                        暂无加工时间记录
+                    </td>
+                `;
+                timeRecordsTable.appendChild(emptyRow);
+            } else {
+                timeRecords.forEach(record => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${record.operation} - ${record.operationName}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${record.planTime} 小时</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${record.actualTime} 小时</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm ${record.deviation.startsWith('+') ? 'text-danger' : record.deviation.startsWith('-') ? 'text-success' : 'text-gray-600'}">${record.deviation} 小时</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${record.operator}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${record.recordTime}</div>
+                        </td>
+                    `;
+                    
+                    timeRecordsTable.appendChild(row);
+                });
+            }
+        }
+
+        // 渲染当日任务看板
+        function renderTodayTasks() {
+            // 模拟当日任务数据
+            const todayTasks = [
+                {
+                    id: 'task_1',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    machine: 'GF-CNC-001',
+                    machineName: 'GF-CNC-001 - Mikron MILL P 500',
+                    operator: '张三',
+                    startTime: '08:00',
+                    endTime: '12:00',
+                    status: 'completed',
+                    actualTime: 3.8,
+                    planTime: 4.0
+                },
+                {
+                    id: 'task_2',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    machine: 'GF-CNC-001',
+                    machineName: 'GF-CNC-001 - Mikron MILL P 500',
+                    operator: '张三',
+                    startTime: '13:00',
+                    endTime: '16:00',
+                    status: 'in_progress',
+                    progress: 65,
+                    remainingTime: '2小时15分钟'
+                },
+                {
+                    id: 'task_3',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    machine: 'GF-CNC-002',
+                    machineName: 'GF-CNC-002 - Mikron MILL S 400',
+                    operator: '李四',
+                    startTime: '08:00',
+                    endTime: '10:00',
+                    status: 'completed',
+                    actualTime: 1.9,
+                    planTime: 2.0
+                },
+                {
+                    id: 'task_4',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    machine: 'GF-CNC-002',
+                    machineName: 'GF-CNC-002 - Mikron MILL S 400',
+                    operator: '李四',
+                    startTime: '10:30',
+                    endTime: '15:30',
+                    status: 'in_progress',
+                    progress: 40,
+                    remainingTime: '4小时0分钟'
+                },
+                {
+                    id: 'task_5',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    machine: 'GF-CNC-003',
+                    machineName: 'GF-CNC-003 - Mikron MILL E 300',
+                    operator: '王五',
+                    startTime: '13:00',
+                    endTime: '16:00',
+                    status: 'completed',
+                    actualTime: 3.0,
+                    planTime: 3.0
+                },
+                {
+                    id: 'task_6',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-004',
+                    operationName: '放电加工',
+                    machine: 'GF-EDM-001',
+                    machineName: 'GF-EDM-001 - AgieCharmilles FORM 300',
+                    operator: '王五',
+                    startTime: '09:00',
+                    endTime: '18:00',
+                    status: 'in_progress',
+                    progress: 75,
+                    remainingTime: '2小时30分钟'
+                },
+                {
+                    id: 'task_7',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-003',
+                    operationName: '线切割加工',
+                    machine: 'GF-WEDM-001',
+                    machineName: 'GF-WEDM-001 - AgieCharmilles CUT 2000',
+                    operator: '赵六',
+                    startTime: '06:10',
+                    endTime: '20:10',
+                    status: 'in_progress',
+                    progress: 50,
+                    remainingTime: '4小时40分钟'
+                },
+                {
+                    id: 'task_8',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-003',
+                    operationName: '线切割加工',
+                    machine: 'GF-WEDM-002',
+                    machineName: 'GF-WEDM-002 - AgieCharmilles CUT 1000',
+                    operator: '赵六',
+                    startTime: '16:30',
+                    endTime: '20:30',
+                    status: 'pending'
+                },
+                {
+                    id: 'task_9',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-005',
+                    operationName: '三坐标测量',
+                    machine: 'GF-CMM-001',
+                    machineName: 'GF-CMM-001 - Leitz Reference Xi',
+                    operator: '钱七',
+                    startTime: '13:30',
+                    endTime: '14:30',
+                    status: 'completed',
+                    actualTime: 1.2,
+                    planTime: 1.0
+                }
+            ];
+            
+            // 分类任务
+            const completedTasks = todayTasks.filter(task => task.status === 'completed');
+            const inProgressTasks = todayTasks.filter(task => task.status === 'in_progress');
+            const pendingTasks = todayTasks.filter(task => task.status === 'pending');
+            
+            // 更新任务数量
+            document.getElementById('completedTasksCount').textContent = completedTasks.length;
+            document.getElementById('inProgressTasksCount').textContent = inProgressTasks.length;
+            document.getElementById('pendingTasksCount').textContent = pendingTasks.length;
+            
+            // 渲染已完成任务
+            renderTaskList('completedTasksList', completedTasks);
+            
+            // 渲染进行中任务
+            renderTaskList('inProgressTasksList', inProgressTasks);
+            
+            // 渲染待完成任务
+            renderTaskList('pendingTasksList', pendingTasks);
+        }
+
+        // 渲染任务列表
+        function renderTaskList(containerId, tasks) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-500 py-4">
+                        暂无任务
+                    </div>
+                `;
+                return;
+            }
+            
+            tasks.forEach(task => {
+                const status = taskStatusMap[task.status];
+                
+                const taskItem = document.createElement('div');
+                taskItem.className = 'bg-white p-3 rounded-md shadow-sm border border-gray-100';
+                
+                let progressInfo = '';
+                if (task.status === 'in_progress') {
+                    progressInfo = `
+                        <div class="mt-2">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span>进度: ${task.progress}%</span>
+                                <span>剩余: ${task.remainingTime}</span>
+                            </div>
+                            <div class="progress-bar bg-gray-200">
+                                <div class="progress-bar-fill bg-success" style="width: ${task.progress}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                let timeInfo = '';
+                if (task.status === 'completed') {
+                    const deviation = (task.actualTime - task.planTime).toFixed(1);
+                    const deviationClass = deviation > 0 ? 'text-danger' : deviation < 0 ? 'text-success' : 'text-gray-600';
+                    const deviationSign = deviation > 0 ? '+' : '';
+                    
+                    timeInfo = `
+                        <div class="mt-1 text-xs">
+                            <span>计划: ${task.planTime}小时</span>
+                            <span class="mx-1">|</span>
+                            <span>实际: ${task.actualTime}小时</span>
+                            <span class="mx-1">|</span>
+                            <span class="${deviationClass}">偏差: ${deviationSign}${deviation}小时</span>
+                        </div>
+                    `;
+                }
+                
+                taskItem.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h5 class="font-medium text-sm">${task.operationName}</h5>
+                            <div class="text-xs text-gray-500 mt-1">
+                                ${task.workOrder} - ${task.workOrderName}
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-xs ${status.class}">
+                            <i class="fa ${status.icon} mr-1"></i>${status.text}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center mt-2 text-xs text-gray-600">
+                        <span>${task.machineName.split(' - ')[0]}</span>
+                        <span>${task.startTime} - ${task.endTime}</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-1 text-xs text-gray-600">
+                        <span>操作员: ${task.operator}</span>
+                    </div>
+                    ${progressInfo}
+                    ${timeInfo}
+                `;
+                
+                container.appendChild(taskItem);
+            });
+        }
+
+        // 渲染未来任务预览
+        function renderFutureTasks() {
+            // 模拟未来任务数据
+            const futureTasks = [
+                {
+                    id: 'future_task_1',
+                    date: '2025-07-22',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-004',
+                    operationName: '放电加工',
+                    machine: 'GF-EDM-001',
+                    machineName: 'GF-EDM-001 - AgieCharmilles FORM 300',
+                    operator: '张三',
+                    startTime: '08:00',
+                    endTime: '16:00',
+                    estimatedDuration: '8.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_2',
+                    date: '2025-07-22',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-005',
+                    operationName: '三坐标测量',
+                    machine: 'GF-CMM-001',
+                    machineName: 'GF-CMM-001 - Leitz Reference Xi',
+                    operator: '钱七',
+                    startTime: '14:00',
+                    endTime: '15:00',
+                    estimatedDuration: '1.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_3',
+                    date: '2025-07-22',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-004',
+                    operationName: '放电加工',
+                    machine: 'GF-EDM-002',
+                    machineName: 'GF-EDM-002 - AgieCharmilles FORM 200',
+                    operator: '李四',
+                    startTime: '09:00',
+                    endTime: '17:00',
+                    estimatedDuration: '8.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_4',
+                    date: '2025-07-22',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    machine: 'GF-CNC-003',
+                    machineName: 'GF-CNC-003 - Mikron MILL E 300',
+                    operator: '王五',
+                    startTime: '08:00',
+                    endTime: '12:00',
+                    estimatedDuration: '4.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_5',
+                    date: '2025-07-22',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-003',
+                    operationName: '线切割加工',
+                    machine: 'GF-WEDM-001',
+                    machineName: 'GF-WEDM-001 - AgieCharmilles CUT 2000',
+                    operator: '赵六',
+                    startTime: '13:00',
+                    endTime: '21:00',
+                    estimatedDuration: '8.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_6',
+                    date: '2025-07-23',
+                    workOrder: 'WO-2025-004',
+                    workOrderName: '家电模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    machine: 'GF-CNC-001',
+                    machineName: 'GF-CNC-001 - Mikron MILL P 500',
+                    operator: '张三',
+                    startTime: '08:00',
+                    endTime: '12:00',
+                    estimatedDuration: '4.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_7',
+                    date: '2025-07-23',
+                    workOrder: 'WO-2025-004',
+                    workOrderName: '家电模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    machine: 'GF-CNC-001',
+                    machineName: 'GF-CNC-001 - Mikron MILL P 500',
+                    operator: '张三',
+                    startTime: '13:00',
+                    endTime: '17:00',
+                    estimatedDuration: '4.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_8',
+                    date: '2025-07-23',
+                    workOrder: 'WO-2025-005',
+                    workOrderName: '包装模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    machine: 'GF-CNC-002',
+                    machineName: 'GF-CNC-002 - Mikron MILL S 400',
+                    operator: '李四',
+                    startTime: '08:00',
+                    endTime: '12:00',
+                    estimatedDuration: '4.0小时',
+                    status: 'scheduled'
+                },
+                {
+                    id: 'future_task_9',
+                    date: '2025-07-23',
+                    workOrder: 'WO-2025-005',
+                    workOrderName: '包装模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    machine: 'GF-CNC-002',
+                    machineName: 'GF-CNC-002 - Mikron MILL S 400',
+                    operator: '李四',
+                    startTime: '13:00',
+                    endTime: '17:00',
+                    estimatedDuration: '4.0小时',
+                    status: 'scheduled'
+                }
+            ];
+            
+            // 筛选指定日期的任务
+            const filteredTasks = futureTasks.filter(task => {
+                const taskDate = new Date(task.date);
+                return taskDate.toDateString() === previewDate.toDateString();
+            });
+            
+            // 渲染未来任务表格
+            renderFutureTasksTable(filteredTasks);
+            
+            // 更新图表
+            updateCharts(filteredTasks);
+        }
+
+        // 渲染未来任务表格
+        function renderFutureTasksTable(tasks) {
+            const tableBody = document.getElementById('futureTasksTable');
+            tableBody.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="7" class="px-4 py-4 text-center text-gray-500">
+                        暂无任务
+                    </td>
+                `;
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+            
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.startTime} - ${task.endTime}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.machineName.split(' - ')[0]}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.workOrder}</div>
+                        <div class="text-xs text-gray-500">${task.workOrderName}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.operation} - ${task.operationName}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.operator}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${task.estimatedDuration}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                            <i class="fa fa-calendar-check-o mr-1"></i>已排产
+                        </span>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 机床分布图表
+            const machineDistributionCtx = document.getElementById('machineDistributionChart').getContext('2d');
+            window.machineDistributionChart = new Chart(machineDistributionCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['CNC加工中心', '电火花机', '线切割机', '三坐标测量机'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: [
+                            '#3182ce',
+                            '#38a169',
+                            '#ed8936',
+                            '#805ad5'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: '机床任务分布'
+                        }
+                    }
+                }
+            });
+            
+            // 时间分布图表
+            const timeDistributionCtx = document.getElementById('timeDistributionChart').getContext('2d');
+            window.timeDistributionChart = new Chart(timeDistributionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['08:00-10:00', '10:00-12:00', '13:00-15:00', '15:00-17:00', '17:00-19:00', '19:00-21:00'],
+                    datasets: [{
+                        label: '任务数量',
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: '#3182ce',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: '时间段任务分布'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新图表
+        function updateCharts(tasks) {
+            if (!tasks || tasks.length === 0) {
+                // 清空图表数据
+                window.machineDistributionChart.data.datasets[0].data = [0, 0, 0, 0];
+                window.timeDistributionChart.data.datasets[0].data = [0, 0, 0, 0, 0, 0];
+                
+                window.machineDistributionChart.update();
+                window.timeDistributionChart.update();
+                
+                return;
+            }
+            
+            // 统计机床类型分布
+            const machineTypeCount = {
+                'cnc_mill': 0,
+                'edm': 0,
+                'wire_edm': 0,
+                'cmm': 0
+            };
+            
+            tasks.forEach(task => {
+                const machineId = task.machine;
+                const machine = machines.find(m => m.id === machineId);
+                if (machine) {
+                    machineTypeCount[machine.type]++;
+                }
+            });
+            
+            // 更新机床分布图表
+            window.machineDistributionChart.data.datasets[0].data = [
+                machineTypeCount.cnc_mill,
+                machineTypeCount.edm,
+                machineTypeCount.wire_edm,
+                machineTypeCount.cmm
+            ];
+            
+            // 统计时间段分布
+            const timeSlotCount = [0, 0, 0, 0, 0, 0]; // 对应6个时间段
+            
+            tasks.forEach(task => {
+                const startTime = parseInt(task.startTime.split(':')[0]);
+                
+                if (startTime >= 8 && startTime < 10) {
+                    timeSlotCount[0]++;
+                } else if (startTime >= 10 && startTime < 12) {
+                    timeSlotCount[1]++;
+                } else if (startTime >= 13 && startTime < 15) {
+                    timeSlotCount[2]++;
+                } else if (startTime >= 15 && startTime < 17) {
+                    timeSlotCount[3]++;
+                } else if (startTime >= 17 && startTime < 19) {
+                    timeSlotCount[4]++;
+                } else if (startTime >= 19 && startTime < 21) {
+                    timeSlotCount[5]++;
+                }
+            });
+            
+            // 更新时间分布图表
+            window.timeDistributionChart.data.datasets[0].data = timeSlotCount;
+            
+            // 更新图表
+            window.machineDistributionChart.update();
+            window.timeDistributionChart.update();
+        }
+
+        // 搜索机床
+        function searchMachines() {
+            const searchTerm = document.getElementById('machineSearchInput').value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredMachines = [...machines];
+            } else {
+                filteredMachines = machines.filter(machine => 
+                    machine.name.toLowerCase().includes(searchTerm) ||
+                    machine.type.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderMachineList();
+        }
+
+        // 筛选机床
+        function filterMachines(status) {
+            if (status === 'all') {
+                filteredMachines = [...machines];
+            } else {
+                filteredMachines = machines.filter(machine => machine.status === status);
+            }
+            
+            renderMachineList();
+        }
+
+        // 更新筛选按钮样式
+        function updateFilterButtons(activeFilter) {
+            const buttons = {
+                'all': document.getElementById('filterAllMachinesBtn'),
+                'running': document.getElementById('filterRunningBtn'),
+                'idle': document.getElementById('filterIdleBtn'),
+                'alarm': document.getElementById('filterAlarmBtn')
+            };
+            
+            // 重置所有按钮样式
+            Object.values(buttons).forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('border', 'border-gray-300', 'hover:bg-gray-100');
+            });
+            
+            // 设置活动按钮样式
+            const activeBtn = buttons[activeFilter];
+            if (activeBtn) {
+                activeBtn.classList.remove('border', 'border-gray-300', 'hover:bg-gray-100');
+                activeBtn.classList.add('bg-primary', 'text-white');
+            }
+        }
+
+        // 更新机床统计信息
+        function updateMachineStatistics() {
+            document.getElementById('machineTotalCount').textContent = machines.length;
+            document.getElementById('machineRunningCount').textContent = machines.filter(m => m.status === 'running').length;
+            document.getElementById('machineIdleCount').textContent = machines.filter(m => m.status === 'idle').length;
+            document.getElementById('machineAlarmCount').textContent = machines.filter(m => m.status === 'alarm').length;
+        }
+
+        // 更新机床状态
+        function updateMachineStatus() {
+            // 模拟状态更新
+            if (selectedMachineId) {
+                const machine = machines.find(m => m.id === selectedMachineId);
+                if (machine && machine.currentTask) {
+                    // 更新进度（随机增加1-5%）
+                    const progressIncrease = Math.floor(Math.random() * 5) + 1;
+                    machine.currentTask.progress = Math.min(100, machine.currentTask.progress + progressIncrease);
+                    
+                    // 更新剩余时间
+                    const totalTime = calculateTotalTime(machine.currentTask.startTime, machine.currentTask.estimatedEndTime);
+                    const elapsedTime = totalTime * (machine.currentTask.progress / 100);
+                    const remainingTime = totalTime - elapsedTime;
+                    
+                    const remainingHours = Math.floor(remainingTime);
+                    const remainingMinutes = Math.floor((remainingTime - remainingHours) * 60);
+                    
+                    machine.currentTask.remainingTime = `${remainingHours}小时${remainingMinutes}分钟`;
+                    
+                    // 更新最后更新时间
+                    machine.lastUpdate = formatDateTime(new Date());
+                    
+                    // 更新实时数据（随机波动）
+                    const spindleSpeed = parseInt(machine.realTimeData.spindleSpeed.replace(/[^\d]/g, ''));
+                    const feedRate = parseInt(machine.realTimeData.feedRate.replace(/[^\d]/g, ''));
+                    const powerLoad = parseInt(machine.realTimeData.powerLoad.replace(/[^\d]/g, ''));
+                    
+                    machine.realTimeData.spindleSpeed = `${spindleSpeed + Math.floor(Math.random() * 200) - 100} rpm`;
+                    machine.realTimeData.feedRate = `${feedRate + Math.floor(Math.random() * 20) - 10} mm/min`;
+                    machine.realTimeData.powerLoad = `${Math.max(0, Math.min(100, powerLoad + Math.floor(Math.random() * 10) - 5))}%`;
+                    
+                    // 更新界面显示
+                    updateMachineStatusInfo(machine);
+                }
+            }
+        }
+
+        // 显示记录实际时间模态框
+        function showRecordTimeModal() {
+            if (!selectedMachineId) return;
+            
+            const machine = machines.find(m => m.id === selectedMachineId);
+            if (!machine || !machine.currentTask) return;
+            
+            // 填充表单
+            document.getElementById('recordOperation').value = machine.currentTask.operation;
+            document.getElementById('recordPlanTime').value = '3.0'; // 默认值
+            
+            // 显示模态框
+            document.getElementById('recordTimeModal').classList.remove('hidden');
+        }
+
+        // 记录实际时间
+        function recordActualTime() {
+            const operation = document.getElementById('recordOperation').value;
+            const planTime = parseFloat(document.getElementById('recordPlanTime').value);
+            const actualTime = parseFloat(document.getElementById('recordActualTime').value);
+            const operator = document.getElementById('recordOperator').value;
+            const remark = document.getElementById('recordRemark').value;
+            
+            // 验证必填字段
+            if (!operation || !planTime || !actualTime || !operator) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            // 获取工序名称
+            const operationName = document.getElementById('recordOperation').options[document.getElementById('recordOperation').selectedIndex].text.split(' - ')[1];
+            
+            // 获取操作员名称
+            const operatorName = document.getElementById('recordOperator').options[document.getElementById('recordOperator').selectedIndex].text.split(' - ')[0];
+            
+            // 计算偏差
+            const deviation = (actualTime - planTime).toFixed(1);
+            
+            // 创建时间记录
+            const timeRecord = {
+                operation: operation,
+                operationName: operationName,
+                planTime: planTime,
+                actualTime: actualTime,
+                deviation: deviation,
+                operator: operatorName,
+                recordTime: formatDateTime(new Date()),
+                remark: remark
+            };
+            
+            // 添加到机床的时间记录
+            if (selectedMachineId) {
+                const machine = machines.find(m => m.id === selectedMachineId);
+                if (machine) {
+                    machine.timeRecords.push(timeRecord);
+                    
+                    // 更新界面显示
+                    renderTimeRecords(machine.timeRecords);
+                    
+                    // 关闭模态框
+                    document.getElementById('recordTimeModal').classList.add('hidden');
+                    
+                    // 显示成功提示
+                    showSuccessMessage('实际加工时间已记录');
+                }
+            }
+        }
+
+        // 导出机床数据
+        function exportMachineData() {
+            if (!selectedMachineId) return;
+            
+            const machine = machines.find(m => m.id === selectedMachineId);
+            if (!machine) return;
+            
+            // 创建CSV内容
+            let csvContent = "工序,工序名称,计划时间(小时),实际时间(小时),偏差(小时),操作员,记录时间,备注\n";
+            
+            machine.timeRecords.forEach(record => {
+                csvContent += `"${record.operation}","${record.operationName}",${record.planTime},${record.actualTime},${record.deviation},"${record.operator}","${record.recordTime}","${record.remark || ''}"\n`;
+            });
+            
+            // 创建Blob对象
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            // 创建下载链接
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${machine.id}_加工时间记录_${formatDate(currentDate)}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // 显示成功提示
+            showSuccessMessage('数据已导出');
+        }
+
+        // 打印任务
+        function printTasks() {
+            // 创建打印内容
+            const printContent = document.createElement('div');
+            printContent.className = 'p-4';
+            
+            printContent.innerHTML = `
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold">当日任务清单</h2>
+                    <p class="text-gray-600">${formatDate(currentDate)}</p>
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <h3 class="font-bold mb-2">已完成任务</h3>
+                        <div id="printCompletedTasks"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold mb-2">进行中任务</h3>
+                        <div id="printInProgressTasks"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-bold mb-2">待完成任务</h3>
+                        <div id="printPendingTasks"></div>
+                    </div>
+                </div>
+            `;
+            
+            // 复制任务内容
+            document.getElementById('printCompletedTasks').innerHTML = document.getElementById('completedTasksList').innerHTML;
+            document.getElementById('printInProgressTasks').innerHTML = document.getElementById('inProgressTasksList').innerHTML;
+            document.getElementById('printPendingTasks').innerHTML = document.getElementById('pendingTasksList').innerHTML;
+            
+            // 创建打印窗口
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>当日任务清单 - ${formatDate(currentDate)}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; padding: 20px; }
+                            .text-center { text-align: center; }
+                            .font-bold { font-weight: bold; }
+                            .mb-2 { margin-bottom: 8px; }
+                            .mb-4 { margin-bottom: 16px; }
+                            .grid { display: grid; }
+                            .grid-cols-1 { grid-template-columns: 1fr; }
+                            .gap-4 { gap: 16px; }
+                            .p-4 { padding: 16px; }
+                            .text-gray-600 { color: #666; }
+                            .text-xl { font-size: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        ${printContent.outerHTML}
+                    </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.print();
+            
+            // 显示成功提示
+            showSuccessMessage('任务清单已发送到打印机');
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        // 更新当前日期时间
+        function updateCurrentDateTime() {
+            document.getElementById('currentDateTime').textContent = formatDateTime(new Date());
+        }
+
+        // 获取机床类型文本
+        function getMachineTypeText(type) {
+            const typeMap = {
+                'cnc_mill': 'CNC加工中心',
+                'edm': '电火花机',
+                'wire_edm': '线切割机',
+                'cmm': '三坐标测量机'
+            };
+            
+            return typeMap[type] || type;
+        }
+
+        // 计算总时间（小时）
+        function calculateTotalTime(startTime, endTime) {
+            const startParts = startTime.split(':');
+            const endParts = endTime.split(':');
+            
+            const startHours = parseInt(startParts[0]);
+            const startMinutes = parseInt(startParts[1]);
+            const endHours = parseInt(endParts[0]);
+            const endMinutes = parseInt(endParts[1]);
+            
+            let totalMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+            
+            // 处理跨天情况
+            if (totalMinutes < 0) {
+                totalMinutes += 24 * 60;
+            }
+            
+            return totalMinutes / 60;
+        }
+
+        // 格式化日期时间
+        function formatDateTime(date) {
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // 格式化日期
+        function formatDate(date) {
+            return date.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+        }
+    </script>
+</body>
+</html>

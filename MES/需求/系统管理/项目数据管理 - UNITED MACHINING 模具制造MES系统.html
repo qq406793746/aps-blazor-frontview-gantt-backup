@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<!-- saved from url=(0053)file:///C:/Users/i1B655456/Downloads/index%20(5).html -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目数据管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="./项目数据管理 - UNITED MACHINING 模具制造MES系统_files/saved_resource"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色
+                        secondary: '#4a5568',    // 中性灰
+                        accent: '#ed8936',       // 橙色
+                        success: '#48bb78',      // 绿色
+                        warning: '#ecc94b',      // 黄色
+                        danger: '#e53e3e',       // 红色
+                        info: '#4299e1',         // 蓝色
+                        'primary-light': '#2c5282',
+                        'primary-dark': '#153e75',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .glass-effect {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            .transition-all-300 {
+                transition: all 0.3s ease;
+            }
+            .nav-item-active {
+                @apply bg-primary-light border-l-4 border-accent;
+            }
+            .nav-item {
+                @apply flex items-center p-3 text-gray-200 hover:bg-primary-light transition-all-300 rounded-md;
+            }
+            .nav-item-icon {
+                @apply w-6 h-6 mr-3;
+            }
+            .card {
+                @apply bg-white rounded-lg shadow-card p-5 transition-all-300 hover:shadow-card-hover;
+            }
+            .btn-primary {
+                @apply bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-secondary {
+                @apply bg-secondary hover:bg-gray-700 text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-accent {
+                @apply bg-accent hover:bg-orange-600 text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-success {
+                @apply bg-success hover:bg-green-600 text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-danger {
+                @apply bg-danger hover:bg-red-600 text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-warning {
+                @apply bg-warning hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .btn-outline {
+                @apply border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded transition-all-300;
+            }
+            .form-input {
+                @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+            }
+            .form-label {
+                @apply block text-sm font-medium text-gray-700 mb-1;
+            }
+            .badge {
+                @apply px-2 py-1 text-xs font-medium rounded;
+            }
+            .badge-success {
+                @apply bg-green-100 text-green-800;
+            }
+            .badge-warning {
+                @apply bg-yellow-100 text-yellow-800;
+            }
+            .badge-danger {
+                @apply bg-red-100 text-red-800;
+            }
+            .badge-info {
+                @apply bg-blue-100 text-blue-800;
+            }
+            .table-header {
+                @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+            }
+            .table-cell {
+                @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+            }
+            .table-row {
+                @apply bg-white border-b hover:bg-gray-50;
+            }
+            .modal-backdrop {
+                @apply fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center;
+            }
+            .modal-content {
+                @apply bg-white rounded-lg shadow-xl w-full max-w-2xl;
+            }
+            .modal-header {
+                @apply flex items-center justify-between p-4 border-b border-gray-200;
+            }
+            .modal-body {
+                @apply p-6;
+            }
+            .modal-footer {
+                @apply flex justify-end space-x-3 mt-6;
+            }
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:Inter, system-ui, sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.absolute{position:absolute}.relative{position:relative}.right-0{right:0px}.top-0{top:0px}.mx-auto{margin-left:auto;margin-right:auto}.mb-2{margin-bottom:0.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mr-1{margin-right:0.25rem}.mr-2{margin-right:0.5rem}.mr-3{margin-right:0.75rem}.mt-4{margin-top:1rem}.mt-8{margin-top:2rem}.flex{display:flex}.table-cell{display:table-cell}.table-row{display:table-row}.grid{display:grid}.hidden{display:none}.h-2{height:0.5rem}.h-8{height:2rem}.min-h-screen{min-height:100vh}.w-2{width:0.5rem}.w-8{width:2rem}.min-w-full{min-width:100%}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.space-x-1 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.25rem * var(--tw-space-x-reverse));margin-left:calc(0.25rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-2 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.5rem * var(--tw-space-x-reverse));margin-left:calc(0.5rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-3 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(0.75rem * var(--tw-space-x-reverse));margin-left:calc(0.75rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-4 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1rem * var(--tw-space-x-reverse));margin-left:calc(1rem * calc(1 - var(--tw-space-x-reverse)))}.space-x-6 > :not([hidden]) ~ :not([hidden]){--tw-space-x-reverse:0;margin-right:calc(1.5rem * var(--tw-space-x-reverse));margin-left:calc(1.5rem * calc(1 - var(--tw-space-x-reverse)))}.divide-y > :not([hidden]) ~ :not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px * var(--tw-divide-y-reverse))}.divide-gray-200 > :not([hidden]) ~ :not([hidden]){--tw-divide-opacity:1;border-color:rgb(229 231 235 / var(--tw-divide-opacity, 1))}.overflow-x-auto{overflow-x:auto}.rounded{border-radius:0.25rem}.rounded-full{border-radius:9999px}.rounded-md{border-radius:0.375rem}.border{border-width:1px}.border-b-2{border-bottom-width:2px}.border-accent{--tw-border-opacity:1;border-color:rgb(237 137 54 / var(--tw-border-opacity, 1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.border-primary{--tw-border-opacity:1;border-color:rgb(26 54 93 / var(--tw-border-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-gray-50{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.bg-primary{--tw-bg-opacity:1;background-color:rgb(26 54 93 / var(--tw-bg-opacity, 1))}.bg-red-500{--tw-bg-opacity:1;background-color:rgb(239 68 68 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.font-sans{font-family:Inter, system-ui, sans-serif}.text-2xl{font-size:1.5rem;line-height:2rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.text-accent{--tw-text-opacity:1;color:rgb(237 137 54 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-gray-900{--tw-text-opacity:1;color:rgb(17 24 39 / var(--tw-text-opacity, 1))}.text-primary{--tw-text-opacity:1;color:rgb(26 54 93 / var(--tw-text-opacity, 1))}.text-red-600{--tw-text-opacity:1;color:rgb(220 38 38 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition-all-300 {
+                transition: all 0.3s ease;
+            }.card{border-radius:0.5rem;--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1));padding:1.25rem;--tw-shadow:0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+                transition: all 0.3s ease}.card:hover{--tw-shadow:0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.btn-primary{border-radius:0.25rem;--tw-bg-opacity:1;background-color:rgb(26 54 93 / var(--tw-bg-opacity, 1));padding-top:0.5rem;padding-bottom:0.5rem;padding-left:1rem;padding-right:1rem;font-weight:500;--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1));
+                transition: all 0.3s ease}.btn-primary:hover{--tw-bg-opacity:1;background-color:rgb(21 62 117 / var(--tw-bg-opacity, 1))}.btn-success{border-radius:0.25rem;--tw-bg-opacity:1;background-color:rgb(72 187 120 / var(--tw-bg-opacity, 1));padding-top:0.5rem;padding-bottom:0.5rem;padding-left:1rem;padding-right:1rem;font-weight:500;--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1));
+                transition: all 0.3s ease}.btn-success:hover{--tw-bg-opacity:1;background-color:rgb(22 163 74 / var(--tw-bg-opacity, 1))}.btn-danger{border-radius:0.25rem;--tw-bg-opacity:1;background-color:rgb(229 62 62 / var(--tw-bg-opacity, 1));padding-top:0.5rem;padding-bottom:0.5rem;padding-left:1rem;padding-right:1rem;font-weight:500;--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1));
+                transition: all 0.3s ease}.btn-danger:hover{--tw-bg-opacity:1;background-color:rgb(220 38 38 / var(--tw-bg-opacity, 1))}.btn-warning{border-radius:0.25rem;--tw-bg-opacity:1;background-color:rgb(236 201 75 / var(--tw-bg-opacity, 1));padding-top:0.5rem;padding-bottom:0.5rem;padding-left:1rem;padding-right:1rem;font-weight:500;--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1));
+                transition: all 0.3s ease}.btn-warning:hover{--tw-bg-opacity:1;background-color:rgb(202 138 4 / var(--tw-bg-opacity, 1))}.btn-outline{border-radius:0.25rem;border-width:1px;--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1));padding-top:0.5rem;padding-bottom:0.5rem;padding-left:1rem;padding-right:1rem;font-weight:500;--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1));
+                transition: all 0.3s ease}.btn-outline:hover{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.form-input{width:100%;border-radius:0.375rem;border-width:1px;--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1));padding-left:1rem;padding-right:1rem;padding-top:0.5rem;padding-bottom:0.5rem}.form-input:focus{border-color:transparent;outline:2px solid transparent;outline-offset:2px;--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);--tw-ring-opacity:1;--tw-ring-color:rgb(26 54 93 / var(--tw-ring-opacity, 1))}.badge{border-radius:0.25rem;padding-left:0.5rem;padding-right:0.5rem;padding-top:0.25rem;padding-bottom:0.25rem;font-size:0.75rem;line-height:1rem;font-weight:500}.badge-success{--tw-bg-opacity:1;background-color:rgb(220 252 231 / var(--tw-bg-opacity, 1));--tw-text-opacity:1;color:rgb(22 101 52 / var(--tw-text-opacity, 1))}.badge-warning{--tw-bg-opacity:1;background-color:rgb(254 249 195 / var(--tw-bg-opacity, 1));--tw-text-opacity:1;color:rgb(133 77 14 / var(--tw-text-opacity, 1))}.badge-info{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1));--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.table-header{padding-left:1.5rem;padding-right:1.5rem;padding-top:0.75rem;padding-bottom:0.75rem;text-align:left;font-size:0.75rem;line-height:1rem;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.table-cell{white-space:nowrap;padding-left:1.5rem;padding-right:1.5rem;padding-top:1rem;padding-bottom:1rem;font-size:0.875rem;line-height:1.25rem;--tw-text-opacity:1;color:rgb(17 24 39 / var(--tw-text-opacity, 1))}.table-row{border-bottom-width:1px;--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.table-row:hover{--tw-bg-opacity:1;background-color:rgb(249 250 251 / var(--tw-bg-opacity, 1))}.hover\:text-accent:hover{--tw-text-opacity:1;color:rgb(237 137 54 / var(--tw-text-opacity, 1))}.hover\:text-blue-800:hover{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.hover\:text-red-800:hover{--tw-text-opacity:1;color:rgb(153 27 27 / var(--tw-text-opacity, 1))}.focus\:ring-primary:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(26 54 93 / var(--tw-ring-opacity, 1))}.disabled\:opacity-50:disabled{opacity:0.5}@media (min-width: 768px){.md\:mb-0{margin-bottom:0px}.md\:flex{display:flex}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:flex-row{flex-direction:row}}
+    </style></head>
+<body class="bg-gray-100 font-sans min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="bg-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fa fa-industry text-2xl mr-3 text-accent"></i>
+                    <h1 class="text-xl font-bold">UNITED MACHINING 模具制造MES系统</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <nav class="hidden md:flex space-x-6">
+                        <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">首页</a>
+                        <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-accent font-medium border-b-2 border-accent">项目数据</a>
+                        <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">工艺管理</a>
+                        <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">动态排产</a>
+                        <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">系统管理</a>
+                    </nav>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <button class="text-white hover:text-accent transition-all-300">
+                                <i class="fa fa-bell"></i>
+                                <span class="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+                            </button>
+                        </div>
+                        <div class="flex items-center">
+                            <img src="./项目数据管理 - UNITED MACHINING 模具制造MES系统_files/9ccf5b80756d9d0f39492b4d2c6e0b74~tplv-be4g95zd3a-image.jpeg" alt="用户头像" class="h-8 w-8 rounded-full mr-2">
+                            <span class="text-sm font-medium">Michael Qian</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- 页面标题 -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">项目数据管理</h2>
+            <p class="text-gray-600">管理模具制造项目数据，支持批量导入和项目状态控制</p>
+        </div>
+
+        <!-- 项目数据导入卡片 -->
+        <div class="card mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">项目数据列表</h3>
+                <div class="flex space-x-2">
+                    <button id="btn-import-data" class="btn-primary text-sm">
+                        <i class="fa fa-upload mr-1"></i>导入数据
+                    </button>
+                    <button id="btn-export-template" class="btn-outline text-sm">
+                        <i class="fa fa-download mr-1"></i>导出模板
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 功能按钮组 -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button id="btn-start-project" class="btn-success text-sm">
+                    <i class="fa fa-play mr-1"></i>项目启动
+                </button>
+                <button id="btn-pause-project" class="btn-warning text-sm">
+                    <i class="fa fa-pause mr-1"></i>暂停
+                </button>
+                <button id="btn-terminate-project" class="btn-danger text-sm">
+                    <i class="fa fa-stop mr-1"></i>终止
+                </button>
+                <button id="btn-modify-info" class="btn-primary text-sm">
+                    <i class="fa fa-edit mr-1"></i>修改信息
+                </button>
+            </div>
+            
+            <!-- 搜索和筛选 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <input type="text" class="form-input" placeholder="搜索项目名称/模具号/零件号">
+                </div>
+                <div>
+                    <select class="form-input">
+                        <option>所有工单类型</option>
+                        <option>生产工单</option>
+                        <option>维修工单</option>
+                        <option>调试工单</option>
+                    </select>
+                </div>
+                <div>
+                    <select class="form-input">
+                        <option>所有报工状态</option>
+                        <option>待报工</option>
+                        <option>已报工</option>
+                        <option>部分报工</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 项目数据表格 -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="table-header">
+                                <input type="checkbox" id="select-all" class="rounded text-primary focus:ring-primary">
+                            </th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">项目名称</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">模具号</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">零件号</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">加工对象</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">批次</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">工单号</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">条码信息</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">工单类型</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">优先级</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">报工状态</th>
+                            <th scope="col" class="table-header" style="cursor: pointer;">工艺人员</th>
+                            <th scope="col" class="table-header">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0001</td>
+                            <td class="table-cell">M-2023-001</td>
+                            <td class="table-cell">P-5201</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-01</td>
+                            <td class="table-cell">WO-2023-0721</td>
+                            <td class="table-cell">BAR-20230721001</td>
+                            <td class="table-cell">生产工单</td>
+                            <td class="table-cell">高</td>
+                            <td class="table-cell">
+                                <span class="badge badge-warning">部分报工</span>
+                            </td>
+                            <td class="table-cell">工程师A</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0002</td>
+                            <td class="table-cell">M-2023-002</td>
+                            <td class="table-cell">P-5202</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-02</td>
+                            <td class="table-cell">WO-2023-0722</td>
+                            <td class="table-cell">BAR-20230721002</td>
+                            <td class="table-cell">生产工单</td>
+                            <td class="table-cell">中</td>
+                            <td class="table-cell">
+                                <span class="badge badge-info">待报工</span>
+                            </td>
+                            <td class="table-cell">工程师B</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0003</td>
+                            <td class="table-cell">M-2023-003</td>
+                            <td class="table-cell">P-5203</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-03</td>
+                            <td class="table-cell">WO-2023-0723</td>
+                            <td class="table-cell">BAR-20230721003</td>
+                            <td class="table-cell">生产工单</td>
+                            <td class="table-cell">中</td>
+                            <td class="table-cell">
+                                <span class="badge badge-success">已报工</span>
+                            </td>
+                            <td class="table-cell">工程师C</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0004</td>
+                            <td class="table-cell">M-2023-004</td>
+                            <td class="table-cell">P-5204</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-04</td>
+                            <td class="table-cell">WO-2023-0724</td>
+                            <td class="table-cell">BAR-20230721004</td>
+                            <td class="table-cell">维修工单</td>
+                            <td class="table-cell">高</td>
+                            <td class="table-cell">
+                                <span class="badge badge-warning">部分报工</span>
+                            </td>
+                            <td class="table-cell">工程师D</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0005</td>
+                            <td class="table-cell">M-2023-005</td>
+                            <td class="table-cell">P-5205</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-05</td>
+                            <td class="table-cell">WO-2023-0725</td>
+                            <td class="table-cell">BAR-20230721005</td>
+                            <td class="table-cell">调试工单</td>
+                            <td class="table-cell">低</td>
+                            <td class="table-cell">
+                                <span class="badge badge-info">待报工</span>
+                            </td>
+                            <td class="table-cell">工程师E</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0006</td>
+                            <td class="table-cell">M-2023-006</td>
+                            <td class="table-cell">P-5206</td>
+                            <td class="table-cell">挤出模具</td>
+                            <td class="table-cell">B-20230721-06</td>
+                            <td class="table-cell">WO-2023-0726</td>
+                            <td class="table-cell">BAR-20230721006</td>
+                            <td class="table-cell">生产工单</td>
+                            <td class="table-cell">中</td>
+                            <td class="table-cell">
+                                <span class="badge badge-success">已报工</span>
+                            </td>
+                            <td class="table-cell">工程师F</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0007</td>
+                            <td class="table-cell">M-2023-007</td>
+                            <td class="table-cell">P-5207</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-07</td>
+                            <td class="table-cell">WO-2023-0727</td>
+                            <td class="table-cell">BAR-20230721007</td>
+                            <td class="table-cell">生产工单</td>
+                            <td class="table-cell">高</td>
+                            <td class="table-cell">
+                                <span class="badge badge-warning">部分报工</span>
+                            </td>
+                            <td class="table-cell">工程师G</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="table-cell">
+                                <input type="checkbox" class="project-checkbox rounded text-primary focus:ring-primary">
+                            </td>
+                            <td class="table-cell">UMS0011</td>
+                            <td class="table-cell">M-2023-008</td>
+                            <td class="table-cell">P-5208</td>
+                            <td class="table-cell">注塑模具</td>
+                            <td class="table-cell">B-20230721-08</td>
+                            <td class="table-cell">WO-2023-0728</td>
+                            <td class="table-cell">BAR-20230721008</td>
+                            <td class="table-cell">维修工单</td>
+                            <td class="table-cell">中</td>
+                            <td class="table-cell">
+                                <span class="badge badge-info">待报工</span>
+                            </td>
+                            <td class="table-cell">工程师H</td>
+                            <td class="table-cell">
+                                <button class="text-blue-600 hover:text-blue-800 mr-2 edit-btn">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-red-600 hover:text-red-800 delete-btn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页 -->
+            <div class="flex items-center justify-between mt-4">
+                <div class="text-sm text-gray-700">
+                    显示 <span class="font-medium">1</span> 到 <span class="font-medium">8</span> 条，共 <span class="font-medium">24</span> 条记录
+                </div>
+                <div class="flex space-x-1">
+                    <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">上一页</button>
+                    <button class="px-3 py-1 border border-primary bg-primary text-white rounded-md text-sm">1</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">2</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">3</button>
+                    <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">下一页</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-primary text-white py-4 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p>© 2026 UNITED MACHINING 模具制造MES系统. 保留所有权利.</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">帮助中心</a>
+                    <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">联系我们</a>
+                    <a href="file:///C:/Users/i1B655456/Downloads/index%20(5).html#" class="text-white hover:text-accent transition-all-300">隐私政策</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 所有弹窗已隐藏 -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 复选框
+            const selectAllCheckbox = document.getElementById('select-all');
+            const projectCheckboxes = document.querySelectorAll('.project-checkbox');
+            
+            // 功能按钮
+            const btnExportTemplate = document.getElementById('btn-export-template');
+            const btnStartProject = document.getElementById('btn-start-project');
+            const btnPauseProject = document.getElementById('btn-pause-project');
+            const btnTerminateProject = document.getElementById('btn-terminate-project');
+            const btnModifyInfo = document.getElementById('btn-modify-info');
+            const btnImportData = document.getElementById('btn-import-data');
+            
+            // 获取选中的项目数量
+            function getSelectedProjectCount() {
+                return document.querySelectorAll('.project-checkbox:checked').length;
+            }
+            
+            // 全选/取消全选
+            selectAllCheckbox.addEventListener('change', function() {
+                projectCheckboxes.forEach(checkbox => {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+            });
+            
+            // 单个复选框变化时检查是否需要更新全选框
+            projectCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const allChecked = Array.from(projectCheckboxes).every(cb => cb.checked);
+                    const noneChecked = Array.from(projectCheckboxes).every(cb => !cb.checked);
+                    
+                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.indeterminate = !allChecked && !noneChecked;
+                });
+            });
+            
+            // 导出模板按钮点击事件
+            btnExportTemplate.addEventListener('click', function() {
+                alert('项目数据模板已导出');
+            });
+            
+            // 导入数据按钮点击事件
+            btnImportData.addEventListener('click', function() {
+                alert('导入功能已禁用');
+            });
+            
+            // 项目启动按钮点击事件
+            btnStartProject.addEventListener('click', function() {
+                const selectedCount = getSelectedProjectCount();
+                if (selectedCount === 0) {
+                    alert('请选择要启动的项目');
+                } else {
+                    alert(`已启动 ${selectedCount} 个项目`);
+                }
+            });
+            
+            // 项目暂停按钮点击事件
+            btnPauseProject.addEventListener('click', function() {
+                const selectedCount = getSelectedProjectCount();
+                if (selectedCount === 0) {
+                    alert('请选择要暂停的项目');
+                } else {
+                    alert(`已暂停 ${selectedCount} 个项目`);
+                }
+            });
+            
+            // 项目终止按钮点击事件
+            btnTerminateProject.addEventListener('click', function() {
+                const selectedCount = getSelectedProjectCount();
+                if (selectedCount === 0) {
+                    alert('请选择要终止的项目');
+                } else {
+                    if (confirm(`确定要终止选中的 ${selectedCount} 个项目吗？此操作不可撤销。`)) {
+                        alert(`已终止 ${selectedCount} 个项目`);
+                    }
+                }
+            });
+            
+            // 修改信息按钮点击事件
+            btnModifyInfo.addEventListener('click', function() {
+                const selectedCount = getSelectedProjectCount();
+                if (selectedCount === 0) {
+                    alert('请选择要修改的项目');
+                } else if (selectedCount > 1) {
+                    alert('只能选择一个项目进行修改');
+                } else {
+                    alert('修改功能已禁用');
+                }
+            });
+            
+            // 编辑和删除按钮
+            const editButtons = document.querySelectorAll('.edit-btn');
+            const deleteButtons = document.querySelectorAll('.delete-btn');
+            
+            // 单个编辑按钮点击事件
+            editButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    alert('编辑功能已禁用');
+                });
+            });
+            
+            // 单个删除按钮点击事件
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    alert('删除功能已禁用');
+                });
+            });
+            
+            // 初始化表格排序功能
+            const tableHeaders = document.querySelectorAll('th');
+            tableHeaders.forEach(header => {
+                // 跳过复选框列和操作列
+                if (header.querySelector('input[type="checkbox"]') || header.textContent.trim() === '操作') {
+                    return;
+                }
+                
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', function() {
+                    // 移除其他列的排序图标
+                    tableHeaders.forEach(h => {
+                        if (!h.querySelector('input[type="checkbox"]') && h.textContent.trim() !== '操作') {
+                            h.innerHTML = h.innerHTML.replace(/ <i class="fa fa-sort-.*?"><\/i>/, '');
+                        }
+                    });
+                    
+                    // 添加排序图标
+                    if (!header.innerHTML.includes('fa-sort')) {
+                        header.innerHTML += ' <i class="fa fa-sort-asc"></i>';
+                    } else if (header.innerHTML.includes('fa-sort-asc')) {
+                        header.innerHTML = header.innerHTML.replace('fa-sort-asc', 'fa-sort-desc');
+                    } else {
+                        header.innerHTML = header.innerHTML.replace('fa-sort-desc', 'fa-sort-asc');
+                    }
+                    
+                    // 模拟排序过程
+                    alert(`表格已按${header.textContent.trim()}排序`);
+                });
+            });
+        });
+    </script>
+
+</body></html>

@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排产管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色主色调
+                        secondary: '#2a4365',    // 次要蓝色
+                        accent: '#ed8936',       // 橙色强调色
+                        success: '#38a169',      // 绿色 - 成功/进行中
+                        warning: '#ed8936',      // 橙色 - 警告/暂停
+                        danger: '#e53e3e',       // 红色 - 危险/终止
+                        light: '#f7fafc',        // 浅色背景
+                        dark: '#1a202c',         // 深色文本
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .gantt-bar {
+                position: relative;
+                height: 30px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .gantt-bar:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .gantt-bar-progress {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                background-color: rgba(255, 255, 255, 0.3);
+                border-radius: 4px;
+            }
+            .gantt-bar-label {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 12px;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 90%;
+            }
+            .gantt-header {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .gantt-resource-header {
+                position: sticky;
+                left: 0;
+                z-index: 5;
+            }
+            .scrollbar-thin {
+                scrollbar-width: thin;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-gradient-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-shadow">UNITED MACHINING</h1>
+                <span class="hidden md:inline-block text-sm">|</span>
+                <span class="hidden md:inline-block text-sm">模具制造MES系统</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">首页</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">项目管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">工艺管理</a></li>
+                        <li><a href="#" class="text-accent font-medium transition-all-300">排产管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">生产管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">设备管理</a></li>
+                    </ul>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm">管理员</span>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-primary">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- 页面标题 -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-primary">排产管理</h2>
+            <p class="text-gray-600">生产计划创建、资源排班与进度监控</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-card p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500">总计划数</p>
+                        <h3 class="text-2xl font-bold text-primary mt-1">24</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                        <i class="fa fa-calendar"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center">
+                    <span class="text-sm text-success flex items-center">
+                        <i class="fa fa-arrow-up mr-1"></i>12%
+                    </span>
+                    <span class="text-xs text-gray-500 ml-2">较上月</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-card p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500">进行中</p>
+                        <h3 class="text-2xl font-bold text-success mt-1">8</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-success">
+                        <i class="fa fa-play-circle"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center">
+                    <span class="text-sm text-success flex items-center">
+                        <i class="fa fa-arrow-up mr-1"></i>5%
+                    </span>
+                    <span class="text-xs text-gray-500 ml-2">较上周</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-card p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500">已完成</p>
+                        <h3 class="text-2xl font-bold text-blue-600 mt-1">12</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <i class="fa fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center">
+                    <span class="text-sm text-success flex items-center">
+                        <i class="fa fa-arrow-up mr-1"></i>8%
+                    </span>
+                    <span class="text-xs text-gray-500 ml-2">较上月</span>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-card p-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm text-gray-500">延期</p>
+                        <h3 class="text-2xl font-bold text-danger mt-1">2</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-danger">
+                        <i class="fa fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center">
+                    <span class="text-sm text-danger flex items-center">
+                        <i class="fa fa-arrow-up mr-1"></i>2%
+                    </span>
+                    <span class="text-xs text-gray-500 ml-2">较上月</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 筛选条件卡片 -->
+        <div class="bg-white rounded-lg shadow-card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-primary mb-4 flex items-center">
+                <i class="fa fa-filter mr-2"></i>筛选条件
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- 日期范围 -->
+                <div>
+                    <label for="dateRange" class="block text-sm font-medium text-gray-700 mb-1">日期范围</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="date" id="startDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <span class="text-gray-500">至</span>
+                        <input type="date" id="endDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                </div>
+                
+                <!-- 工单选择 -->
+                <div>
+                    <label for="workOrder" class="block text-sm font-medium text-gray-700 mb-1">工单</label>
+                    <select id="workOrder" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">全部工单</option>
+                        <option value="WO-2025-001">WO-2025-001 - 汽车模具A</option>
+                        <option value="WO-2025-002">WO-2025-002 - 手机外壳模具</option>
+                        <option value="WO-2025-003">WO-2025-003 - 医疗设备模具</option>
+                        <option value="WO-2025-004">WO-2025-004 - 家电模具</option>
+                        <option value="WO-2025-005">WO-2025-005 - 包装模具</option>
+                    </select>
+                </div>
+                
+                <!-- 设备类型 -->
+                <div>
+                    <label for="equipmentType" class="block text-sm font-medium text-gray-700 mb-1">设备类型</label>
+                    <select id="equipmentType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">全部设备</option>
+                        <option value="cnc_mill">CNC铣床</option>
+                        <option value="cnc_lathe">CNC车床</option>
+                        <option value="wire_edm">线切割机</option>
+                        <option value="edm">电火花机</option>
+                        <option value="cmm">三坐标测量机</option>
+                    </select>
+                </div>
+                
+                <!-- 计划状态 -->
+                <div>
+                    <label for="planStatus" class="block text-sm font-medium text-gray-700 mb-1">计划状态</label>
+                    <select id="planStatus" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">全部状态</option>
+                        <option value="pending">待执行</option>
+                        <option value="in_progress">进行中</option>
+                        <option value="completed">已完成</option>
+                        <option value="paused">已暂停</option>
+                        <option value="delayed">已延期</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-4">
+                <button id="resetFilterBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    重置
+                </button>
+                <button id="applyFilterBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    应用筛选
+                </button>
+            </div>
+        </div>
+
+        <!-- 甘特图卡片 -->
+        <div class="bg-white rounded-lg shadow-card p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary flex items-center">
+                    <i class="fa fa-bar-chart mr-2"></i>甘特图排产
+                </h3>
+                <div class="flex items-center space-x-2">
+                    <button id="zoomOutBtn" class="p-1 text-gray-500 hover:text-primary focus:outline-none">
+                        <i class="fa fa-search-minus"></i>
+                    </button>
+                    <button id="zoomInBtn" class="p-1 text-gray-500 hover:text-primary focus:outline-none">
+                        <i class="fa fa-search-plus"></i>
+                    </button>
+                    <button id="addPlanBtn" class="px-3 py-1 bg-accent text-white rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all-300 flex items-center">
+                        <i class="fa fa-plus mr-1"></i> 新增计划
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-success mr-1"></span>
+                    <span class="text-xs text-gray-600">进行中</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-blue-600 mr-1"></span>
+                    <span class="text-xs text-gray-600">已完成</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-gray-400 mr-1"></span>
+                    <span class="text-xs text-gray-600">待执行</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-warning mr-1"></span>
+                    <span class="text-xs text-gray-600">已暂停</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full bg-danger mr-1"></span>
+                    <span class="text-xs text-gray-600">已延期</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-4 h-4 border-2 border-dashed border-red-500 rounded-full mr-1"></span>
+                    <span class="text-xs text-gray-600">资源冲突</span>
+                </div>
+            </div>
+            
+            <!-- 甘特图容器 -->
+            <div class="overflow-x-auto scrollbar-thin">
+                <div id="ganttChart" class="min-w-[1200px]">
+                    <!-- 甘特图将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 生产计划列表 -->
+        <div class="bg-white rounded-lg shadow-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary flex items-center">
+                    <i class="fa fa-list mr-2"></i>生产计划列表
+                </h3>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="searchInput" placeholder="搜索计划..." class="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <button id="searchBtn" class="p-1 text-gray-500 hover:text-primary focus:outline-none">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input type="checkbox" id="selectAllPlans" class="rounded text-primary focus:ring-primary">
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                计划编号
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工单
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工序名称
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                设备
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                负责人
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                开始时间
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                结束时间
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                进度
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                状态
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                操作
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="planTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格数据将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页控件 -->
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-700">
+                    显示 <span id="startRange">1</span> 到 <span id="endRange">10</span> 条，共 <span id="totalItems">0</span> 条
+                </div>
+                <div class="flex space-x-1">
+                    <button id="prevPageBtn" class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        上一页
+                    </button>
+                    <button id="nextPageBtn" class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        下一页
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 新增计划模态框 -->
+    <div id="addPlanModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">新增生产计划</h3>
+                <button id="closeAddPlanModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <!-- 工单选择 -->
+                <div>
+                    <label for="newPlanWorkOrder" class="block text-sm font-medium text-gray-700 mb-1">工单 <span class="text-danger">*</span></label>
+                    <select id="newPlanWorkOrder" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择工单</option>
+                        <option value="WO-2025-001">WO-2025-001 - 汽车模具A</option>
+                        <option value="WO-2025-002">WO-2025-002 - 手机外壳模具</option>
+                        <option value="WO-2025-003">WO-2025-003 - 医疗设备模具</option>
+                        <option value="WO-2025-004">WO-2025-004 - 家电模具</option>
+                        <option value="WO-2025-005">WO-2025-005 - 包装模具</option>
+                    </select>
+                </div>
+                
+                <!-- 工序选择 -->
+                <div>
+                    <label for="newPlanOperation" class="block text-sm font-medium text-gray-700 mb-1">工序 <span class="text-danger">*</span></label>
+                    <select id="newPlanOperation" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择工序</option>
+                        <option value="OP-001">OP-001 - CNC粗加工</option>
+                        <option value="OP-002">OP-002 - CNC精加工</option>
+                        <option value="OP-003">OP-003 - 线切割加工</option>
+                        <option value="OP-004">OP-004 - 放电加工</option>
+                        <option value="OP-005">OP-005 - 三坐标测量</option>
+                    </select>
+                </div>
+                
+                <!-- 设备选择 -->
+                <div>
+                    <label for="newPlanEquipment" class="block text-sm font-medium text-gray-700 mb-1">设备 <span class="text-danger">*</span></label>
+                    <select id="newPlanEquipment" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择设备</option>
+                        <option value="CNC-001">CNC-001 - MILL P 500</option>
+                        <option value="CNC-002">CNC-002 - HSM 500</option>
+                        <option value="CNC-003">CNC-003 - MILL E 500 U</option>
+                        <option value="EDM-001">EDM-001 - FORM P 350</option>
+                        <option value="EDM-002">EDM-002 - FORM P 450</option>
+                        <option value="WEDM-001">WEDM-001 - CUT F 350</option>
+                        <option value="WEDM-002">WEDM-002 - CUT P 550 Pro</option>
+                        <option value="CMM-001">CMM-001 - 蔡司CONTURA G2</option>
+                    </select>
+                </div>
+                
+                <!-- 负责人 -->
+                <div>
+                    <label for="newPlanResponsible" class="block text-sm font-medium text-gray-700 mb-1">负责人 <span class="text-danger">*</span></label>
+                    <select id="newPlanResponsible" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                        <option value="">请选择负责人</option>
+                        <option value="user1">张三 - 高级技师</option>
+                        <option value="user2">李四 - 技师</option>
+                        <option value="user3">王五 - 技师</option>
+                        <option value="user4">赵六 - 初级技师</option>
+                        <option value="user5">钱七 - 初级技师</option>
+                    </select>
+                </div>
+                
+                <!-- 开始时间 -->
+                <div>
+                    <label for="newPlanStartTime" class="block text-sm font-medium text-gray-700 mb-1">开始时间 <span class="text-danger">*</span></label>
+                    <input type="datetime-local" id="newPlanStartTime" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                </div>
+                
+                <!-- 结束时间 -->
+                <div>
+                    <label for="newPlanEndTime" class="block text-sm font-medium text-gray-700 mb-1">结束时间 <span class="text-danger">*</span></label>
+                    <input type="datetime-local" id="newPlanEndTime" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
+                </div>
+                
+                <!-- 优先级 -->
+                <div>
+                    <label for="newPlanPriority" class="block text-sm font-medium text-gray-700 mb-1">优先级</label>
+                    <select id="newPlanPriority" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="low">低</option>
+                        <option value="medium" selected>中</option>
+                        <option value="high">高</option>
+                        <option value="urgent">紧急</option>
+                    </select>
+                </div>
+                
+                <!-- 备注 -->
+                <div>
+                    <label for="newPlanRemark" class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                    <input type="text" id="newPlanRemark" placeholder="输入备注信息" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelAddPlanBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    取消
+                </button>
+                <button id="confirmAddPlanBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确认添加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 计划详情模态框 -->
+    <div id="planDetailModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">计划详情</h3>
+                <button id="closePlanDetailModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="planDetailContent" class="space-y-4">
+                <!-- 计划详情将通过JavaScript动态生成 -->
+            </div>
+            
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="editPlanBtn" class="px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    编辑
+                </button>
+                <button id="closePlanDetailBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存成功提示模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold text-center text-gray-900 mb-2">操作成功</h3>
+            <p id="successMessage" class="text-gray-600 text-center mb-6">操作已成功完成</p>
+            <div class="flex justify-center">
+                <button id="closeSuccessModalBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let productionPlans = [];
+        let filteredPlans = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let zoomLevel = 1; // 甘特图缩放级别
+        let selectedPlanId = null;
+        
+        // 设备列表 - UM品牌设备
+        const equipmentList = [
+            { id: 'UM-CNC-001', name: 'UM-CNC-001 - Mikron MILL P 500', type: 'cnc_mill' },
+            { id: 'UM-CNC-002', name: 'UM-CNC-002 - Mikron MILL E 400', type: 'cnc_mill' },
+            { id: 'UM-CNC-003', name: 'UM-CNC-003 - Mikron HSM 500', type: 'cnc_mill' },
+            { id: 'UM-EDM-001', name: 'UM-EDM-001 -FORM P350', type: 'edm' },
+            { id: 'UM-EDM-002', name: 'UM-EDM-002 - FORM P 450', type: 'edm' },
+            { id: 'UM-WEDM-001', name: 'UM-WEDM-001 - CUT F 350', type: 'wire_edm' },
+            { id: 'UM-WEDM-002', name: 'UM-WEDM-002 - CUT P 550 Pro', type: 'wire_edm' },
+            { id: 'UM-CMM-001', name: 'UM-CMM-001 - CONTURA  Xi', type: 'cmm' }
+        ];
+        
+        // 状态映射
+        const statusMap = {
+            'pending': { text: '待执行', class: 'bg-gray-400 text-white' },
+            'in_progress': { text: '进行中', class: 'bg-success text-white' },
+            'completed': { text: '已完成', class: 'bg-blue-600 text-white' },
+            'paused': { text: '已暂停', class: 'bg-warning text-white' },
+            'delayed': { text: '已延期', class: 'bg-danger text-white' }
+        };
+        
+        // 优先级映射
+        const priorityMap = {
+            'low': { text: '低', class: 'bg-blue-100 text-blue-800' },
+            'medium': { text: '中', class: 'bg-green-100 text-green-800' },
+            'high': { text: '高', class: 'bg-yellow-100 text-yellow-800' },
+            'urgent': { text: '紧急', class: 'bg-red-100 text-red-800' }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期范围（今天到7天后）
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
+            
+            document.getElementById('startDate').valueAsDate = today;
+            document.getElementById('endDate').valueAsDate = nextWeek;
+            
+            // 设置新增计划的默认时间
+            document.getElementById('newPlanStartTime').value = formatDateTime(today);
+            document.getElementById('newPlanEndTime').value = formatDateTime(new Date(today.getTime() + 8 * 60 * 60 * 1000)); // 8小时后
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 加载示例数据
+            loadSampleData();
+            
+            // 渲染甘特图
+            renderGanttChart();
+            
+            // 渲染表格
+            renderTable();
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // 筛选相关事件
+            document.getElementById('applyFilterBtn').addEventListener('click', function() {
+                applyFilters();
+            });
+            
+            document.getElementById('resetFilterBtn').addEventListener('click', function() {
+                resetFilters();
+            });
+            
+            // 甘特图缩放事件
+            document.getElementById('zoomInBtn').addEventListener('click', function() {
+                if (zoomLevel < 2) {
+                    zoomLevel += 0.25;
+                    renderGanttChart();
+                }
+            });
+            
+            document.getElementById('zoomOutBtn').addEventListener('click', function() {
+                if (zoomLevel > 0.5) {
+                    zoomLevel -= 0.25;
+                    renderGanttChart();
+                }
+            });
+            
+            // 新增计划相关事件
+            document.getElementById('addPlanBtn').addEventListener('click', function() {
+                document.getElementById('addPlanModal').classList.remove('hidden');
+            });
+            
+            document.getElementById('closeAddPlanModalBtn').addEventListener('click', function() {
+                document.getElementById('addPlanModal').classList.add('hidden');
+            });
+            
+            document.getElementById('cancelAddPlanBtn').addEventListener('click', function() {
+                document.getElementById('addPlanModal').classList.add('hidden');
+            });
+            
+            document.getElementById('confirmAddPlanBtn').addEventListener('click', function() {
+                addPlan();
+            });
+            
+            // 计划详情相关事件
+            document.getElementById('closePlanDetailModalBtn').addEventListener('click', function() {
+                document.getElementById('planDetailModal').classList.add('hidden');
+            });
+            
+            document.getElementById('closePlanDetailBtn').addEventListener('click', function() {
+                document.getElementById('planDetailModal').classList.add('hidden');
+            });
+            
+            document.getElementById('editPlanBtn').addEventListener('click', function() {
+                editPlan(selectedPlanId);
+            });
+            
+            // 成功提示模态框事件
+            document.getElementById('closeSuccessModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+            
+            // 搜索事件
+            document.getElementById('searchBtn').addEventListener('click', function() {
+                searchPlans();
+            });
+            
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchPlans();
+                }
+            });
+            
+            // 分页事件
+            document.getElementById('prevPageBtn').addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTable();
+                }
+            });
+            
+            document.getElementById('nextPageBtn').addEventListener('click', function() {
+                const totalPages = Math.ceil(filteredPlans.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTable();
+                }
+            });
+            
+            // 全选/取消全选
+            document.getElementById('selectAllPlans').addEventListener('change', function() {
+                const isChecked = this.checked;
+                document.querySelectorAll('.plan-checkbox').forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+            });
+        }
+
+        // 加载示例数据
+        function loadSampleData() {
+            const today = new Date();
+            const tomorrow = new Date();
+            tomorrow.setDate(today.getDate() + 1);
+            
+            productionPlans = [
+                {
+                    id: 'plan_1',
+                    planNumber: 'PP-2025-001',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipment: 'UM-CNC-001',
+                    equipmentName: 'UM-CNC-001 - Mikron MILL P 500',
+                    responsible: 'user1',
+                    responsibleName: '张三',
+                    startTime: new Date(today.setHours(8, 0, 0, 0)),
+                    endTime: new Date(today.setHours(16, 0, 0, 0)),
+                    progress: 100,
+                    status: 'completed',
+                    priority: 'medium',
+                    remark: '按计划完成'
+                },
+                {
+                    id: 'plan_2',
+                    planNumber: 'PP-2025-002',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    equipment: 'UM-CNC-001',
+                    equipmentName: 'UM-CNC-001 - Mikron MILL P 500',
+                    responsible: 'user1',
+                    responsibleName: '张三',
+                    startTime: new Date(tomorrow.setHours(8, 0, 0, 0)),
+                    endTime: new Date(tomorrow.setHours(17, 0, 0, 0)),
+                    progress: 60,
+                    status: 'in_progress',
+                    priority: 'high',
+                    remark: '注意加工精度'
+                },
+                {
+                    id: 'plan_3',
+                    planNumber: 'PP-2025-003',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipment: 'UM-CNC-002',
+                    equipmentName: 'UM-CNC-002 - Mikron MILL E 500 U',
+                    responsible: 'user2',
+                    responsibleName: '李四',
+                    startTime: new Date(today.setHours(8, 0, 0, 0)),
+                    endTime: new Date(today.setHours(12, 0, 0, 0)),
+                    progress: 100,
+                    status: 'completed',
+                    priority: 'medium',
+                    remark: ''
+                },
+                {
+                    id: 'plan_4',
+                    planNumber: 'PP-2025-004',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    equipment: 'UM-CNC-002',
+                    equipmentName: 'UM-CNC-002 - Mikron MILL E 500 U',
+                    responsible: 'user2',
+                    responsibleName: '李四',
+                    startTime: new Date(today.setHours(13, 0, 0, 0)),
+                    endTime: new Date(today.setHours(18, 0, 0, 0)),
+                    progress: 100,
+                    status: 'completed',
+                    priority: 'medium',
+                    remark: ''
+                },
+                {
+                    id: 'plan_5',
+                    planNumber: 'PP-2025-005',
+                    workOrder: 'WO-2025-002',
+                    workOrderName: '手机外壳模具',
+                    operation: 'OP-003',
+                    operationName: '线切割加工',
+                    equipment: 'UM-WEDM-001',
+                    equipmentName: 'UM-WEDM-001 - CUT F 350',
+                    responsible: 'user3',
+                    responsibleName: '王五',
+                    startTime: new Date(tomorrow.setHours(8, 0, 0, 0)),
+                    endTime: new Date(tomorrow.setHours(16, 0, 0, 0)),
+                    progress: 30,
+                    status: 'in_progress',
+                    priority: 'medium',
+                    remark: ''
+                },
+                {
+                    id: 'plan_6',
+                    planNumber: 'PP-2025-006',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipment: 'UM-CNC-003',
+                    equipmentName: 'UM-CNC-003 - Mikron MILL E 300',
+                    responsible: 'user4',
+                    responsibleName: '赵六',
+                    startTime: new Date(today.setHours(8, 0, 0, 0)),
+                    endTime: new Date(today.setHours(16, 0, 0, 0)),
+                    progress: 100,
+                    status: 'completed',
+                    priority: 'high',
+                    remark: '医疗级精度要求'
+                },
+                {
+                    id: 'plan_7',
+                    planNumber: 'PP-2025-007',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-002',
+                    operationName: 'CNC精加工',
+                    equipment: 'UM-CNC-003',
+                    equipmentName: 'UM-CNC-003 - Mikron MILL E 300',
+                    responsible: 'user4',
+                    responsibleName: '赵六',
+                    startTime: new Date(tomorrow.setHours(8, 0, 0, 0)),
+                    endTime: new Date(tomorrow.setHours(16, 0, 0, 0)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'high',
+                    remark: '医疗级精度要求'
+                },
+                {
+                    id: 'plan_8',
+                    planNumber: 'PP-2025-008',
+                    workOrder: 'WO-2025-003',
+                    workOrderName: '医疗设备模具',
+                    operation: 'OP-004',
+                    operationName: '放电加工',
+                    equipment: 'UM-EDM-001',
+                    equipmentName: 'UM-EDM-001 - FORM P 350',
+                    responsible: 'user5',
+                    responsibleName: '钱七',
+                    startTime: new Date(today.setDate(today.getDate() + 2)),
+                    endTime: new Date(today.setDate(today.getDate() + 3)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'medium',
+                    remark: ''
+                },
+                {
+                    id: 'plan_9',
+                    planNumber: 'PP-2025-009',
+                    workOrder: 'WO-2025-004',
+                    workOrderName: '家电模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipment: 'UM-CNC-002',
+                    equipmentName: 'UM-CNC-002 - Mikron MILL E 500 U',
+                    responsible: 'user2',
+                    responsibleName: '李四',
+                    startTime: new Date(today.setDate(today.getDate() + 2)),
+                    endTime: new Date(today.setDate(today.getDate() + 2)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'low',
+                    remark: ''
+                },
+                {
+                    id: 'plan_10',
+                    planNumber: 'PP-2025-010',
+                    workOrder: 'WO-2025-005',
+                    workOrderName: '包装模具',
+                    operation: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipment: 'UM-CNC-003',
+                    equipmentName: 'UM-CNC-003 - Mikron MILL E 300',
+                    responsible: 'user4',
+                    responsibleName: '赵六',
+                    startTime: new Date(today.setDate(today.getDate() + 3)),
+                    endTime: new Date(today.setDate(today.getDate() + 3)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'medium',
+                    remark: ''
+                },
+                {
+                    id: 'plan_11',
+                    planNumber: 'PP-2025-011',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-003',
+                    operationName: '线切割加工',
+                    equipment: 'UM-WEDM-002',
+                    equipmentName: 'UM-WEDM-002 - CUT P 550 Pro',
+                    responsible: 'user3',
+                    responsibleName: '王五',
+                    startTime: new Date(today.setDate(today.getDate() + 1)),
+                    endTime: new Date(today.setDate(today.getDate() + 2)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'high',
+                    remark: ''
+                },
+                {
+                    id: 'plan_12',
+                    planNumber: 'PP-2025-012',
+                    workOrder: 'WO-2025-001',
+                    workOrderName: '汽车模具A',
+                    operation: 'OP-005',
+                    operationName: '三坐标测量',
+                    equipment: 'CMM-001',
+                    equipmentName: 'CMM-001 - 蔡司CONTURA G2',
+                    responsible: 'user1',
+                    responsibleName: '张三',
+                    startTime: new Date(today.setDate(today.getDate() + 3)),
+                    endTime: new Date(today.setDate(today.getDate() + 3)),
+                    progress: 0,
+                    status: 'pending',
+                    priority: 'medium',
+                    remark: ''
+                }
+            ];
+            
+            filteredPlans = [...productionPlans];
+        }
+
+        // 渲染甘特图
+        function renderGanttChart() {
+            const ganttChart = document.getElementById('ganttChart');
+            ganttChart.innerHTML = '';
+            
+            // 获取日期范围
+            const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : new Date();
+            const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : new Date();
+            endDate.setDate(endDate.getDate() + 7); // 默认显示一周
+            
+            // 计算日期范围的天数
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // 创建甘特图头部（日期）
+            const headerRow = document.createElement('div');
+            headerRow.className = 'flex border-b border-gray-200 gantt-header';
+            
+            // 资源列标题
+            const resourceHeaderCell = document.createElement('div');
+            resourceHeaderCell.className = 'w-64 p-2 bg-gray-50 font-medium text-sm border-r border-gray-200 gantt-resource-header';
+            resourceHeaderCell.textContent = '设备/资源';
+            headerRow.appendChild(resourceHeaderCell);
+            
+            // 日期列标题
+            for (let i = 0; i < daysDiff; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                const dateHeaderCell = document.createElement('div');
+                dateHeaderCell.className = `flex-shrink-0 w-${24 * zoomLevel} p-2 bg-gray-50 font-medium text-sm border-r border-gray-200 text-center`;
+                dateHeaderCell.textContent = formatDate(date);
+                headerRow.appendChild(dateHeaderCell);
+            }
+            
+            ganttChart.appendChild(headerRow);
+            
+            // 为每个设备创建一行
+            equipmentList.forEach(equipment => {
+                // 筛选该设备的计划
+                const equipmentPlans = filteredPlans.filter(plan => plan.equipment === equipment.id);
+                
+                // 创建设备行
+                const equipmentRow = document.createElement('div');
+                equipmentRow.className = 'flex border-b border-gray-200 hover:bg-gray-50';
+                
+                // 设备名称单元格
+                const equipmentCell = document.createElement('div');
+                equipmentCell.className = 'w-64 p-2 font-medium text-sm border-r border-gray-200 gantt-resource-header';
+                equipmentCell.textContent = equipment.name;
+                equipmentRow.appendChild(equipmentCell);
+                
+                // 创建时间轴背景
+                const timelineBackground = document.createElement('div');
+                timelineBackground.className = 'flex-grow flex';
+                
+                // 添加每一天的背景
+                for (let i = 0; i < daysDiff; i++) {
+                    const dayBackground = document.createElement('div');
+                    dayBackground.className = `flex-shrink-0 w-${24 * zoomLevel} border-r border-gray-200 ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`;
+                    timelineBackground.appendChild(dayBackground);
+                }
+                
+                equipmentRow.appendChild(timelineBackground);
+                
+                // 添加计划条
+                equipmentPlans.forEach(plan => {
+                    // 检查计划是否在显示范围内
+                    if (plan.endTime < startDate || plan.startTime > endDate) {
+                        return;
+                    }
+                    
+                    // 计算计划条的位置和宽度
+                    const startDay = Math.max(0, Math.floor((plan.startTime - startDate) / (1000 * 60 * 60 * 24)));
+                    const endDay = Math.min(daysDiff - 1, Math.ceil((plan.endTime - startDate) / (1000 * 60 * 60 * 24)));
+                    const startHour = plan.startTime.getHours() + plan.startTime.getMinutes() / 60;
+                    const endHour = plan.endTime.getHours() + plan.endTime.getMinutes() / 60;
+                    
+                    // 计算宽度（天数 + 小时）
+                    let width = (endDay - startDay) * 24 + (endHour - startHour);
+                    width = width * zoomLevel;
+                    
+                    // 计算左边距
+                    let left = startDay * 24 * zoomLevel + startHour * zoomLevel;
+                    
+                    // 创建计划条容器
+                    const planBarContainer = document.createElement('div');
+                    planBarContainer.className = 'absolute';
+                    planBarContainer.style.left = `${left}rem`;
+                    planBarContainer.style.width = `${width}rem`;
+                    planBarContainer.style.height = '30px';
+                    planBarContainer.style.marginTop = '10px';
+                    
+                    // 检查是否有资源冲突
+                    const hasConflict = checkResourceConflict(plan, equipmentPlans);
+                    
+                    // 创建计划条
+                    const planBar = document.createElement('div');
+                    planBar.className = `gantt-bar ${statusMap[plan.status].class} ${hasConflict ? 'border-2 border-dashed border-red-500' : ''}`;
+                    planBar.dataset.planId = plan.id;
+                    
+                    // 添加进度条
+                    const progressBar = document.createElement('div');
+                    progressBar.className = 'gantt-bar-progress';
+                    progressBar.style.width = `${plan.progress}%`;
+                    planBar.appendChild(progressBar);
+                    
+                    // 添加标签
+                    const label = document.createElement('div');
+                    label.className = 'gantt-bar-label';
+                    label.textContent = `${plan.workOrder} - ${plan.operationName}`;
+                    planBar.appendChild(label);
+                    
+                    // 添加点击事件
+                    planBar.addEventListener('click', function() {
+                        showPlanDetail(plan.id);
+                    });
+                    
+                    planBarContainer.appendChild(planBar);
+                    equipmentRow.appendChild(planBarContainer);
+                });
+                
+                equipmentRow.style.position = 'relative';
+                ganttChart.appendChild(equipmentRow);
+            });
+        }
+
+        // 检查资源冲突
+        function checkResourceConflict(plan, equipmentPlans) {
+            return equipmentPlans.some(p => {
+                if (p.id === plan.id) return false;
+                
+                return (plan.startTime < p.endTime && plan.endTime > p.startTime);
+            });
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tableBody = document.getElementById('planTableBody');
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredPlans.length);
+            const pageItems = filteredPlans.slice(startIndex, endIndex);
+            
+            // 更新分页信息
+            document.getElementById('startRange').textContent = filteredPlans.length > 0 ? startIndex + 1 : 0;
+            document.getElementById('endRange').textContent = endIndex;
+            document.getElementById('totalItems').textContent = filteredPlans.length;
+            
+            // 更新分页按钮状态
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = endIndex >= filteredPlans.length;
+            
+            // 清空表格
+            tableBody.innerHTML = '';
+            
+            // 添加表格行
+            if (pageItems.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="11" class="px-6 py-4 text-center text-gray-500">
+                        暂无数据
+                    </td>
+                `;
+                tableBody.appendChild(emptyRow);
+            } else {
+                pageItems.forEach((plan, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="checkbox" class="plan-checkbox rounded text-primary focus:ring-primary" value="${plan.id}">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${plan.planNumber}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${plan.workOrder}</div>
+                            <div class="text-xs text-gray-500">${plan.workOrderName}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${plan.operation} - ${plan.operationName}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${plan.equipmentName}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${plan.responsibleName}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${formatDateTime(plan.startTime)}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${formatDateTime(plan.endTime)}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-primary h-2.5 rounded-full" style="width: ${plan.progress}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${plan.progress}%</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusMap[plan.status].class}">
+                                ${statusMap[plan.status].text}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <button class="text-blue-600 hover:text-blue-800" onclick="showPlanDetail('${plan.id}')" title="查看详情">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                                <button class="text-primary hover:text-secondary" onclick="editPlan('${plan.id}')" title="编辑">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-danger hover:text-red-700" onclick="deletePlan('${plan.id}')" title="删除">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+        }
+
+        // 应用筛选
+        function applyFilters() {
+            const startDate = document.getElementById('startDate').value ? new Date(document.getElementById('startDate').value) : null;
+            const endDate = document.getElementById('endDate').value ? new Date(document.getElementById('endDate').value) : null;
+            const workOrder = document.getElementById('workOrder').value;
+            const equipmentType = document.getElementById('equipmentType').value;
+            const planStatus = document.getElementById('planStatus').value;
+            
+            filteredPlans = productionPlans.filter(plan => {
+                // 日期范围筛选
+                if (startDate && plan.endTime < startDate) return false;
+                if (endDate && plan.startTime > endDate) return false;
+                
+                // 工单筛选
+                if (workOrder && plan.workOrder !== workOrder) return false;
+                
+                // 设备类型筛选
+                if (equipmentType) {
+                    const equipment = equipmentList.find(e => e.id === plan.equipment);
+                    if (!equipment || equipment.type !== equipmentType) return false;
+                }
+                
+                // 状态筛选
+                if (planStatus && plan.status !== planStatus) return false;
+                
+                return true;
+            });
+            
+            currentPage = 1;
+            renderGanttChart();
+            renderTable();
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            document.getElementById('workOrder').value = '';
+            document.getElementById('equipmentType').value = '';
+            document.getElementById('planStatus').value = '';
+            
+            filteredPlans = [...productionPlans];
+            currentPage = 1;
+            renderGanttChart();
+            renderTable();
+        }
+
+        // 搜索计划
+        function searchPlans() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredPlans = [...productionPlans];
+            } else {
+                filteredPlans = productionPlans.filter(plan => 
+                    plan.planNumber.toLowerCase().includes(searchTerm) ||
+                    plan.workOrder.toLowerCase().includes(searchTerm) ||
+                    plan.workOrderName.toLowerCase().includes(searchTerm) ||
+                    plan.operationName.toLowerCase().includes(searchTerm) ||
+                    plan.equipmentName.toLowerCase().includes(searchTerm) ||
+                    plan.responsibleName.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            currentPage = 1;
+            renderGanttChart();
+            renderTable();
+        }
+
+        // 显示计划详情
+        function showPlanDetail(id) {
+            const plan = productionPlans.find(p => p.id === id);
+            if (!plan) return;
+            
+            selectedPlanId = id;
+            
+            const planDetailContent = document.getElementById('planDetailContent');
+            
+            planDetailContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">计划编号</div>
+                        <div class="text-sm">${plan.planNumber}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工单</div>
+                        <div class="text-sm">${plan.workOrder} - ${plan.workOrderName}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工序</div>
+                        <div class="text-sm">${plan.operation} - ${plan.operationName}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">设备</div>
+                        <div class="text-sm">${plan.equipmentName}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">负责人</div>
+                        <div class="text-sm">${plan.responsibleName}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">优先级</div>
+                        <div class="text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${priorityMap[plan.priority].class}">
+                                ${priorityMap[plan.priority].text}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">开始时间</div>
+                        <div class="text-sm">${formatDateTime(plan.startTime)}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">结束时间</div>
+                        <div class="text-sm">${formatDateTime(plan.endTime)}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">状态</div>
+                        <div class="text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${statusMap[plan.status].class}">
+                                ${statusMap[plan.status].text}
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">进度</div>
+                        <div class="text-sm">
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-primary h-2.5 rounded-full" style="width: ${plan.progress}%"></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${plan.progress}%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="text-sm font-medium text-gray-700">备注</div>
+                    <div class="text-sm">${plan.remark || '无'}</div>
+                </div>
+            `;
+            
+            document.getElementById('planDetailModal').classList.remove('hidden');
+        }
+
+        // 添加计划
+        function addPlan() {
+            const workOrder = document.getElementById('newPlanWorkOrder').value;
+            const operation = document.getElementById('newPlanOperation').value;
+            const equipment = document.getElementById('newPlanEquipment').value;
+            const responsible = document.getElementById('newPlanResponsible').value;
+            const startTime = new Date(document.getElementById('newPlanStartTime').value);
+            const endTime = new Date(document.getElementById('newPlanEndTime').value);
+            const priority = document.getElementById('newPlanPriority').value;
+            const remark = document.getElementById('newPlanRemark').value;
+            
+            // 验证必填字段
+            if (!workOrder || !operation || !equipment || !responsible || !startTime || !endTime) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            // 验证时间
+            if (endTime <= startTime) {
+                alert('结束时间必须晚于开始时间');
+                return;
+            }
+            
+            // 获取工单名称
+            const workOrderName = document.getElementById('newPlanWorkOrder').options[document.getElementById('newPlanWorkOrder').selectedIndex].text.split(' - ')[1];
+            
+            // 获取工序名称
+            const operationName = document.getElementById('newPlanOperation').options[document.getElementById('newPlanOperation').selectedIndex].text.split(' - ')[1];
+            
+            // 获取设备名称
+            const equipmentName = document.getElementById('newPlanEquipment').options[document.getElementById('newPlanEquipment').selectedIndex].text;
+            
+            // 获取负责人名称
+            const responsibleName = document.getElementById('newPlanResponsible').options[document.getElementById('newPlanResponsible').selectedIndex].text.split(' - ')[0];
+            
+            // 创建新计划
+            const newPlan = {
+                id: 'plan_' + Date.now(),
+                planNumber: 'PP-' + new Date().getFullYear() + '-' + String(productionPlans.length + 1).padStart(3, '0'),
+                workOrder: workOrder,
+                workOrderName: workOrderName,
+                operation: operation,
+                operationName: operationName,
+                equipment: equipment,
+                equipmentName: equipmentName,
+                responsible: responsible,
+                responsibleName: responsibleName,
+                startTime: startTime,
+                endTime: endTime,
+                progress: 0,
+                status: 'pending',
+                priority: priority,
+                remark: remark
+            };
+            
+            // 添加到计划列表
+            productionPlans.push(newPlan);
+            filteredPlans = [...productionPlans];
+            
+            // 更新甘特图和表格
+            renderGanttChart();
+            renderTable();
+            
+            // 关闭模态框
+            document.getElementById('addPlanModal').classList.add('hidden');
+            
+            // 显示成功提示
+            showSuccessMessage('计划添加成功');
+        }
+
+        // 编辑计划
+        function editPlan(id) {
+            // 这里可以实现编辑功能
+            alert('编辑功能将在后续版本中实现');
+        }
+
+        // 删除计划
+        function deletePlan(id) {
+            if (confirm('确定要删除此计划吗？')) {
+                const index = productionPlans.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    productionPlans.splice(index, 1);
+                    filteredPlans = [...productionPlans];
+                    renderGanttChart();
+                    renderTable();
+                    showSuccessMessage('计划删除成功');
+                }
+            }
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        // 格式化日期时间
+        function formatDateTime(date) {
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 格式化日期
+        function formatDate(date) {
+            return date.toLocaleDateString('zh-CN', {
+                month: 'short',
+                day: 'numeric',
+                weekday: 'short'
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
+@inject AuthService AuthService
+
+<PageTitle>BlazorApp1</PageTitle>
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4 d-flex justify-content-end">
+            <a href="#" class="nav-link">
+                <span class="oi oi-bell" aria-hidden="true"></span> 通知
+            </a>
+            <a href="#" class="nav-link">
+                <span class="oi oi-person" aria-hidden="true"></span> 管理员
+            </a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // 暂时注释掉认证检查，以便测试数据显示
+        // if (!AuthService.IsAuthenticated)
+        // {
+        //     NavigationManager.NavigateTo("/login", forceLoad: true);
+        // }
+    }
+}

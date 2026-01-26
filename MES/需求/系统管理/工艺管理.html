@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工艺管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色主色调
+                        secondary: '#2a4365',    // 次要蓝色
+                        accent: '#ed8936',       // 橙色强调色
+                        success: '#38a169',      // 绿色 - 成功/进行中
+                        warning: '#ed8936',      // 橙色 - 警告/暂停
+                        danger: '#e53e3e',       // 红色 - 危险/终止
+                        light: '#f7fafc',        // 浅色背景
+                        dark: '#1a202c',         // 深色文本
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-gradient-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-shadow">UNITED MACHINING</h1>
+                <span class="hidden md:inline-block text-sm">|</span>
+                <span class="hidden md:inline-block text-sm">模具制造MES系统</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">首页</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">项目管理</a></li>
+                        <li><a href="#" class="text-accent font-medium transition-all-300">工艺管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">生产管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">设备管理</a></li>
+                    </ul>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm">管理员</span>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-primary">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 左侧 BOM 列表 -->
+        <div class="w-full md:w-1/4 lg:w-1/5">
+            <div class="bg-white rounded-lg shadow-card p-4 sticky top-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-list mr-2"></i>BOM清单
+                    </h3>
+                    <button id="importBomBtn" class="p-1 text-primary hover:text-secondary focus:outline-none" title="导入BOM">
+                        <i class="fa fa-upload"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-3">
+                    <input type="text" id="bomSearchInput" placeholder="搜索物料..." class="w-full border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <div class="mb-3 flex items-center justify-between">
+                    <div class="flex space-x-2">
+                        <button id="filterAllBtn" class="px-2 py-1 text-xs rounded bg-primary text-white">全部</button>
+                        <button id="filterInStockBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">在库</button>
+                        <button id="filterLowStockBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">库存低</button>
+                        <button id="filterOutOfStockBtn" class="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-100">缺货</button>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="expandAllBtn" class="text-xs text-primary hover:text-secondary focus:outline-none mr-2">
+                            <i class="fa fa-plus-square-o mr-1"></i>展开
+                        </button>
+                        <button id="collapseAllBtn" class="text-xs text-primary hover:text-secondary focus:outline-none">
+                            <i class="fa fa-minus-square-o mr-1"></i>收起
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="bomList" class="max-h-[500px] overflow-y-auto">
+                    <!-- BOM 列表将通过 JavaScript 动态生成 -->
+                </div>
+                
+                <div class="mt-4 pt-3 border-t border-gray-200">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="text-gray-600">
+                            总计: <span id="bomTotalCount" class="font-medium">0</span> 项
+                        </div>
+                        <div class="text-gray-600">
+                            总重量: <span id="bomTotalWeight" class="font-medium">0</span> kg
+                        </div>
+                        <div class="text-gray-600">
+                            总成本: <span id="bomTotalCost" class="font-medium">¥0.00</span>
+                        </div>
+                        <div class="text-gray-600">
+                            缺货项: <span id="bomOutOfStockCount" class="font-medium text-danger">0</span> 项
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧工艺管理内容 -->
+        <div class="w-full md:w-3/4 lg:w-4/5">
+        <!-- 页面标题 -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-primary">工艺管理</h2>
+            <p class="text-gray-600">制定和管理模具制造工艺及工序</p>
+        </div>
+
+        <!-- 工艺制定卡片 -->
+        <div class="bg-white rounded-lg shadow-card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-primary mb-4 flex items-center">
+                <i class="fa fa-cogs mr-2"></i>工艺制定
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <!-- 工单选择 -->
+                <div>
+                    <label for="workOrder" class="block text-sm font-medium text-gray-700 mb-1">工单选择</label>
+                    <select id="workOrder" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">请选择工单</option>
+                        <option value="WO-2025-001">WO-2025-001 - 汽车模具A</option>
+                        <option value="WO-2025-002">WO-2025-002 - 手机外壳模具</option>
+                        <option value="WO-2025-003">WO-2025-003 - 医疗设备模具</option>
+                    </select>
+                </div>
+                
+                <!-- 产品型号 -->
+                <div>
+                    <label for="productModel" class="block text-sm font-medium text-gray-700 mb-1">产品型号</label>
+                    <input type="text" id="productModel" placeholder="输入产品型号" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <!-- 工艺名称 -->
+                <div>
+                    <label for="processName" class="block text-sm font-medium text-gray-700 mb-1">工艺名称</label>
+                    <input type="text" id="processName" placeholder="输入工艺名称" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <!-- 工艺版本 -->
+                <div>
+                    <label for="processVersion" class="block text-sm font-medium text-gray-700 mb-1">工艺版本</label>
+                    <input type="text" id="processVersion" value="V1.0" placeholder="输入工艺版本" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- 工艺描述 -->
+                <div class="md:col-span-2">
+                    <label for="processDesc" class="block text-sm font-medium text-gray-700 mb-1">工艺描述</label>
+                    <input type="text" id="processDesc" placeholder="输入工艺描述" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <!-- 工艺状态 -->
+                <div>
+                    <label for="processStatus" class="block text-sm font-medium text-gray-700 mb-1">工艺状态</label>
+                    <select id="processStatus" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="draft">草稿</option>
+                        <option value="approved" selected>已审核</option>
+                        <option value="released">已发布</option>
+                        <option value="obsolete">已废止</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">工序类型选择</label>
+                <div class="flex flex-wrap gap-3">
+                    <button id="cmmBtn" class="process-type-btn px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-cube mr-1"></i>CMM (三坐标测量)
+                    </button>
+                    <button id="cncBtn" class="process-type-btn px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-cog mr-1"></i>CNC (数控加工)
+                    </button>
+                    <button id="wedmBtn" class="process-type-btn px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-bolt mr-1"></i>WEDM (线切割)
+                    </button>
+                    <button id="dsedmBtn" class="process-type-btn px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-fire mr-1"></i>DSEDM (放电加工)
+                    </button>
+                    <button id="ltBtn" class="process-type-btn px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                        <i class="fa fa-wrench mr-1"></i>LT (车床加工)
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="resetBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    重置
+                </button>
+                <button id="addProcessBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    添加工序
+                </button>
+                <button id="saveProcessBtn" class="px-4 py-2 bg-accent text-white rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all-300">
+                    保存工艺
+                </button>
+            </div>
+        </div>
+
+        <!-- 工序详情表单 (默认隐藏) -->
+        <div id="processDetailForm" class="bg-white rounded-lg shadow-card p-6 mb-6 hidden">
+            <h3 class="text-lg font-semibold text-primary mb-4 flex items-center">
+                <i class="fa fa-list-alt mr-2"></i>工序详情
+                <span id="processTypeTitle" class="ml-2 text-sm font-normal text-gray-500"></span>
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- 关联物料 -->
+                <div>
+                    <label for="relatedMaterial" class="block text-sm font-medium text-gray-700 mb-1">关联物料</label>
+                    <select id="relatedMaterial" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">请选择物料</option>
+                        <!-- 物料选项将通过JavaScript动态生成 -->
+                    </select>
+                </div>
+                
+                <!-- 加工面 -->
+                <div>
+                    <label for="machiningSurface" class="block text-sm font-medium text-gray-700 mb-1">加工面</label>
+                    <select id="machiningSurface" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">请选择加工面</option>
+                        <option value="top">上表面</option>
+                        <option value="bottom">下表面</option>
+                        <option value="front">前表面</option>
+                        <option value="back">后表面</option>
+                        <option value="left">左侧面</option>
+                        <option value="right">右侧面</option>
+                        <option value="inner">内表面</option>
+                        <option value="outer">外表面</option>
+                    </select>
+                </div>
+                
+                <!-- 工序编号 -->
+                <div>
+                    <label for="operationCode" class="block text-sm font-medium text-gray-700 mb-1">工序编号</label>
+                    <input type="text" id="operationCode" placeholder="输入工序编号" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- 工序名称 -->
+                <div>
+                    <label for="operationName" class="block text-sm font-medium text-gray-700 mb-1">工序名称</label>
+                    <input type="text" id="operationName" placeholder="输入工序名称" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <!-- 设备要求 -->
+                <div>
+                    <label for="equipmentReq" class="block text-sm font-medium text-gray-700 mb-1">设备要求</label>
+                    <select id="equipmentReq" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">请选择设备</option>
+                        <option value="cnc_mill">CNC铣床</option>
+                        <option value="cnc_lathe">CNC车床</option>
+                        <option value="wire_edm">线切割机</option>
+                        <option value="edm">电火花机</option>
+                        <option value="cmm">三坐标测量机</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- 预估工时 -->
+                <div>
+                    <label for="estimatedTime" class="block text-sm font-medium text-gray-700 mb-1">预估工时 (小时)</label>
+                    <input type="number" id="estimatedTime" min="0.1" step="0.1" placeholder="输入预估工时" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                </div>
+                
+                <!-- 难度等级 -->
+                <div>
+                    <label for="difficultyLevel" class="block text-sm font-medium text-gray-700 mb-1">难度等级</label>
+                    <select id="difficultyLevel" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="easy">简单</option>
+                        <option value="medium" selected>中等</option>
+                        <option value="difficult">困难</option>
+                        <option value="expert">专家</option>
+                    </select>
+                </div>
+                
+                <!-- 工序类型 (只读) -->
+                <div>
+                    <label for="operationType" class="block text-sm font-medium text-gray-700 mb-1">工序类型</label>
+                    <input type="text" id="operationType" readonly class="w-full bg-gray-100 border border-gray-300 rounded-md px-3 py-2 focus:outline-none">
+                </div>
+            </div>
+            
+            <!-- 工序内容 -->
+            <div class="mb-6">
+                <label for="operationContent" class="block text-sm font-medium text-gray-700 mb-1">工序内容</label>
+                <textarea id="operationContent" rows="4" placeholder="输入工序详细内容" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- 质量要求 -->
+                <div>
+                    <label for="qualityReq" class="block text-sm font-medium text-gray-700 mb-1">质量要求</label>
+                    <textarea id="qualityReq" rows="2" placeholder="输入质量要求" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                </div>
+                
+                <!-- 安全注意事项 -->
+                <div>
+                    <label for="safetyNotes" class="block text-sm font-medium text-gray-700 mb-1">安全注意事项</label>
+                    <textarea id="safetyNotes" rows="2" placeholder="输入安全注意事项" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelProcessBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    取消
+                </button>
+                <button id="confirmAddProcessBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确认添加
+                </button>
+            </div>
+        </div>
+
+        <!-- 工艺内容展示区域 -->
+        <div id="processContentDisplay" class="bg-white rounded-lg shadow-card p-6 mb-6 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary flex items-center">
+                    <i class="fa fa-file-text-o mr-2"></i>工艺内容详情
+                </h3>
+                <button id="closeContentDisplayBtn" class="p-1 text-gray-500 hover:text-primary focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工单</div>
+                        <div id="displayWorkOrder" class="text-sm font-medium">-</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">产品型号</div>
+                        <div id="displayProductModel" class="text-sm font-medium">-</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工艺名称</div>
+                        <div id="displayProcessName" class="text-sm font-medium">-</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">关联物料</div>
+                        <div id="displayRelatedMaterial" class="text-sm font-medium">-</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工序编号</div>
+                        <div id="displayOperationCode" class="text-sm font-medium">-</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-700">工序类型</div>
+                        <div id="displayOperationType" class="text-sm font-medium">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <div class="text-sm font-medium text-gray-700 mb-1">工序内容</div>
+                <div id="displayOperationContent" class="p-3 bg-gray-50 rounded-md text-sm min-h-[100px]">
+                    <!-- 工序内容将通过JavaScript动态填充 -->
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <div class="text-sm font-medium text-gray-700 mb-1">质量要求</div>
+                    <div id="displayQualityReq" class="p-3 bg-gray-50 rounded-md text-sm min-h-[80px]">
+                        <!-- 质量要求将通过JavaScript动态填充 -->
+                    </div>
+                </div>
+                <div>
+                    <div class="text-sm font-medium text-gray-700 mb-1">安全注意事项</div>
+                    <div id="displaySafetyNotes" class="p-3 bg-gray-50 rounded-md text-sm min-h-[80px]">
+                        <!-- 安全注意事项将通过JavaScript动态填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工序数据表格 -->
+        <div class="bg-white rounded-lg shadow-card p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary flex items-center">
+                    <i class="fa fa-table mr-2"></i>工序列表
+                </h3>
+                <div class="flex items-center space-x-2">
+                    <input type="text" id="searchInput" placeholder="搜索工序..." class="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <button id="searchBtn" class="p-1 text-gray-500 hover:text-primary focus:outline-none">
+                        <i class="fa fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input type="checkbox" id="selectAllProcesses" class="rounded text-primary focus:ring-primary">
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工序编号
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                关联物料
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                加工面
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工序名称
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工序内容
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                预估工时
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                工序类型
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                状态
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                操作
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="processTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格数据将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页控件 -->
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-700">
+                    显示 <span id="startRange">1</span> 到 <span id="endRange">10</span> 条，共 <span id="totalItems">0</span> 条
+                </div>
+                <div class="flex space-x-1">
+                    <button id="prevPageBtn" class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        上一页
+                    </button>
+                    <button id="nextPageBtn" class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                        下一页
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOM 导入模态框 -->
+    <div id="importBomModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">导入BOM清单</h3>
+                <button id="closeImportBomModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">选择文件格式</label>
+                <div class="flex space-x-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="bomFileType" value="excel" checked class="mr-1">
+                        <span>Excel</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="bomFileType" value="csv" class="mr-1">
+                        <span>CSV</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="bomFileType" value="json" class="mr-1">
+                        <span>JSON</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="bomFileInput" class="block text-sm font-medium text-gray-700 mb-2">选择文件</label>
+                <input type="file" id="bomFileInput" accept=".xlsx,.xls,.csv,.json" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <p class="mt-1 text-xs text-gray-500">支持的格式: Excel (.xlsx, .xls), CSV, JSON</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">或</label>
+                <button id="loadSampleBomBtn" class="w-full px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    加载示例BOM数据
+                </button>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancelImportBomBtn" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                    取消
+                </button>
+                <button id="confirmImportBomBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    导入
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BOM 详情模态框 -->
+    <div id="bomDetailModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-primary">物料详情</h3>
+                <button id="closeBomDetailModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="bomDetailContent" class="space-y-3">
+                <!-- BOM 详情将通过 JavaScript 动态生成 -->
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button id="closeBomDetailBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 保存成功提示模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold text-center text-gray-900 mb-2">保存成功</h3>
+            <p class="text-gray-600 text-center mb-6">工艺信息已成功保存</p>
+            <div class="flex justify-center">
+                <button id="closeModalBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentProcessType = '';
+        let processes = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let filteredProcesses = [];
+        
+        // BOM 相关变量
+        let bomItems = [];
+        let filteredBomItems = [];
+
+        // 工序类型映射
+        const processTypeMap = {
+            'cmm': 'CMM (三坐标测量)',
+            'cnc': 'CNC (数控加工)',
+            'wedm': 'WEDM (线切割)',
+            'dsedm': 'DSEDM (放电加工)',
+            'lt': 'LT (车床加工)'
+        };
+
+        // 加工面映射
+        const machiningSurfaceMap = {
+            'top': '上表面',
+            'bottom': '下表面',
+            'front': '前表面',
+            'back': '后表面',
+            'left': '左侧面',
+            'right': '右侧面',
+            'inner': '内表面',
+            'outer': '外表面'
+        };
+
+        // 状态映射
+        const statusMap = {
+            'pending': { text: '待处理', class: 'bg-gray-100 text-gray-800' },
+            'in_progress': { text: '进行中', class: 'bg-green-100 text-green-800' },
+            'completed': { text: '已完成', class: 'bg-blue-100 text-blue-800' },
+            'paused': { text: '已暂停', class: 'bg-yellow-100 text-yellow-800' },
+            'cancelled': { text: '已取消', class: 'bg-red-100 text-red-800' }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定事件
+            bindEvents();
+            
+            // 加载示例数据
+            loadSampleData();
+            
+            // 渲染表格
+            renderTable();
+            
+            // 加载示例 BOM 数据
+            loadSampleBomData();
+            
+            // 渲染 BOM 列表
+            renderBomList();
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // BOM 相关事件
+            document.getElementById('importBomBtn').addEventListener('click', function() {
+                document.getElementById('importBomModal').classList.remove('hidden');
+            });
+            
+            document.getElementById('closeImportBomModalBtn').addEventListener('click', function() {
+                document.getElementById('importBomModal').classList.add('hidden');
+            });
+            
+            document.getElementById('cancelImportBomBtn').addEventListener('click', function() {
+                document.getElementById('importBomModal').classList.add('hidden');
+            });
+            
+            document.getElementById('confirmImportBomBtn').addEventListener('click', function() {
+                importBomFile();
+            });
+            
+            document.getElementById('loadSampleBomBtn').addEventListener('click', function() {
+                loadSampleBomData();
+                renderBomList();
+                document.getElementById('importBomModal').classList.add('hidden');
+                showSuccessMessage('示例BOM数据加载成功');
+            });
+            
+            document.getElementById('bomSearchInput').addEventListener('input', function() {
+                searchBomItems();
+            });
+            
+            document.getElementById('closeBomDetailModalBtn').addEventListener('click', function() {
+                document.getElementById('bomDetailModal').classList.add('hidden');
+            });
+            
+            document.getElementById('closeBomDetailBtn').addEventListener('click', function() {
+                document.getElementById('bomDetailModal').classList.add('hidden');
+            });
+            
+            // 添加到工序按钮点击事件
+            document.getElementById('addToProcessBtn').addEventListener('click', function() {
+                const currentItemId = this.dataset.itemId;
+                if (currentItemId) {
+                    addMaterialToProcess(currentItemId);
+                }
+            });
+            
+            // 全选/取消全选工序
+            document.getElementById('selectAllProcesses').addEventListener('change', function() {
+                const isChecked = this.checked;
+                document.querySelectorAll('.process-checkbox').forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+            });
+            
+            // BOM 筛选按钮点击事件
+            document.getElementById('filterAllBtn').addEventListener('click', function() {
+                filterBomItems('all');
+                updateFilterButtons('all');
+            });
+            
+            document.getElementById('filterInStockBtn').addEventListener('click', function() {
+                filterBomItems('in_stock');
+                updateFilterButtons('in_stock');
+            });
+            
+            document.getElementById('filterLowStockBtn').addEventListener('click', function() {
+                filterBomItems('low_stock');
+                updateFilterButtons('low_stock');
+            });
+            
+            document.getElementById('filterOutOfStockBtn').addEventListener('click', function() {
+                filterBomItems('out_of_stock');
+                updateFilterButtons('out_of_stock');
+            });
+            
+            // 展开/收起按钮点击事件
+            document.getElementById('expandAllBtn').addEventListener('click', function() {
+                expandAllBomItems(true);
+            });
+            
+            document.getElementById('collapseAllBtn').addEventListener('click', function() {
+                expandAllBomItems(false);
+            });
+           
+            // 工序类型按钮点击事件
+            document.querySelectorAll('.process-type-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const processType = this.id.replace('Btn', '');
+                    selectProcessType(processType);
+                });
+            });
+
+            // 添加工序按钮点击事件
+            document.getElementById('addProcessBtn').addEventListener('click', function() {
+                if (!currentProcessType) {
+                    alert('请先选择工序类型');
+                    return;
+                }
+                showProcessDetailForm();
+            });
+
+            // 取消添加工序按钮点击事件
+            document.getElementById('cancelProcessBtn').addEventListener('click', function() {
+                hideProcessDetailForm();
+            });
+
+            // 确认添加工序按钮点击事件
+            document.getElementById('confirmAddProcessBtn').addEventListener('click', function() {
+                addProcess();
+            });
+
+            // 保存工艺按钮点击事件
+            document.getElementById('saveProcessBtn').addEventListener('click', function() {
+                saveProcess();
+            });
+
+            // 重置按钮点击事件
+            document.getElementById('resetBtn').addEventListener('click', function() {
+                resetForm();
+            });
+
+            // 搜索按钮点击事件
+            document.getElementById('searchBtn').addEventListener('click', function() {
+                searchProcesses();
+            });
+
+            // 搜索输入框回车事件
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchProcesses();
+                }
+            });
+
+            // 上一页按钮点击事件
+            document.getElementById('prevPageBtn').addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTable();
+                }
+            });
+
+            // 下一页按钮点击事件
+            document.getElementById('nextPageBtn').addEventListener('click', function() {
+                const totalPages = Math.ceil(filteredProcesses.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTable();
+                }
+            });
+
+            // 关闭模态框按钮点击事件
+            document.getElementById('closeModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+            
+            // 关闭工艺内容展示区域
+            document.getElementById('closeContentDisplayBtn').addEventListener('click', function() {
+                document.getElementById('processContentDisplay').classList.add('hidden');
+            });
+        }
+        
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            const successModal = document.getElementById('successModal');
+            successModal.querySelector('h3').textContent = '成功';
+            successModal.querySelector('p').textContent = message;
+            successModal.classList.remove('hidden');
+        }
+        
+        // 导入 BOM 文件
+        function importBomFile() {
+            const fileInput = document.getElementById('bomFileInput');
+            const fileType = document.querySelector('input[name="bomFileType"]:checked').value;
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('请选择要导入的文件');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    
+                    if (fileType === 'json') {
+                        data = JSON.parse(e.target.result);
+                    } else if (fileType === 'csv') {
+                        data = parseCsv(e.target.result);
+                    } else {
+                        // 对于 Excel 文件，实际项目中需要使用专门的库如 SheetJS
+                        alert('Excel 文件导入需要使用专门的库，这里使用示例数据代替');
+                        loadSampleBomData();
+                        renderBomList();
+                        document.getElementById('importBomModal').classList.add('hidden');
+                        showSuccessMessage('BOM导入成功');
+                        return;
+                    }
+                    
+                    // 处理导入的数据
+                    processImportedBomData(data);
+                    renderBomList();
+                    document.getElementById('importBomModal').classList.add('hidden');
+                    showSuccessMessage('BOM导入成功，共 ' + bomItems.length + ' 项');
+                    
+                } catch (error) {
+                    console.error('导入失败:', error);
+                    alert('文件导入失败，请检查文件格式');
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        // 解析 CSV 文件
+        function parseCsv(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const result = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = lines[i].split(',').map(v => v.trim());
+                const item = {};
+                
+                headers.forEach((header, index) => {
+                    item[header.toLowerCase()] = values[index] || '';
+                });
+                
+                result.push(item);
+            }
+            
+            return result;
+        }
+        
+        // 处理导入的 BOM 数据
+        function processImportedBomData(data) {
+            bomItems = data.map((item, index) => {
+                return {
+                    id: item.id || 'bom_' + Date.now() + '_' + index,
+                    partNumber: item.partnumber || item['part number'] || item.part_no || item['part no'] || '',
+                    name: item.name || item.description || '',
+                    spec: item.spec || item.specification || item['spec spec'] || '',
+                    material: item.material || '',
+                    quantity: parseFloat(item.quantity || item.qty || 1),
+                    unit: item.unit || '个',
+                    weight: parseFloat(item.weight || 0),
+                    supplier: item.supplier || '',
+                    remark: item.remark || item.note || '',
+                    stockStatus: item.stockstatus || item['stock status'] || 'unknown',
+                    stockQuantity: parseInt(item.stockquantity || item['stock quantity'] || 0),
+                    leadTime: parseInt(item.leadtime || item['lead time'] || 0),
+                    cost: parseFloat(item.cost || item.price || 0)
+                };
+            });
+            
+            filteredBomItems = [...bomItems];
+        }
+        
+        // 加载示例 BOM 数据
+        function loadSampleBomData() {
+            bomItems = [
+                {
+                    id: 'bom_1',
+                    partNumber: 'P001',
+                    name: '模具底座',
+                    spec: '200x200x50mm',
+                    material: '45#钢',
+                    quantity: 1,
+                    unit: '个',
+                    weight: 15.5,
+                    supplier: '钢铁供应商A',
+                    remark: '主结构件',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 5,
+                    leadTime: 7,
+                    cost: 320.50
+                },
+                {
+                    id: 'bom_2',
+                    partNumber: 'P002',
+                    name: '模具型芯',
+                    spec: '150x150x80mm',
+                    material: 'Cr12MoV',
+                    quantity: 1,
+                    unit: '个',
+                    weight: 12.3,
+                    supplier: '特殊钢供应商B',
+                    remark: '需要热处理',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 3,
+                    leadTime: 14,
+                    cost: 580.00
+                },
+                {
+                    id: 'bom_3',
+                    partNumber: 'P003',
+                    name: '导柱',
+                    spec: 'φ20x100mm',
+                    material: 'GCr15',
+                    quantity: 4,
+                    unit: '个',
+                    weight: 0.8,
+                    supplier: '轴承供应商C',
+                    remark: '4个导柱',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 50,
+                    leadTime: 5,
+                    cost: 45.00
+                },
+                {
+                    id: 'bom_4',
+                    partNumber: 'P004',
+                    name: '导套',
+                    spec: 'φ22x80mm',
+                    material: 'GCr15',
+                    quantity: 4,
+                    unit: '个',
+                    weight: 0.6,
+                    supplier: '轴承供应商C',
+                    remark: '4个导套',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 45,
+                    leadTime: 5,
+                    cost: 38.00
+                },
+                {
+                    id: 'bom_5',
+                    partNumber: 'P005',
+                    name: '顶针',
+                    spec: 'φ8x120mm',
+                    material: 'SKD61',
+                    quantity: 12,
+                    unit: '个',
+                    weight: 0.1,
+                    supplier: '模具配件供应商D',
+                    remark: '12个顶针',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 200,
+                    leadTime: 3,
+                    cost: 12.50
+                },
+                {
+                    id: 'bom_6',
+                    partNumber: 'P006',
+                    name: '螺丝',
+                    spec: 'M12x30mm',
+                    material: '304不锈钢',
+                    quantity: 20,
+                    unit: '个',
+                    weight: 0.05,
+                    supplier: '标准件供应商E',
+                    remark: '固定用',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 1000,
+                    leadTime: 2,
+                    cost: 3.20
+                },
+                {
+                    id: 'bom_7',
+                    partNumber: 'P007',
+                    name: '弹簧',
+                    spec: 'φ16x40mm',
+                    material: '65Mn',
+                    quantity: 8,
+                    unit: '个',
+                    weight: 0.08,
+                    supplier: '弹簧供应商F',
+                    remark: '复位弹簧',
+                    stockStatus: 'low_stock',
+                    stockQuantity: 5,
+                    leadTime: 7,
+                    cost: 8.50
+                },
+                {
+                    id: 'bom_8',
+                    partNumber: 'P008',
+                    name: '密封圈',
+                    spec: 'φ40x3mm',
+                    material: '丁腈橡胶',
+                    quantity: 4,
+                    unit: '个',
+                    weight: 0.02,
+                    supplier: '密封件供应商G',
+                    remark: '防水密封',
+                    stockStatus: 'out_of_stock',
+                    stockQuantity: 0,
+                    leadTime: 10,
+                    cost: 5.80
+                },
+                {
+                    id: 'bom_9',
+                    partNumber: 'P009',
+                    name: '冷却水管',
+                    spec: 'φ10x1.5mm',
+                    material: '铜管',
+                    quantity: 2,
+                    unit: '米',
+                    weight: 0.2,
+                    supplier: '五金供应商H',
+                    remark: '冷却系统用',
+                    stockStatus: 'in_stock',
+                    stockQuantity: 50,
+                    leadTime: 3,
+                    cost: 25.00
+                },
+                {
+                    id: 'bom_10',
+                    partNumber: 'P010',
+                    name: '加热元件',
+                    spec: '220V 500W',
+                    material: '不锈钢',
+                    quantity: 2,
+                    unit: '个',
+                    weight: 0.5,
+                    supplier: '电热元件供应商I',
+                    remark: '温控系统用',
+                    stockStatus: 'ordered',
+                    stockQuantity: 0,
+                    leadTime: 14,
+                    cost: 120.00
+                }
+            ];
+            
+            filteredBomItems = [...bomItems];
+        }
+        
+        // 搜索 BOM 项目
+        function searchBomItems() {
+            const searchTerm = document.getElementById('bomSearchInput').value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredBomItems = [...bomItems];
+            } else {
+                filteredBomItems = bomItems.filter(item => 
+                    item.partNumber.toLowerCase().includes(searchTerm) ||
+                    item.name.toLowerCase().includes(searchTerm) ||
+                    item.spec.toLowerCase().includes(searchTerm) ||
+                    item.material.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderBomList();
+        }
+        
+        // 渲染 BOM 列表
+        function renderBomList() {
+            const bomList = document.getElementById('bomList');
+            bomList.innerHTML = '';
+            
+            if (filteredBomItems.length === 0) {
+                bomList.innerHTML = `
+                    <div class="text-center text-gray-500 py-4">
+                        暂无BOM数据
+                    </div>
+                `;
+            } else {
+                filteredBomItems.forEach(item => {
+                    // 计算该物料相关的工序数量
+                    const relatedProcessesCount = getRelatedProcessesCount(item.partNumber);
+                    
+                    const bomItem = document.createElement('div');
+                    bomItem.className = 'p-2 hover:bg-gray-50 rounded cursor-pointer mb-1 border border-transparent hover:border-gray-200 transition-all-300';
+                    bomItem.dataset.id = item.id;
+                    
+                    bomItem.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-sm">${item.name}</div>
+                                <div class="text-xs text-gray-500">${item.partNumber}</div>
+                            </div>
+                            <div class="text-xs text-gray-500">${item.quantity}${item.unit}</div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <div class="text-xs text-gray-500">${item.spec}</div>
+                            <div class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-800" title="相关工序数量">
+                                <i class="fa fa-cogs mr-0.5"></i>${relatedProcessesCount}
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <div class="text-xs text-gray-500">材质: ${item.material}</div>
+                            <div class="text-xs text-gray-500">${item.weight}kg</div>
+                        </div>
+                    `;
+                    
+                    bomItem.addEventListener('click', function() {
+                        showBomDetail(item.id);
+                    });
+                    
+                    bomList.appendChild(bomItem);
+                });
+            }
+            
+            // 更新统计信息
+            updateBomStatistics();
+        }
+        
+        // 更新 BOM 统计信息
+        function updateBomStatistics() {
+            document.getElementById('bomTotalCount').textContent = filteredBomItems.length;
+            
+            const totalWeight = filteredBomItems.reduce((sum, item) => sum + (item.weight * item.quantity), 0);
+            document.getElementById('bomTotalWeight').textContent = totalWeight.toFixed(2);
+            
+            const totalCost = filteredBomItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0);
+            document.getElementById('bomTotalCost').textContent = '¥' + totalCost.toFixed(2);
+            
+            const outOfStockCount = filteredBomItems.filter(item => item.stockStatus === 'out_of_stock').length;
+            document.getElementById('bomOutOfStockCount').textContent = outOfStockCount;
+        }
+        
+        // 显示 BOM 详情
+        function showBomDetail(id) {
+            const item = bomItems.find(b => b.id === id);
+            if (!item) return;
+            
+            // 设置添加到工序按钮的物料ID
+            document.getElementById('addToProcessBtn').dataset.itemId = item.partNumber;
+            
+            // 获取库存状态样式和文本
+            let stockStatusClass = '';
+            let stockStatusText = '';
+            
+            switch(item.stockStatus) {
+                case 'in_stock':
+                    stockStatusClass = 'bg-green-100 text-green-800';
+                    stockStatusText = '在库';
+                    break;
+                case 'low_stock':
+                    stockStatusClass = 'bg-yellow-100 text-yellow-800';
+                    stockStatusText = '库存低';
+                    break;
+                case 'out_of_stock':
+                    stockStatusClass = 'bg-red-100 text-red-800';
+                    stockStatusText = '缺货';
+                    break;
+                case 'ordered':
+                    stockStatusClass = 'bg-blue-100 text-blue-800';
+                    stockStatusText = '已订购';
+                    break;
+                default:
+                    stockStatusClass = 'bg-gray-100 text-gray-800';
+                    stockStatusText = '未知';
+            }
+            
+            const bomDetailContent = document.getElementById('bomDetailContent');
+            
+            bomDetailContent.innerHTML = `
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <div class="text-sm font-medium">物料名称</div>
+                        <div class="text-sm">${item.name}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">物料编号</div>
+                        <div class="text-sm">${item.partNumber}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">规格</div>
+                        <div class="text-sm">${item.spec}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">材质</div>
+                        <div class="text-sm">${item.material}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">数量</div>
+                        <div class="text-sm">${item.quantity} ${item.unit}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">库存状态</div>
+                        <div class="text-sm">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${stockStatusClass}">
+                                ${stockStatusText} (${item.stockQuantity || 0} ${item.unit})
+                            </span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">单重</div>
+                        <div class="text-sm">${item.weight} kg</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">单价</div>
+                        <div class="text-sm">¥${item.cost?.toFixed(2) || '0.00'}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">供应商</div>
+                        <div class="text-sm">${item.supplier}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">交货周期</div>
+                        <div class="text-sm">${item.leadTime || 0} 天</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">总重</div>
+                        <div class="text-sm">${(item.weight * item.quantity).toFixed(2)} kg</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium">总成本</div>
+                        <div class="text-sm">¥${((item.cost || 0) * item.quantity).toFixed(2)}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="text-sm font-medium">备注</div>
+                    <div class="text-sm">${item.remark || '无'}</div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-200">
+                    <div class="text-sm font-medium mb-2">相关工序</div>
+                    <div id="relatedProcessesList" class="text-sm">
+                        <!-- 相关工序将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            `;
+            
+            // 加载相关工序
+            loadRelatedProcesses(item.partNumber);
+            
+            document.getElementById('bomDetailModal').classList.remove('hidden');
+        }
+
+        // 选择工序类型
+        function selectProcessType(type) {
+            currentProcessType = type;
+            
+            // 更新按钮样式
+            document.querySelectorAll('.process-type-btn').forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('border-gray-300', 'hover:bg-gray-100');
+            });
+            
+            const selectedBtn = document.getElementById(type + 'Btn');
+            selectedBtn.classList.remove('border-gray-300', 'hover:bg-gray-100');
+            selectedBtn.classList.add('bg-primary', 'text-white');
+            
+            // 更新工序类型标题
+            document.getElementById('processTypeTitle').textContent = processTypeMap[type];
+        }
+        
+        // 初始化物料选择下拉框
+        function initMaterialSelect() {
+            const select = document.getElementById('relatedMaterial');
+            
+            // 清空现有选项
+            select.innerHTML = '<option value="">请选择物料</option>';
+            
+            // 添加物料选项
+            bomItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.partNumber;
+                option.textContent = `${item.partNumber} - ${item.name}`;
+                select.appendChild(option);
+            });
+        }
+        
+        // 加载相关工序
+        function loadRelatedProcesses(partNumber) {
+            const relatedProcessesList = document.getElementById('relatedProcessesList');
+            const relatedProcesses = processes.filter(p => p.relatedMaterial === partNumber);
+            
+            if (relatedProcesses.length === 0) {
+                relatedProcessesList.innerHTML = '<div class="text-gray-500">暂无相关工序</div>';
+                return;
+            }
+            
+            let html = '<ul class="list-disc pl-5 space-y-1">';
+            relatedProcesses.forEach(process => {
+                html += `
+                    <li>
+                        <div class="font-medium">${process.operationName}</div>
+                        <div class="text-xs text-gray-500">
+                            ${process.workOrder} - ${processTypeMap[process.operationType]}
+                        </div>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            
+            relatedProcessesList.innerHTML = html;
+        }
+        
+        // 获取相关工序数量
+        function getRelatedProcessesCount(partNumber) {
+            return processes.filter(p => p.relatedMaterial === partNumber).length;
+        }
+        
+        // 添加物料到工序
+        function addMaterialToProcess(partNumber) {
+            // 查找物料信息
+            const material = bomItems.find(item => item.partNumber === partNumber);
+            if (!material) return;
+            
+            // 关闭BOM详情模态框
+            document.getElementById('bomDetailModal').classList.add('hidden');
+            
+            // 设置关联物料
+            document.getElementById('relatedMaterial').value = partNumber;
+            
+            // 显示工序详情表单
+            if (!currentProcessType) {
+                // 默认选择CNC工序类型
+                selectProcessType('cnc');
+            }
+            showProcessDetailForm();
+            
+            // 显示提示
+            showSuccessMessage(`已选择物料: ${material.name}`);
+        }
+        
+        // 筛选BOM项目
+        function filterBomItems(status) {
+            if (status === 'all') {
+                filteredBomItems = [...bomItems];
+            } else {
+                filteredBomItems = bomItems.filter(item => item.stockStatus === status);
+            }
+            
+            renderBomList();
+        }
+        
+        // 更新筛选按钮样式
+        function updateFilterButtons(activeFilter) {
+            const buttons = {
+                'all': document.getElementById('filterAllBtn'),
+                'in_stock': document.getElementById('filterInStockBtn'),
+                'low_stock': document.getElementById('filterLowStockBtn'),
+                'out_of_stock': document.getElementById('filterOutOfStockBtn')
+            };
+            
+            // 重置所有按钮样式
+            Object.values(buttons).forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('border', 'border-gray-300', 'hover:bg-gray-100');
+            });
+            
+            // 设置活动按钮样式
+            const activeBtn = buttons[activeFilter];
+            if (activeBtn) {
+                activeBtn.classList.remove('border', 'border-gray-300', 'hover:bg-gray-100');
+                activeBtn.classList.add('bg-primary', 'text-white');
+            }
+        }
+        
+        // 展开/收起所有BOM项目
+        function expandAllBomItems(expand) {
+            // 这里可以实现展开/收起功能
+            // 目前BOM列表项没有展开/收起功能，所以这个函数暂时为空
+            console.log(expand ? '展开所有' : '收起所有');
+        }
+        
+        // 查看工序详情
+        function viewProcessDetail(id) {
+            const process = processes.find(p => p.id === id);
+            if (!process) return;
+            
+            // 创建详情模态框内容
+            const detailContent = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-sm font-medium">工单</div>
+                            <div class="text-sm">${process.workOrder}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">产品型号</div>
+                            <div class="text-sm">${process.productModel || '-'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">工艺名称</div>
+                            <div class="text-sm">${process.processName}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">工艺版本</div>
+                            <div class="text-sm">${process.processVersion || 'V1.0'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">关联物料</div>
+                            <div class="text-sm">${process.relatedMaterial || '-'} - ${process.materialName || ''}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">工序编号</div>
+                            <div class="text-sm">${process.operationCode || '-'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">工序名称</div>
+                            <div class="text-sm">${process.operationName}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">工序类型</div>
+                            <div class="text-sm">${processTypeMap[process.operationType] || process.operationType}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">加工面</div>
+                            <div class="text-sm">${machiningSurfaceMap[process.machiningSurface] || process.machiningSurface}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">设备要求</div>
+                            <div class="text-sm">${process.equipmentReq || '-'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">预估工时</div>
+                            <div class="text-sm">${process.estimatedTime} 小时</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">难度等级</div>
+                            <div class="text-sm">${process.difficultyLevel || '-'}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium">状态</div>
+                            <div class="text-sm">
+                                <span class="px-2 py-0.5 rounded-full text-xs ${statusMap[process.status].class}">
+                                    ${statusMap[process.status].text}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm font-medium">工序内容</div>
+                        <div class="text-sm mt-1 p-2 bg-gray-50 rounded">${process.operationContent}</div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm font-medium">质量要求</div>
+                        <div class="text-sm mt-1 p-2 bg-gray-50 rounded">${process.qualityReq || '无'}</div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm font-medium">安全注意事项</div>
+                        <div class="text-sm mt-1 p-2 bg-gray-50 rounded">${process.safetyNotes || '无'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // 创建模态框
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.id = 'processDetailModal';
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-primary">工序详情</h3>
+                        <button id="closeProcessDetailModalBtn" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="processDetailContent">
+                        ${detailContent}
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end">
+                        <button id="closeProcessDetailBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加到文档
+            document.body.appendChild(modal);
+            
+            // 绑定事件
+            document.getElementById('closeProcessDetailModalBtn').addEventListener('click', function() {
+                document.body.removeChild(modal);
+            });
+            
+            document.getElementById('closeProcessDetailBtn').addEventListener('click', function() {
+                document.body.removeChild(modal);
+            });
+        }
+
+        // 显示工序详情表单
+        function showProcessDetailForm() {
+            document.getElementById('processTypeTitle').textContent = processTypeMap[currentProcessType];
+            document.getElementById('operationType').value = processTypeMap[currentProcessType];
+            document.getElementById('processDetailForm').classList.remove('hidden');
+            
+            // 滚动到表单位置
+            document.getElementById('processDetailForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 隐藏工序详情表单
+        function hideProcessDetailForm() {
+            document.getElementById('processDetailForm').classList.add('hidden');
+            resetProcessDetailForm();
+        }
+
+        // 重置工序详情表单
+        function resetProcessDetailForm() {
+            document.getElementById('relatedMaterial').value = '';
+            document.getElementById('machiningSurface').value = '';
+            document.getElementById('operationCode').value = '';
+            document.getElementById('operationName').value = '';
+            document.getElementById('equipmentReq').value = '';
+            document.getElementById('estimatedTime').value = '';
+            document.getElementById('difficultyLevel').value = 'medium';
+            document.getElementById('operationContent').value = '';
+            document.getElementById('qualityReq').value = '';
+            document.getElementById('safetyNotes').value = '';
+        }
+
+        // 添加工序
+        function addProcess() {
+            const workOrder = document.getElementById('workOrder').value;
+            const productModel = document.getElementById('productModel').value;
+            const processName = document.getElementById('processName').value;
+            const processVersion = document.getElementById('processVersion').value;
+            const processStatus = document.getElementById('processStatus').value;
+            const processDesc = document.getElementById('processDesc').value;
+            const relatedMaterial = document.getElementById('relatedMaterial').value;
+            const machiningSurface = document.getElementById('machiningSurface').value;
+            const operationCode = document.getElementById('operationCode').value;
+            const operationName = document.getElementById('operationName').value;
+            const equipmentReq = document.getElementById('equipmentReq').value;
+            const estimatedTime = document.getElementById('estimatedTime').value;
+            const difficultyLevel = document.getElementById('difficultyLevel').value;
+            const operationContent = document.getElementById('operationContent').value;
+            const qualityReq = document.getElementById('qualityReq').value;
+            const safetyNotes = document.getElementById('safetyNotes').value;
+            
+            // 验证必填字段
+            if (!workOrder || !processName || !machiningSurface || !operationName || !operationContent || !estimatedTime) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            // 获取关联物料的详细信息
+            const materialInfo = bomItems.find(item => item.partNumber === relatedMaterial);
+            const materialName = materialInfo ? materialInfo.name : '';
+            
+            // 创建新工序对象
+            const newProcess = {
+                id: generateId(),
+                workOrder: workOrder,
+                productModel: productModel,
+                processName: processName,
+                processVersion: processVersion,
+                processStatus: processStatus,
+                processDesc: processDesc,
+                relatedMaterial: relatedMaterial,
+                materialName: materialName,
+                machiningSurface: machiningSurface,
+                operationCode: operationCode,
+                operationName: operationName,
+                equipmentReq: equipmentReq,
+                estimatedTime: parseFloat(estimatedTime),
+                difficultyLevel: difficultyLevel,
+                operationContent: operationContent,
+                qualityReq: qualityReq,
+                safetyNotes: safetyNotes,
+                operationType: currentProcessType,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+            
+            // 添加到工序列表
+            processes.push(newProcess);
+            
+            // 更新表格
+            filteredProcesses = [...processes];
+            renderTable();
+            
+            // 隐藏表单并重置
+            hideProcessDetailForm();
+            
+            // 显示成功提示
+            showSuccessMessage('工序添加成功');
+        }
+
+        // 保存工艺
+        function saveProcess() {
+            if (processes.length === 0) {
+                alert('请先添加工序');
+                return;
+            }
+            
+            // 模拟保存操作
+            console.log('保存工艺:', processes);
+            
+            // 显示成功模态框
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+
+        // 重置表单
+        function resetForm() {
+            document.getElementById('workOrder').value = '';
+            document.getElementById('productModel').value = '';
+            document.getElementById('processName').value = '';
+            document.getElementById('processVersion').value = 'V1.0';
+            document.getElementById('processStatus').value = 'approved';
+            document.getElementById('processDesc').value = '';
+            
+            // 重置工序类型选择
+            currentProcessType = '';
+            document.querySelectorAll('.process-type-btn').forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('border-gray-300', 'hover:bg-gray-100');
+            });
+            
+            // 隐藏工序详情表单
+            hideProcessDetailForm();
+        }
+
+        // 搜索工序
+        function searchProcesses() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                filteredProcesses = [...processes];
+            } else {
+                filteredProcesses = processes.filter(process => 
+                    process.operationName.toLowerCase().includes(searchTerm) ||
+                    process.operationContent.toLowerCase().includes(searchTerm) ||
+                    process.workOrder.toLowerCase().includes(searchTerm) ||
+                    processTypeMap[process.operationType].toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            currentPage = 1;
+            renderTable();
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tableBody = document.getElementById('processTableBody');
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredProcesses.length);
+            const pageItems = filteredProcesses.slice(startIndex, endIndex);
+            
+            // 更新分页信息
+            document.getElementById('startRange').textContent = filteredProcesses.length > 0 ? startIndex + 1 : 0;
+            document.getElementById('endRange').textContent = endIndex;
+            document.getElementById('totalItems').textContent = filteredProcesses.length;
+            
+            // 更新分页按钮状态
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = endIndex >= filteredProcesses.length;
+            
+            // 清空表格
+            tableBody.innerHTML = '';
+            
+            // 添加表格行
+            if (pageItems.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                        暂无数据
+                    </td>
+                `;
+                tableBody.appendChild(emptyRow);
+            } else {
+                pageItems.forEach((process, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="checkbox" class="process-checkbox rounded text-primary focus:ring-primary" value="${process.id}">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${process.operationCode || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${process.relatedMaterial || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${machiningSurfaceMap[process.machiningSurface] || process.machiningSurface}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${process.operationName}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900 truncate max-w-xs" title="${process.operationContent}">${process.operationContent}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${process.estimatedTime} 小时</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">${processTypeMap[process.operationType] || process.operationType}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusMap[process.status].class}">
+                                ${statusMap[process.status].text}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <button class="text-blue-600 hover:text-blue-800" onclick="viewProcessDetail('${process.id}')" title="查看详情">
+                                    <i class="fa fa-eye"></i>
+                                </button>
+                                <button class="text-green-600 hover:text-green-800" onclick="displayProcessContent('${process.id}')" title="查看内容">
+                                    <i class="fa fa-file-text-o"></i>
+                                </button>
+                                <button class="text-primary hover:text-secondary" onclick="editProcess('${process.id}')" title="编辑">
+                                    <i class="fa fa-edit"></i>
+                                </button>
+                                <button class="text-danger hover:text-red-700" onclick="deleteProcess('${process.id}')" title="删除">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+        }
+
+        // 编辑工序
+        function editProcess(id) {
+            const process = processes.find(p => p.id === id);
+            if (!process) return;
+            
+            // 填充表单
+            document.getElementById('workOrder').value = process.workOrder || '';
+            document.getElementById('productModel').value = process.productModel || '';
+            document.getElementById('processName').value = process.processName;
+            document.getElementById('processVersion').value = process.processVersion || 'V1.0';
+            document.getElementById('processStatus').value = process.processStatus || 'approved';
+            document.getElementById('processDesc').value = process.processDesc || '';
+            document.getElementById('relatedMaterial').value = process.relatedMaterial || '';
+            document.getElementById('machiningSurface').value = process.machiningSurface;
+            document.getElementById('operationCode').value = process.operationCode || '';
+            document.getElementById('operationName').value = process.operationName;
+            document.getElementById('equipmentReq').value = process.equipmentReq || '';
+            document.getElementById('estimatedTime').value = process.estimatedTime;
+            document.getElementById('difficultyLevel').value = process.difficultyLevel || 'medium';
+            document.getElementById('operationContent').value = process.operationContent;
+            document.getElementById('qualityReq').value = process.qualityReq || '';
+            document.getElementById('safetyNotes').value = process.safetyNotes || '';
+            
+            // 选择工序类型
+            selectProcessType(process.operationType);
+            
+            // 显示表单
+            showProcessDetailForm();
+            
+            // 修改确认按钮文本
+            document.getElementById('confirmAddProcessBtn').textContent = '更新工序';
+            
+            // 存储当前编辑的工序ID
+            document.getElementById('confirmAddProcessBtn').dataset.editId = id;
+        }
+
+        // 删除工序
+        function deleteProcess(id) {
+            if (confirm('确定要删除此工序吗？')) {
+                const index = processes.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    processes.splice(index, 1);
+                    filteredProcesses = [...processes];
+                    renderTable();
+                    alert('工序已删除');
+                }
+            }
+        }
+
+        // 显示工艺内容
+        function displayProcessContent(id) {
+            const process = processes.find(p => p.id === id);
+            if (!process) return;
+            
+            // 填充工艺内容展示区域
+            document.getElementById('displayWorkOrder').textContent = process.workOrder || '-';
+            document.getElementById('displayProductModel').textContent = process.productModel || '-';
+            document.getElementById('displayProcessName').textContent = process.processName || '-';
+            document.getElementById('displayRelatedMaterial').textContent = process.relatedMaterial ? `${process.relatedMaterial} - ${process.materialName}` : '-';
+            document.getElementById('displayOperationCode').textContent = process.operationCode || '-';
+            document.getElementById('displayOperationType').textContent = processTypeMap[process.operationType] || process.operationType || '-';
+            document.getElementById('displayOperationContent').textContent = process.operationContent || '无';
+            document.getElementById('displayQualityReq').textContent = process.qualityReq || '无';
+            document.getElementById('displaySafetyNotes').textContent = process.safetyNotes || '无';
+            
+            // 显示工艺内容展示区域
+            document.getElementById('processContentDisplay').classList.remove('hidden');
+            
+            // 滚动到内容展示区域
+            document.getElementById('processContentDisplay').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // 生成唯一ID
+        function generateId() {
+            return 'process_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+
+        // 加载示例数据
+        function loadSampleData() {
+            processes = [
+                {
+                    id: 'process_1',
+                    workOrder: 'WO-2025-001',
+                    productModel: 'Car-Mold-A-001',
+                    processName: '汽车模具A工艺',
+                    processVersion: 'V1.0',
+                    processStatus: 'released',
+                    processDesc: '汽车模具A的完整加工工艺',
+                    relatedMaterial: 'P001',
+                    materialName: '模具底座',
+                    machiningSurface: 'top',
+                    operationCode: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipmentReq: 'cnc_mill',
+                    estimatedTime: 2.5,
+                    difficultyLevel: 'medium',
+                    operationContent: '对模具底座上表面进行粗加工，去除大部分余量，留0.5mm精加工余量',
+                    qualityReq: '表面粗糙度Ra3.2，尺寸公差±0.1mm',
+                    safetyNotes: '加工前检查刀具磨损情况，确保冷却液充足',
+                    operationType: 'cnc',
+                    status: 'in_progress',
+                    createdAt: '2025-07-18T08:00:00Z'
+                },
+                {
+                    id: 'process_2',
+                    workOrder: 'WO-2025-001',
+                    productModel: 'Car-Mold-A-001',
+                    processName: '汽车模具A工艺',
+                    processVersion: 'V1.0',
+                    processStatus: 'released',
+                    processDesc: '汽车模具A的完整加工工艺',
+                    relatedMaterial: 'P001',
+                    materialName: '模具底座',
+                    machiningSurface: 'top',
+                    operationCode: 'OP-002',
+                    operationName: 'CNC精加工',
+                    equipmentReq: 'cnc_mill',
+                    estimatedTime: 3.0,
+                    difficultyLevel: 'difficult',
+                    operationContent: '对模具底座上表面进行精加工，达到设计要求的精度和表面质量',
+                    qualityReq: '表面粗糙度Ra1.6，尺寸公差±0.02mm',
+                    safetyNotes: '使用高精度刀具，控制切削参数，避免振动',
+                    operationType: 'cnc',
+                    status: 'pending',
+                    createdAt: '2025-07-18T08:00:00Z'
+                },
+                {
+                    id: 'process_3',
+                    workOrder: 'WO-2025-001',
+                    productModel: 'Car-Mold-A-001',
+                    processName: '汽车模具A工艺',
+                    processVersion: 'V1.0',
+                    processStatus: 'released',
+                    processDesc: '汽车模具A的完整加工工艺',
+                    relatedMaterial: 'P002',
+                    materialName: '模具型芯',
+                    machiningSurface: 'inner',
+                    operationCode: 'OP-003',
+                    operationName: '线切割加工',
+                    equipmentReq: 'wire_edm',
+                    estimatedTime: 4.5,
+                    difficultyLevel: 'expert',
+                    operationContent: '对模具型芯内表面进行线切割加工，加工复杂轮廓',
+                    qualityReq: '表面粗糙度Ra1.6，尺寸公差±0.01mm',
+                    safetyNotes: '检查电极丝张力，确保工作液清洁',
+                    operationType: 'wedm',
+                    status: 'pending',
+                    createdAt: '2025-07-18T08:00:00Z'
+                },
+                {
+                    id: 'process_4',
+                    workOrder: 'WO-2025-002',
+                    productModel: 'Phone-Case-Mold-001',
+                    processName: '手机外壳模具工艺',
+                    processVersion: 'V1.2',
+                    processStatus: 'approved',
+                    processDesc: '手机外壳模具的完整加工工艺',
+                    relatedMaterial: 'P002',
+                    materialName: '模具型芯',
+                    machiningSurface: 'outer',
+                    operationCode: 'OP-001',
+                    operationName: 'CNC粗加工',
+                    equipmentReq: 'cnc_mill',
+                    estimatedTime: 1.5,
+                    difficultyLevel: 'medium',
+                    operationContent: '对手机外壳模具型芯外表面进行粗加工',
+                    qualityReq: '表面粗糙度Ra3.2，尺寸公差±0.1mm',
+                    safetyNotes: '注意排屑，避免刀具积屑瘤',
+                    operationType: 'cnc',
+                    status: 'completed',
+                    createdAt: '2025-07-17T10:00:00Z'
+                },
+                {
+                    id: 'process_5',
+                    workOrder: 'WO-2025-002',
+                    productModel: 'Phone-Case-Mold-001',
+                    processName: '手机外壳模具工艺',
+                    processVersion: 'V1.2',
+                    processStatus: 'approved',
+                    processDesc: '手机外壳模具的完整加工工艺',
+                    relatedMaterial: 'P002',
+                    materialName: '模具型芯',
+                    machiningSurface: 'outer',
+                    operationCode: 'OP-002',
+                    operationName: 'CNC精加工',
+                    equipmentReq: 'cnc_mill',
+                    estimatedTime: 2.0,
+                    difficultyLevel: 'difficult',
+                    operationContent: '对手机外壳模具型芯外表面进行精加工',
+                    qualityReq: '表面粗糙度Ra0.8，尺寸公差±0.01mm',
+                    safetyNotes: '使用高精度刀具，控制切削速度和进给量',
+                    operationType: 'cnc',
+                    status: 'in_progress',
+                    createdAt: '2025-07-17T10:00:00Z'
+                },
+                {
+                    id: 'process_6',
+                    workOrder: 'WO-2025-002',
+                    productModel: 'Phone-Case-Mold-001',
+                    processName: '手机外壳模具工艺',
+                    processVersion: 'V1.2',
+                    processStatus: 'approved',
+                    processDesc: '手机外壳模具的完整加工工艺',
+                    relatedMaterial: 'P002',
+                    materialName: '模具型芯',
+                    machiningSurface: 'inner',
+                    operationCode: 'OP-003',
+                    operationName: '放电加工',
+                    equipmentReq: 'edm',
+                    estimatedTime: 3.5,
+                    difficultyLevel: 'expert',
+                    operationContent: '对手机外壳模具型芯内表面进行放电加工',
+                    qualityReq: '表面粗糙度Ra1.6，尺寸公差±0.01mm',
+                    safetyNotes: '控制放电参数，定期清理电极',
+                    operationType: 'dsedm',
+                    status: 'pending',
+                    createdAt: '2025-07-17T10:00:00Z'
+                },
+                {
+                    id: 'process_7',
+                    workOrder: 'WO-2025-003',
+                    productModel: 'Medical-Device-Mold-001',
+                    processName: '医疗设备模具工艺',
+                    processVersion: 'V1.0',
+                    processStatus: 'draft',
+                    processDesc: '医疗设备模具的完整加工工艺',
+                    relatedMaterial: 'P003',
+                    materialName: '导柱',
+                    machiningSurface: 'top',
+                    operationCode: 'OP-001',
+                    operationName: '车床加工',
+                    equipmentReq: 'cnc_lathe',
+                    estimatedTime: 2.0,
+                    difficultyLevel: 'medium',
+                    operationContent: '对医疗设备模具导柱进行车床加工',
+                    qualityReq: '表面粗糙度Ra1.6，尺寸公差±0.02mm',
+                    safetyNotes: '确保工件装夹牢固，使用冷却液',
+                    operationType: 'lt',
+                    status: 'pending',
+                    createdAt: '2025-07-16T14:00:00Z'
+                },
+                {
+                    id: 'process_8',
+                    workOrder: 'WO-2025-003',
+                    productModel: 'Medical-Device-Mold-001',
+                    processName: '医疗设备模具工艺',
+                    processVersion: 'V1.0',
+                    processStatus: 'draft',
+                    processDesc: '医疗设备模具的完整加工工艺',
+                    relatedMaterial: 'P001',
+                    materialName: '模具底座',
+                    machiningSurface: 'front',
+                    operationCode: 'OP-004',
+                    operationName: '三坐标测量',
+                    equipmentReq: 'cmm',
+                    estimatedTime: 1.0,
+                    difficultyLevel: 'easy',
+                    operationContent: '对医疗设备模具底座前表面进行三坐标测量',
+                    qualityReq: '测量精度±0.005mm',
+                    safetyNotes: '确保测量头清洁，校准测量机',
+                    operationType: 'cmm',
+                    status: 'pending',
+                    createdAt: '2025-07-16T14:00:00Z'
+                }
+            ];
+            
+            filteredProcesses = [...processes];
+        }
+    </script>
+</body>
+</html>

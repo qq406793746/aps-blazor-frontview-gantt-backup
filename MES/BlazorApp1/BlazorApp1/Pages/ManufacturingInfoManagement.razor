@@ -1,0 +1,584 @@
+@page "/manufacturing-info"
+@attribute [Authorize]
+@using System
+@using BlazorApp1.Services
+
+<PageTitle>生产管理</PageTitle>
+
+@code {
+    // 机床数据模型
+    public class MachineData
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
+    }
+
+    // 机床状态数据模型
+    public class MachineStatusData
+    {
+        public string MachineId { get; set; } = string.Empty;
+        public string MachineName { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime LastUpdateTime { get; set; }
+        public string WorkOrder { get; set; } = string.Empty;
+        public string Operation { get; set; } = string.Empty;
+        public int Progress { get; set; }
+        public string RemainingTime { get; set; } = string.Empty;
+        public string ProgramNumber { get; set; } = string.Empty;
+        public string PartNumber { get; set; } = string.Empty;
+    }
+
+    // 实时加工参数模型
+    public class RealTimeParametersData
+    {
+        public decimal SpindleSpeed { get; set; }
+        public decimal FeedRate { get; set; }
+        public decimal CuttingDepth { get; set; }
+        public int LoadPercentage { get; set; }
+    }
+
+    // 加工时间记录模型
+    public class ProcessingTimeRecordData
+    {
+        public string Operation { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal StandardTime { get; set; }
+        public decimal PlannedTime { get; set; }
+        public decimal ActualTime { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime CompletionTime { get; set; }
+    }
+
+    // 当前任务数据模型
+    public class CurrentTaskData
+    {
+        public string WorkOrder { get; set; } = string.Empty;
+        public string Operation { get; set; } = string.Empty;
+        public string Machine { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+    }
+
+    // 未来任务数据模型
+    public class FutureTaskData
+    {
+        public string WorkOrder { get; set; } = string.Empty;
+        public string Operation { get; set; } = string.Empty;
+        public string Machine { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
+    }
+
+    // 注入设备管理服务
+    [Inject]
+    private EquipmentManagementService? EquipmentManagementService { get; set; }
+
+    // 数据列表
+    private List<MachineData> machines = new List<MachineData>();
+    private MachineStatusData currentMachineStatus = new MachineStatusData();
+    private RealTimeParametersData realTimeParameters = new RealTimeParametersData();
+    private List<ProcessingTimeRecordData> processingTimeRecords = new List<ProcessingTimeRecordData>();
+    private List<CurrentTaskData> completedTasks = new List<CurrentTaskData>();
+    private List<CurrentTaskData> runningTasks = new List<CurrentTaskData>();
+    private List<CurrentTaskData> pendingTasks = new List<CurrentTaskData>();
+    private List<FutureTaskData> futureTasks = new List<FutureTaskData>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // 从设备管理服务获取机床数据
+        await LoadMachinesFromDatabase();
+        
+        // 初始化其他模拟数据
+        InitializeOtherData();
+        
+        // 如果有机床数据，默认选择第一个
+        if (machines.Any())
+        {
+            SelectMachine(machines.First().Id);
+        }
+    }
+
+    // 从数据库加载机床数据
+    private async Task LoadMachinesFromDatabase()
+    {
+        if (EquipmentManagementService != null)
+        {
+            // 获取所有设备
+            var equipments = await EquipmentManagementService.GetAllEquipmentsAsync();
+            
+            // 将设备转换为机床数据模型
+            machines = equipments.Select(eq => new MachineData
+            {
+                Id = eq.EquipmentSerialNumber, // 使用设备序号作为机床ID
+                Name = eq.EquipmentSerialNumber, // 上面显示机床序号
+                Status = "待机", // 默认为待机状态，实际项目中可以从设备状态表获取
+                Model = eq.EquipmentModel // 下面显示机床型号
+            }).ToList();
+        }
+    }
+    
+    // 初始化其他数据（空方法，已删除所有模拟数据）
+    private void InitializeOtherData()
+    {
+        // 清空所有模拟数据
+        currentMachineStatus = new MachineStatusData
+        {
+            MachineId = string.Empty,
+            MachineName = string.Empty,
+            Model = string.Empty,
+            Status = string.Empty,
+            LastUpdateTime = DateTime.Now,
+            WorkOrder = string.Empty,
+            Operation = string.Empty,
+            Progress = 0,
+            RemainingTime = string.Empty,
+            ProgramNumber = string.Empty,
+            PartNumber = string.Empty
+        };
+
+        realTimeParameters = new RealTimeParametersData
+        {
+            SpindleSpeed = 0,
+            FeedRate = 0,
+            CuttingDepth = 0,
+            LoadPercentage = 0
+        };
+
+        processingTimeRecords = new List<ProcessingTimeRecordData>();
+        completedTasks = new List<CurrentTaskData>();
+        runningTasks = new List<CurrentTaskData>();
+        pendingTasks = new List<CurrentTaskData>();
+        futureTasks = new List<FutureTaskData>();
+    }
+
+    // 获取状态样式
+    private string GetStatusClass(string status)
+    {
+        switch (status)
+        {
+            case "运行中":
+                return "badge-success";
+            case "待机":
+                return "badge-warning";
+            case "维护":
+                return "badge-info";
+            case "报警":
+                return "badge-danger";
+            case "已完成":
+                return "badge-success";
+            case "进行中":
+                return "badge-primary";
+            case "待执行":
+                return "badge-secondary";
+            default:
+                return "badge-light";
+        }
+    }
+
+    // 获取状态图标
+    private string GetStatusIcon(string status)
+    {
+        switch (status)
+        {
+            case "运行中":
+                return "<span class='oi oi-check text-success'></span>";
+            case "待机":
+                return "<span class='oi oi-clock text-warning'></span>";
+            case "维护":
+                return "<span class='oi oi-wrench text-info'></span>";
+            case "报警":
+                return "<span class='oi oi-warning text-danger'></span>";
+            default:
+                return "<span class='oi oi-circle-o text-light'></span>";
+        }
+    }
+
+    // 选择机床并更新实时数据
+    private void SelectMachine(string machineId)
+    {
+        var selectedMachine = machines.FirstOrDefault(m => m.Id == machineId);
+        if (selectedMachine != null)
+        {
+            currentMachineStatus = new MachineStatusData
+            {
+                MachineId = selectedMachine.Id,
+                MachineName = selectedMachine.Name,
+                Model = selectedMachine.Model,
+                Status = selectedMachine.Status,
+                LastUpdateTime = DateTime.Now,
+                WorkOrder = string.Empty,
+                Operation = string.Empty,
+                Progress = 0,
+                RemainingTime = string.Empty,
+                ProgramNumber = string.Empty,
+                PartNumber = string.Empty
+            };
+
+            realTimeParameters = new RealTimeParametersData
+            {
+                SpindleSpeed = 0,
+                FeedRate = 0,
+                CuttingDepth = 0,
+                LoadPercentage = 0
+            };
+
+            // 清空其他相关数据列表
+            processingTimeRecords = new List<ProcessingTimeRecordData>();
+            completedTasks = new List<CurrentTaskData>();
+            runningTasks = new List<CurrentTaskData>();
+            pendingTasks = new List<CurrentTaskData>();
+            futureTasks = new List<FutureTaskData>();
+        }
+    }
+}
+
+
+
+<div class="container-fluid mt-2">
+    <div class="row">
+        <!-- 左侧机床列表 -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">机床列表</h5>
+                    <small class="text-muted">@DateTime.Now.ToString("yyyy-MM-dd HH:mm")</small>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var machine in machines)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center @(currentMachineStatus.MachineId == machine.Id ? "active" : "")" 
+                                style="cursor: pointer; @(currentMachineStatus.MachineId == machine.Id ? "background-color: #007bff; color: white;" : "")"
+                                @onclick="@(() => SelectMachine(machine.Id))">
+                                <div>
+                                    <strong>@machine.Name</strong>
+                                    <br>
+                                    <small class="@(currentMachineStatus.MachineId == machine.Id ? "text-light" : "text-muted")">@machine.Model</small>
+                                </div>
+                                <span class="badge @(currentMachineStatus.MachineId == machine.Id ? "badge-light" : GetStatusClass(machine.Status))">
+                                    @machine.Status
+                                </span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧主内容区域 -->
+        <div class="col-md-9">
+            <!-- 机床状态监控 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <span class="oi oi-dashboard"></span> 机床状态监控 - @currentMachineStatus.MachineName
+                    </h5>
+
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- 机床基本状态 -->
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="me-4">
+                                    <h4>@currentMachineStatus.Status</h4>
+                                    <small class="text-muted">最后更新: @currentMachineStatus.LastUpdateTime.ToString("yyyy-MM-dd HH:mm")</small>
+                                </div>
+                                <div>
+                                    <span class="fs-2">@((MarkupString)GetStatusIcon(currentMachineStatus.Status))</span>
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <p><strong>当前工单:</strong> @currentMachineStatus.WorkOrder</p>
+                                    <p><strong>当前工序:</strong> @currentMachineStatus.Operation</p>
+                                    <p><strong>程序号:</strong> @currentMachineStatus.ProgramNumber</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>工件号:</strong> @currentMachineStatus.PartNumber</p>
+                                    <p><strong>进度:</strong> @currentMachineStatus.Progress%</p>
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" style="width: @currentMachineStatus.Progress%" aria-valuenow="@currentMachineStatus.Progress" aria-valuemin="0" aria-valuemax="100">@currentMachineStatus.Progress%</div>
+                                    </div>
+                                    <p class="mt-1 text-right">@currentMachineStatus.RemainingTime</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 加工信息 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title">加工信息</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <p><strong>加工设备:</strong></p>
+                                            <p><strong>加工状态:</strong></p>
+                                            <p><strong>加工时间:</strong></p>
+                                            <p><strong>加工数量:</strong></p>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <p>@currentMachineStatus.MachineName</p>
+                                            <p>@currentMachineStatus.Status</p>
+                                            <p>@DateTime.Now.ToString("HH:mm:ss")</p>
+                                            <p>0/10</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实时加工参数 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <span class="oi oi-gauge"></span> 实时加工参数
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <div class="fs-3">@realTimeParameters.SpindleSpeed rpm</div>
+                            <small class="text-muted">主轴转速</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="fs-3">@realTimeParameters.FeedRate mm/min</div>
+                            <small class="text-muted">进给速度</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="fs-3">@realTimeParameters.CuttingDepth mm</div>
+                            <small class="text-muted">切削深度</small>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <div class="fs-3">@realTimeParameters.LoadPercentage%</div>
+                            <small class="text-muted">负载率</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 加工时间记录 -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <span class="oi oi-list-rich"></span> 加工时间记录
+                    </h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary active">计划加工时间</button>
+                        <button class="btn btn-sm btn-outline-primary">实际加工时间</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>工序</th>
+                                    <th>说明</th>
+                                    <th>标准工时 (h)</th>
+                                    <th>计划工时 (h)</th>
+                                    <th>实际工时 (h)</th>
+                                    <th>状态</th>
+                                    <th>完成时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var record in processingTimeRecords)
+                                {
+                                    <tr>
+                                        <td>@record.Operation</td>
+                                        <td>@record.Description</td>
+                                        <td>@record.StandardTime</td>
+                                        <td>@record.PlannedTime</td>
+                                        <td>@record.ActualTime</td>
+                                        <td><span class="badge @GetStatusClass(record.Status)">@record.Status</span></td>
+                                        <td>@record.CompletionTime.ToString("yyyy-MM-dd HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当前任务概览 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <span class="oi oi-calendar"></span> 当前任务概览 - @DateTime.Now.ToString("yyyy年MM月dd日 星期ddd")
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- 已完成任务 -->
+                        <div class="col-md-4">
+                            <h6>已完成任务</h6>
+                            <div class="list-group">
+                                @foreach (var task in completedTasks)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>@task.WorkOrder</strong>
+                                            <span class="badge @GetStatusClass(task.Status)">@task.Status</span>
+                                        </div>
+                                        <p class="mb-1">@task.Operation</p>
+                                        <small>@task.Machine | @task.StartTime - @task.EndTime</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- 运行中任务 -->
+                        <div class="col-md-4">
+                            <h6>运行中任务</h6>
+                            <div class="list-group">
+                                @foreach (var task in runningTasks)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>@task.WorkOrder</strong>
+                                            <span class="badge @GetStatusClass(task.Status)">@task.Status</span>
+                                        </div>
+                                        <p class="mb-1">@task.Operation</p>
+                                        <small>@task.Machine | @task.StartTime - @task.EndTime</small>
+                                        @if (!string.IsNullOrEmpty(task.Notes))
+                                        {
+                                            <div class="mt-1 text-sm text-muted">@task.Notes</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- 待完成任务 -->
+                        <div class="col-md-4">
+                            <h6>待完成任务</h6>
+                            <div class="list-group">
+                                @foreach (var task in pendingTasks)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>@task.WorkOrder</strong>
+                                            <span class="badge @GetStatusClass(task.Status)">@task.Status</span>
+                                        </div>
+                                        <p class="mb-1">@task.Operation</p>
+                                        <small>@task.Machine | @task.StartTime - @task.EndTime</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 未来任务预览 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <span class="oi oi-calendar"></span> 未来加工计划记录
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>日期</th>
+                                    <th>工单</th>
+                                    <th>工序</th>
+                                    <th>机床</th>
+                                    <th>开始时间</th>
+                                    <th>结束时间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in futureTasks)
+                                {
+                                    <tr>
+                                        <td>@task.Date.ToString("yyyy-MM-dd")</td>
+                                        <td>@task.WorkOrder</td>
+                                        <td>@task.Operation</td>
+                                        <td>@task.Machine</td>
+                                        <td>@task.StartTime</td>
+                                        <td>@task.EndTime</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务分布 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <span class="oi oi-pie-chart"></span> 任务分布
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>未来任务预览</h6>
+                            <div class="alert alert-info mt-3">
+                                <h6>2025年12月31日 星期四</h6>
+                                <p>共2个任务，预计总加工时间8小时</p>
+                            </div>
+                            <div class="list-group">
+                                @foreach (var task in futureTasks)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong>@task.WorkOrder</strong>
+                                            <span>@task.StartTime - @task.EndTime</span>
+                                        </div>
+                                        <p class="mb-1">@task.Operation</p>
+                                        <small>@task.Machine</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>任务分布</h6>
+                            <div class="alert alert-warning mt-3">
+                                <strong>警告：</strong> 该数据仅用于工单管理
+                            </div>
+                            <div class="list-group">
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>CNC加工</strong>
+                                        <span class="badge bg-primary">60%</span>
+                                    </div>
+                                </div>
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>EDM加工</strong>
+                                        <span class="badge bg-secondary">30%</span>
+                                    </div>
+                                </div>
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>其他加工</strong>
+                                        <span class="badge bg-light">10%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

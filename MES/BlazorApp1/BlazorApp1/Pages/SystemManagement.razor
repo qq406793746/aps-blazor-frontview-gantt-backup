@@ -1,0 +1,849 @@
+@page "/system-management"
+@attribute [Authorize]
+
+<PageTitle>系统管理 - MES系统</PageTitle>
+
+<style>
+    .system-header {
+        background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .system-header h2 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .system-header p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+    }
+
+    .nav-tabs {
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 20px;
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #666;
+        padding: 12px 20px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #0066CC;
+        background-color: rgba(0, 102, 204, 0.05);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0066CC;
+        border-bottom: 3px solid #0066CC;
+        background-color: transparent;
+        font-weight: 600;
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 15px 20px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .btn-primary {
+        background-color: #0066CC;
+        border-color: #0066CC;
+    }
+
+    .btn-primary:hover {
+        background-color: #0052a3;
+        border-color: #0052a3;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #e0e0e0;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .badge {
+        padding: 6px 12px;
+        font-weight: 500;
+    }
+
+    .badge-success {
+        background-color: #28a745;
+    }
+
+    .badge-warning {
+        background-color: #ffc107;
+        color: #333;
+    }
+
+    .badge-danger {
+        background-color: #dc3545;
+    }
+
+    .badge-info {
+        background-color: #17a2b8;
+    }
+
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+    }
+
+    .form-control:focus {
+        border-color: #0066CC;
+        box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.25);
+    }
+
+    .modal-content {
+        border-radius: 10px;
+    }
+
+    .modal-header {
+        background-color: #0066CC;
+        color: white;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }
+
+    .modal-header .close {
+        color: white;
+    }
+
+    .stat-card {
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-card h3 {
+        font-size: 36px;
+        margin: 10px 0;
+        font-weight: bold;
+    }
+
+    .stat-card p {
+        margin: 0;
+        color: #666;
+    }
+
+    .stat-card.blue {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .stat-card.green {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+
+    .stat-card.orange {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+
+    .stat-card.purple {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+
+    .log-entry {
+        padding: 10px 15px;
+        border-left: 3px solid #0066CC;
+        margin-bottom: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .log-entry.error {
+        border-left-color: #dc3545;
+    }
+
+    .log-entry.warning {
+        border-left-color: #ffc107;
+    }
+
+    .log-entry.success {
+        border-left-color: #28a745;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="system-header">
+        <h2><span class="oi oi-cog"></span> 系统管理</h2>
+        <p>管理系统用户、角色、权限和系统配置</p>
+    </div>
+
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" @onclick="@(() => activeTab = "dashboard")">系统概览</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" @onclick="@(() => activeTab = "users")">用户管理</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" @onclick="@(() => activeTab = "roles")">角色管理</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" @onclick="@(() => activeTab = "permissions")">权限管理</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" @onclick="@(() => activeTab = "logs")">系统日志</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" @onclick="@(() => activeTab = "settings")">系统设置</a>
+        </li>
+    </ul>
+
+    @if (activeTab == "dashboard")
+    {
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card blue">
+                    <p>总用户数</p>
+                    <h3>@users.Count</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card green">
+                    <p>在线用户</p>
+                    <h3>@users.Count(u => u.Status == "在线")</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card orange">
+                    <p>系统角色</p>
+                    <h3>@roles.Count</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card purple">
+                    <p>今日访问</p>
+                    <h3>1,234</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="oi oi-bar-chart mr-2"></span> 最近登录用户
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>用户名</th>
+                                    <th>登录时间</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in users.Take(5))
+                                {
+                                    <tr>
+                                        <td>@user.Username</td>
+                                        <td>@user.LastLoginTime.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td><span class="badge @(user.Status == "在线" ? "badge-success" : "badge-warning")">@user.Status</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="oi oi-list mr-2"></span> 系统状态
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <tbody>
+                                <tr>
+                                    <td><strong>系统版本</strong></td>
+                                    <td>MES v1.0.0</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>数据库状态</strong></td>
+                                    <td><span class="badge badge-success">正常</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>服务器状态</strong></td>
+                                    <td><span class="badge badge-success">运行中</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>最后备份时间</strong></td>
+                                    <td>2025-12-30 23:00:00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (activeTab == "users")
+    {
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="oi oi-person mr-2"></span> 用户列表</span>
+                <button class="btn btn-primary" @onclick="ShowAddUserModal">
+                    <span class="oi oi-plus mr-2"></span> 添加用户
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>姓名</th>
+                            <th>角色</th>
+                            <th>邮箱</th>
+                            <th>状态</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr>
+                                <td>@user.Id</td>
+                                <td>@user.Username</td>
+                                <td>@user.FullName</td>
+                                <td>@user.Role</td>
+                                <td>@user.Email</td>
+                                <td><span class="badge @(user.Status == "在线" ? "badge-success" : "badge-warning")">@user.Status</span></td>
+                                <td>@user.LastLoginTime.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" @onclick="@(() => EditUser(user))">
+                                        <span class="oi oi-pencil"></span>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="@(() => DeleteUser(user.Id))">
+                                        <span class="oi oi-trash"></span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (activeTab == "roles")
+    {
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><span class="oi oi-lock-locked mr-2"></span> 角色列表</span>
+                <button class="btn btn-primary" @onclick="ShowAddRoleModal">
+                    <span class="oi oi-plus mr-2"></span> 添加角色
+                </button>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>角色名称</th>
+                            <th>描述</th>
+                            <th>用户数量</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var role in roles)
+                        {
+                            <tr>
+                                <td>@role.Id</td>
+                                <td>@role.Name</td>
+                                <td>@role.Description</td>
+                                <td>@users.Count(u => u.Role == role.Name)</td>
+                                <td>@role.CreatedTime.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" @onclick="@(() => EditRole(role))">
+                                        <span class="oi oi-pencil"></span>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" @onclick="@(() => DeleteRole(role.Id))">
+                                        <span class="oi oi-trash"></span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (activeTab == "permissions")
+    {
+        <div class="row">
+            @foreach (var role in roles)
+            {
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="oi oi-lock-locked mr-2"></span> @role.Name - 权限配置
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>功能权限</label>
+                                <div>
+                                    @foreach (var permission in permissions)
+                                    {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="perm-@role.Id-@permission.Id" checked="@role.Permissions.Contains(permission.Id)" />
+                                            <label class="form-check-label" for="perm-@role.Id-@permission.Id">@permission.Name</label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" @onclick="@(() => SavePermissions(role.Id))">
+                                <span class="oi oi-check mr-2"></span> 保存权限
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else if (activeTab == "logs")
+    {
+        <div class="card">
+            <div class="card-header">
+                <span class="oi oi-document mr-2"></span> 系统日志
+            </div>
+            <div class="card-body">
+                @foreach (var log in systemLogs)
+                {
+                    <div class="log-entry @log.Level.ToLower()">
+                        <div class="d-flex justify-content-between">
+                            <strong>@log.Message</strong>
+                            <small>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</small>
+                        </div>
+                        <small class="text-muted">@log.User - @log.Module</small>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (activeTab == "settings")
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="oi oi-cog mr-2"></span> 基本设置
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>系统名称</label>
+                            <input type="text" class="form-control" value="UNITED MACHINING MES系统" />
+                        </div>
+                        <div class="form-group">
+                            <label>系统标题</label>
+                            <input type="text" class="form-control" value="模具制造执行系统" />
+                        </div>
+                        <div class="form-group">
+                            <label>会话超时时间（分钟）</label>
+                            <input type="number" class="form-control" value="30" />
+                        </div>
+                        <div class="form-group">
+                            <label>最大登录尝试次数</label>
+                            <input type="number" class="form-control" value="5" />
+                        </div>
+                        <button class="btn btn-primary">
+                            <span class="oi oi-check mr-2"></span> 保存设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="oi oi-database mr-2"></span> 数据备份
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>自动备份</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked />
+                                <label class="form-check-label">启用自动备份</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>备份频率</label>
+                            <select class="form-control">
+                                <option>每天</option>
+                                <option>每周</option>
+                                <option>每月</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>备份时间</label>
+                            <input type="time" class="form-control" value="23:00" />
+                        </div>
+                        <div class="form-group">
+                            <label>保留备份数量</label>
+                            <input type="number" class="form-control" value="7" />
+                        </div>
+                        <button class="btn btn-primary">
+                            <span class="oi oi-data-transfer-upload mr-2"></span> 立即备份
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (showUserModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@editingUser?.Id > 0 ? "编辑用户" : "添加用户"</h5>
+                    <button type="button" class="close" @onclick="CloseUserModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" class="form-control" @bind="editingUsername" />
+                    </div>
+                    <div class="form-group">
+                        <label>姓名</label>
+                        <input type="text" class="form-control" @bind="editingFullName" />
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" class="form-control" @bind="editingEmail" />
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <select class="form-control" @bind="editingUserRole">
+                            @foreach (var role in roles)
+                            {
+                                <option value="@role.Name">@role.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select class="form-control" @bind="editingUserStatus">
+                            <option value="在线">在线</option>
+                            <option value="离线">离线</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseUserModal">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveUser">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showRoleModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@editingRole?.Id > 0 ? "编辑角色" : "添加角色"</h5>
+                    <button type="button" class="close" @onclick="CloseRoleModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>角色名称</label>
+                        <input type="text" class="form-control" @bind="editingRoleName" />
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea class="form-control" @bind="editingRoleDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseRoleModal">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveRole">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string activeTab = "dashboard";
+    private bool showUserModal = false;
+    private bool showRoleModal = false;
+
+    public class UserData
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Role { get; set; } = "";
+        public string Status { get; set; } = "";
+        public DateTime LastLoginTime { get; set; }
+    }
+
+    public class RoleData
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public List<int> Permissions { get; set; } = new List<int>();
+        public DateTime CreatedTime { get; set; }
+    }
+
+    public class PermissionData
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class SystemLogData
+    {
+        public int Id { get; set; }
+        public string Message { get; set; } = "";
+        public string Level { get; set; } = "";
+        public string User { get; set; } = "";
+        public string Module { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+
+    private List<UserData> users = new List<UserData>
+    {
+        new UserData { Id = 1, Username = "admin", FullName = "系统管理员", Email = "admin@united.com", Role = "管理员", Status = "在线", LastLoginTime = DateTime.Now.AddMinutes(-5) },
+        new UserData { Id = 2, Username = "operator1", FullName = "操作员1", Email = "operator1@united.com", Role = "操作员", Status = "在线", LastLoginTime = DateTime.Now.AddMinutes(-30) },
+        new UserData { Id = 3, Username = "operator2", FullName = "操作员2", Email = "operator2@united.com", Role = "操作员", Status = "离线", LastLoginTime = DateTime.Now.AddHours(-2) },
+        new UserData { Id = 4, Username = "manager", FullName = "生产经理", Email = "manager@united.com", Role = "经理", Status = "在线", LastLoginTime = DateTime.Now.AddMinutes(-15) },
+        new UserData { Id = 5, Username = "viewer", FullName = "查看员", Email = "viewer@united.com", Role = "查看员", Status = "离线", LastLoginTime = DateTime.Now.AddDays(-1) }
+    };
+
+    private List<RoleData> roles = new List<RoleData>
+    {
+        new RoleData { Id = 1, Name = "管理员", Description = "系统管理员，拥有所有权限", Permissions = new List<int> { 1, 2, 3, 4, 5, 6, 7, 8 }, CreatedTime = DateTime.Now.AddDays(-30) },
+        new RoleData { Id = 2, Name = "经理", Description = "生产经理，拥有查看和管理权限", Permissions = new List<int> { 1, 2, 3, 4, 5, 6 }, CreatedTime = DateTime.Now.AddDays(-30) },
+        new RoleData { Id = 3, Name = "操作员", Description = "操作员，拥有基本操作权限", Permissions = new List<int> { 1, 2, 3, 4 }, CreatedTime = DateTime.Now.AddDays(-30) },
+        new RoleData { Id = 4, Name = "查看员", Description = "查看员，仅拥有查看权限", Permissions = new List<int> { 1, 2 }, CreatedTime = DateTime.Now.AddDays(-30) }
+    };
+
+    private List<PermissionData> permissions = new List<PermissionData>
+    {
+        new PermissionData { Id = 1, Name = "查看数据" },
+        new PermissionData { Id = 2, Name = "查看报表" },
+        new PermissionData { Id = 3, Name = "编辑数据" },
+        new PermissionData { Id = 4, Name = "添加数据" },
+        new PermissionData { Id = 5, Name = "删除数据" },
+        new PermissionData { Id = 6, Name = "导出数据" },
+        new PermissionData { Id = 7, Name = "系统配置" },
+        new PermissionData { Id = 8, Name = "用户管理" }
+    };
+
+    private List<SystemLogData> systemLogs = new List<SystemLogData>
+    {
+        new SystemLogData { Id = 1, Message = "用户 admin 登录系统", Level = "INFO", User = "admin", Module = "认证", Timestamp = DateTime.Now.AddMinutes(-5) },
+        new SystemLogData { Id = 2, Message = "用户 operator1 登录系统", Level = "INFO", User = "operator1", Module = "认证", Timestamp = DateTime.Now.AddMinutes(-30) },
+        new SystemLogData { Id = 3, Message = "系统备份成功", Level = "SUCCESS", User = "system", Module = "备份", Timestamp = DateTime.Now.AddHours(-1) },
+        new SystemLogData { Id = 4, Message = "数据库连接失败", Level = "ERROR", User = "system", Module = "数据库", Timestamp = DateTime.Now.AddHours(-2) },
+        new SystemLogData { Id = 5, Message = "用户 manager 登录系统", Level = "INFO", User = "manager", Module = "认证", Timestamp = DateTime.Now.AddMinutes(-15) },
+        new SystemLogData { Id = 6, Message = "系统配置更新", Level = "WARNING", User = "admin", Module = "配置", Timestamp = DateTime.Now.AddHours(-3) }
+    };
+
+    private UserData? editingUser;
+    private RoleData? editingRole;
+
+    private string editingUsername = "";
+    private string editingFullName = "";
+    private string editingEmail = "";
+    private string editingUserRole = "";
+    private string editingUserStatus = "";
+    private string editingRoleName = "";
+    private string editingRoleDescription = "";
+
+    private void ShowAddUserModal()
+    {
+        editingUser = new UserData { Id = 0 };
+        editingUsername = "";
+        editingFullName = "";
+        editingEmail = "";
+        editingUserRole = "操作员";
+        editingUserStatus = "离线";
+        showUserModal = true;
+    }
+
+    private void EditUser(UserData user)
+    {
+        editingUser = new UserData
+        {
+            Id = user.Id,
+            Username = user.Username,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role,
+            Status = user.Status,
+            LastLoginTime = user.LastLoginTime
+        };
+        editingUsername = user.Username;
+        editingFullName = user.FullName;
+        editingEmail = user.Email;
+        editingUserRole = user.Role;
+        editingUserStatus = user.Status;
+        showUserModal = true;
+    }
+
+    private void CloseUserModal()
+    {
+        showUserModal = false;
+        editingUser = null;
+        editingUsername = "";
+        editingFullName = "";
+        editingEmail = "";
+        editingUserRole = "";
+        editingUserStatus = "";
+    }
+
+    private void SaveUser()
+    {
+        if (editingUser != null)
+        {
+            editingUser.Username = editingUsername;
+            editingUser.FullName = editingFullName;
+            editingUser.Email = editingEmail;
+            editingUser.Role = editingUserRole;
+            editingUser.Status = editingUserStatus;
+
+            if (editingUser.Id == 0)
+            {
+                editingUser.Id = users.Count + 1;
+                editingUser.LastLoginTime = DateTime.Now;
+                users.Add(editingUser);
+            }
+            else
+            {
+                var existingUser = users.FirstOrDefault(u => u.Id == editingUser.Id);
+                if (existingUser != null)
+                {
+                    existingUser.Username = editingUser.Username;
+                    existingUser.FullName = editingUser.FullName;
+                    existingUser.Email = editingUser.Email;
+                    existingUser.Role = editingUser.Role;
+                    existingUser.Status = editingUser.Status;
+                }
+            }
+        }
+        showUserModal = false;
+        editingUser = null;
+        editingUsername = "";
+        editingFullName = "";
+        editingEmail = "";
+        editingUserRole = "";
+        editingUserStatus = "";
+    }
+
+    private void DeleteUser(int userId)
+    {
+        users.RemoveAll(u => u.Id == userId);
+    }
+
+    private void ShowAddRoleModal()
+    {
+        editingRole = new RoleData { Id = 0, Permissions = new List<int>() };
+        editingRoleName = "";
+        editingRoleDescription = "";
+        showRoleModal = true;
+    }
+
+    private void EditRole(RoleData role)
+    {
+        editingRole = new RoleData
+        {
+            Id = role.Id,
+            Name = role.Name,
+            Description = role.Description,
+            Permissions = new List<int>(role.Permissions),
+            CreatedTime = role.CreatedTime
+        };
+        editingRoleName = role.Name;
+        editingRoleDescription = role.Description;
+        showRoleModal = true;
+    }
+
+    private void CloseRoleModal()
+    {
+        showRoleModal = false;
+        editingRole = null;
+        editingRoleName = "";
+        editingRoleDescription = "";
+    }
+
+    private void SaveRole()
+    {
+        if (editingRole != null)
+        {
+            editingRole.Name = editingRoleName;
+            editingRole.Description = editingRoleDescription;
+
+            if (editingRole.Id == 0)
+            {
+                editingRole.Id = roles.Count + 1;
+                editingRole.CreatedTime = DateTime.Now;
+                roles.Add(editingRole);
+            }
+            else
+            {
+                var existingRole = roles.FirstOrDefault(r => r.Id == editingRole.Id);
+                if (existingRole != null)
+                {
+                    existingRole.Name = editingRole.Name;
+                    existingRole.Description = editingRole.Description;
+                    existingRole.Permissions = editingRole.Permissions;
+                }
+            }
+        }
+        showRoleModal = false;
+        editingRole = null;
+        editingRoleName = "";
+        editingRoleDescription = "";
+    }
+
+    private void DeleteRole(int roleId)
+    {
+        roles.RemoveAll(r => r.Id == roleId);
+    }
+
+    private void SavePermissions(int roleId)
+    {
+    }
+}

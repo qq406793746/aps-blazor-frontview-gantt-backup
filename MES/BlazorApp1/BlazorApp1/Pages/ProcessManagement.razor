@@ -1,0 +1,809 @@
+@page "/process-management"
+@attribute [Authorize]
+@using System
+@using BlazorApp1.Services
+@using BlazorApp1.Data
+@using BlazorApp1.Pages
+
+<PageTitle>工艺管理</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>工艺管理</h1>
+        <div>
+            <button class="btn btn-primary mr-2">
+                <span class="oi oi-import" aria-hidden="true"></span> 导入
+            </button>
+            <button class="btn btn-secondary">
+                <span class="oi oi-export" aria-hidden="true"></span> 导出
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <span class="oi oi-folder" aria-hidden="true"></span> BOM零件选择
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="tree-menu">
+                        @foreach (var projectCode in projectCodes)
+                        {
+                            <div class="tree-node level-1">
+                                <div class="node-header" @onclick="() => ToggleNode(projectCode)">
+                                    <span class="oi @(expandedProjectCodes.Contains(projectCode) ? "oi-chevron-bottom" : "oi-chevron-right")"></span>
+                                    <span class="node-text">@projectCode</span>
+                                </div>
+                                @if (expandedProjectCodes.Contains(projectCode))
+                                {
+                                    <div class="node-children">
+                                        @foreach (var moldCode in GetMoldCodesByProjectCode(projectCode))
+                                        {
+                                            <div class="tree-node level-2">
+                                                <div class="node-header" @onclick="() => ToggleNode(projectCode + '-' + moldCode)">
+                                                    <span class="oi @(expandedMoldCodes.Contains($"{projectCode}-{moldCode}") ? "oi-chevron-bottom" : "oi-chevron-right")"></span>
+                                                    <span class="node-text">@moldCode</span>
+                                                </div>
+                                                @if (expandedMoldCodes.Contains($"{projectCode}-{moldCode}"))
+                                                {
+                                                    <div class="node-children">
+                                                        @foreach (var part in GetPartsByProjectAndMold(projectCode, moldCode))
+                                                        {
+                                                            <div class="tree-node level-3">
+                                                                <div class="node-header" @onclick="async () => await SelectPartFromTree(projectCode, moldCode, part)">
+                                                                    <span class="oi oi-list-rich"></span>
+                                                                    <span class="node-text">@part</span>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        @if (selectedPart != null)
+                        {
+                            <div class="alert alert-success" role="alert">
+                                <strong>已选择零件：</strong>@selectedPart.PartNumber<br />
+                                <small>项目代码：@selectedPart.ProjectCode | 模具号：@selectedPart.MoldCode | 工单号：@selectedPart.WorkOrderNumber</small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info" role="alert">
+                                请通过三级菜单选择一个零件
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <span class="oi oi-info" aria-hidden="true"></span> 零件详细信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (selectedPart != null)
+                    {
+                        <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <strong>项目代码：</strong> @selectedPart.ProjectCode
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>模具号：</strong> @selectedPart.MoldCode
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>零件号：</strong> @selectedPart.PartNumber
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>工单号：</strong> @selectedPart.WorkOrderNumber
+                                    </div>
+                                </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <strong>材质：</strong> @selectedPart.Material
+                                </div>
+                                <div class="mb-2">
+                                    <strong>条码信息：</strong> @selectedPart.BarcodeInfo
+                                </div>
+                                <div class="mb-2">
+                                    <strong>工艺人员：</strong> @selectedPart.ProcessPersonnel
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            请从左侧选择一个零件
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <span class="oi oi-wrench" aria-hidden="true"></span> 工序选择
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-center">
+                        <button class="btn btn-primary process-btn" @onclick="@(() => AddProcessStep("CMM", "三坐标测量"))" disabled="@(selectedPart == null)">
+                            <span class="oi oi-ruler" aria-hidden="true"></span> CMM (三坐标测量)
+                        </button>
+                        <button class="btn btn-success process-btn" @onclick="@(() => AddProcessStep("CNC", "数控加工"))" disabled="@(selectedPart == null)">
+                            <span class="oi oi-cog" aria-hidden="true"></span> CNC (数控加工)
+                        </button>
+                        <button class="btn btn-info process-btn" @onclick="@(() => AddProcessStep("WEDM", "线切割"))" disabled="@(selectedPart == null)">
+                            <span class="oi oi-lightning" aria-hidden="true"></span> WEDM (线切割)
+                        </button>
+                        <button class="btn btn-warning process-btn" @onclick="@(() => AddProcessStep("DSEDM", "放电加工"))" disabled="@(selectedPart == null)">
+                            <span class="oi oi-bolt" aria-hidden="true"></span> DSEDM (放电加工)
+                        </button>
+                        <button class="btn btn-secondary process-btn" @onclick="@(() => AddProcessStep("Grind", "磨床"))" disabled="@(selectedPart == null)">
+                            <span class="oi oi-circle-check" aria-hidden="true"></span> Grind (磨床)
+                        </button>
+                    </div>
+                    
+                    <!-- 工序编辑按钮 -->
+                    @if (showEditButton && selectedProcessType != null && selectedProcessName != null)
+                    {
+                        <div class="d-flex justify-content-center mt-3">
+                            <button class="btn btn-warning edit-process-btn" @onclick="HandleEditButtonClick">
+                                <span class="oi oi-pencil" aria-hidden="true"></span> 工序编辑
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> 工序排序
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-success btn-sm" @onclick="SaveProcess" disabled="@(selectedPart == null || processSteps.Count == 0)">
+                            <span class="oi oi-check" aria-hidden="true"></span> 保存工艺
+                        </button>
+                        <button class="btn btn-danger btn-sm" @onclick="ShowClearConfirmationModal" disabled="@(selectedPart == null || processSteps.Count == 0)">
+                            <span class="oi oi-trash" aria-hidden="true"></span> 清空
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (processSteps.Count > 0)
+                    {
+                        <div class="step-list">
+                            @foreach (var step in processSteps)
+                            {
+                                <div class="step-item">
+                                    <div class="mr-3">
+                                        <strong>@step.StepCode</strong>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div>@step.StepTitle (@step.ProcessType)</div>
+                                        <small class="text-muted">
+                                            预计工时: @step.EstimatedTime 小时
+                                            @if (!string.IsNullOrEmpty(step.ProcessingPrecision))
+                                            {
+                                                <text> | 加工精度: @step.ProcessingPrecision</text>
+                                            }
+                                            <text> | 状态: @step.Status</text>
+                                        </small>
+                                    </div>
+                                    <div class="ml-3">
+                                        <button class="btn btn-sm btn-secondary mr-1" @onclick="() => MoveStepUp(step)" title="上移">
+                                            <span class="oi oi-chevron-top" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary mr-1" @onclick="() => MoveStepDown(step)" title="下移">
+                                            <span class="oi oi-chevron-bottom" aria-hidden="true"></span>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => RemoveProcessStep(step)" title="删除">
+                                            <span class="oi oi-trash" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            @if (selectedPart == null)
+                            {
+                                <text>请先选择零件，然后点击上方工序按钮添加工序</text>
+                            }
+                            else
+                            {
+                                <text>点击上方工序按钮添加工序</text>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 工序编辑模态框 -->
+<div class="modal fade @(showEditModal ? "show" : "")" tabindex="-1" role="dialog" style="display: @(showEditModal ? "block" : "none");">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">工序编辑</h5>
+                <button type="button" class="close" @onclick="HandleCancelEdit">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="processName">工序名称</label>
+                    <input type="text" class="form-control" id="processName" @bind="editedProcessName" placeholder="请输入工序名称">
+                </div>
+                <div class="form-group">
+                    <label for="estimatedTime">预计工时 (小时)</label>
+                    <input type="number" step="0.1" class="form-control" id="estimatedTime" @bind="editedEstimatedTime" min="0" placeholder="请输入预计工时">
+                </div>
+                <div class="form-group">
+                    <label for="processingPrecision">加工精度</label>
+                    <input type="text" class="form-control" id="processingPrecision" @bind="editedProcessingPrecision" placeholder="请输入加工精度">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HandleCancelEdit">取消</button>
+                <button type="button" class="btn btn-primary" @onclick="HandleSaveEdit">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showEditModal)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- 清空确认模态框 -->
+<div class="modal fade @(showClearModal ? "show" : "")" tabindex="-1" role="dialog" style="display: @(showClearModal ? "block" : "none");">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认清空</h5>
+                <button type="button" class="close" @onclick="CancelClearProcesses">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>确定要清空所有工序吗？此操作将删除数据库中的工序记录，且无法恢复。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="CancelClearProcesses">取消</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmClearProcesses">确认清空</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (showClearModal)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+<style>
+    .process-btn {
+        min-width: 150px;
+        margin: 5px;
+    }
+    
+    .edit-process-btn {
+        min-width: 120px;
+        margin: 5px;
+    }
+    .step-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        margin: 5px 0;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    
+    /* 三级菜单样式 */
+    .tree-menu {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 5px;
+    }
+    
+    .tree-node {
+        margin: 2px 0;
+    }
+    
+    .node-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        user-select: none;
+    }
+    
+    .node-header:hover {
+        background-color: #e9ecef;
+    }
+    
+    .node-header .oi {
+        margin-right: 8px;
+        width: 16px;
+        height: 16px;
+        text-align: center;
+    }
+    
+    .node-text {
+        font-size: 14px;
+    }
+    
+    .node-children {
+        margin-left: 24px;
+        padding-left: 8px;
+        border-left: 1px dashed #ced4da;
+    }
+    
+    /* 不同层级的样式 */
+    .tree-node.level-1 .node-header {
+        font-weight: bold;
+    }
+    
+    .tree-node.level-2 .node-header {
+        padding-left: 16px;
+    }
+    
+    .tree-node.level-3 .node-header {
+        padding-left: 20px;
+    }
+    
+    /* 选中状态 */
+    .tree-node.selected .node-header {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+</style>
+
+@code {
+    // 注入服务
+    [Inject]
+    private ProjectManagementService? ProjectManagementService { get; set; }
+
+    [Inject]
+    private BOMManagementService? BOMManagementService { get; set; }
+
+    [Inject]
+    private ProcessManagementService? ProcessManagementService { get; set; }
+
+    public class BOMPartData
+    {
+        public int Id { get; set; }
+        public string? ProjectCode { get; set; } // 项目代码
+        public string? MoldCode { get; set; } // 模具号
+        public string? PartNumber { get; set; } // 零件号
+        public string? WorkOrderNumber { get; set; } // 工单号
+        public string? Material { get; set; } // 材质
+        public string? BarcodeInfo { get; set; } // 条码信息
+        public string? ProcessPersonnel { get; set; } // 工艺人员
+        public string? ImageData { get; set; } // 图片数据
+    }
+
+    public class ProcessStepData
+    {
+        public int Id { get; set; }
+        public string? StepCode { get; set; }
+        public string? StepTitle { get; set; }
+        public string? ProcessType { get; set; }
+        public decimal EstimatedTime { get; set; }
+        public string? ProcessingPrecision { get; set; }
+        public string? Status { get; set; }
+    }
+
+    private BOMPartData? selectedPart = null;
+    private List<ProcessStepData> processSteps = new List<ProcessStepData>();
+    private int stepCounter = 1;
+    private List<BOMPartData> allBOMParts = new List<BOMPartData>();
+    
+    // 工序编辑相关变量
+    private string? selectedProcessType { get; set; } = null;
+    private string? selectedProcessName { get; set; } = null;
+    private bool showEditButton { get; set; } = false;
+    private bool showEditModal { get; set; } = false;
+    private string? editedProcessName { get; set; } = null;
+    private decimal editedEstimatedTime { get; set; } = 2.0m;
+    private string? editedProcessingPrecision { get; set; } = null;
+    
+    // 清空确认模态框相关变量
+    private bool showClearModal { get; set; } = false;
+    
+    // 三级菜单相关变量
+    private List<string> projectCodes = new List<string>();
+    private List<string> moldCodes = new List<string>();
+    private List<string> partNumbers = new List<string>();
+    private string? selectedProjectCode = null;
+    private string? selectedMoldCode = null;
+    private string? selectedPartNumber = null;
+    
+    // 菜单展开状态管理
+    private List<string> expandedProjectCodes = new List<string>();
+    private List<string> expandedMoldCodes = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeDataFromDatabaseAsync();
+        // 初始化三级联动数据
+        LoadProjectCodes();
+    }
+
+    // 从数据库加载数据
+    private async Task InitializeDataFromDatabaseAsync()
+    {
+        try
+        {
+            var projects = await ProjectManagementService!.GetAllProjectsAsync();
+            var boms = await BOMManagementService!.GetAllBOMsAsync();
+
+            Console.WriteLine($"从数据库获取到 {projects.Count()} 个项目");
+            Console.WriteLine($"从数据库获取到 {boms.Count()} 个BOM");
+
+            // 整合项目和BOM数据
+            allBOMParts = (from bom in boms
+                          join project in projects on bom.Project equals project.ProjectCode
+                          select new BOMPartData
+                          {
+                              Id = bom.Id,
+                              ProjectCode = bom.Project, // BOM中的Project属性对应数据库中的ProjectCode列
+                              MoldCode = project.MoldCode, // 模具号从项目表中获取
+                              PartNumber = bom.PartNumber,
+                              WorkOrderNumber = bom.WorkOrderNumber,
+                              Material = bom.Material,
+                              BarcodeInfo = bom.BarcodeInfo,
+                              ProcessPersonnel = bom.ProcessPersonnel,
+                              ImageData = bom.ImageData
+                          }).ToList();
+
+            Console.WriteLine($"整合后得到 {allBOMParts.Count} 个零件数据");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"加载数据时出错: {ex.Message}");
+            Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            // 如果加载失败，使用模拟数据
+            InitializeMockData();
+        }
+    }
+
+    // 初始化模拟数据（当数据库加载失败时使用）
+    private void InitializeMockData()
+    {
+        allBOMParts = new List<BOMPartData>{
+            new BOMPartData{ Id=1, ProjectCode="PROJ001", MoldCode="MOLD001", PartNumber="PART001", WorkOrderNumber="WO001", Material="钢材", BarcodeInfo="BC001", ProcessPersonnel="张三" },
+            new BOMPartData{ Id=2, ProjectCode="PROJ001", MoldCode="MOLD001", PartNumber="PART002", WorkOrderNumber="WO001", Material="铝材", BarcodeInfo="BC002", ProcessPersonnel="李四" },
+            new BOMPartData{ Id=3, ProjectCode="PROJ001", MoldCode="MOLD002", PartNumber="PART003", WorkOrderNumber="WO002", Material="铜材", BarcodeInfo="BC003", ProcessPersonnel="王五" },
+            new BOMPartData{ Id=4, ProjectCode="PROJ002", MoldCode="MOLD003", PartNumber="PART004", WorkOrderNumber="WO003", Material="塑料", BarcodeInfo="BC004", ProcessPersonnel="赵六" },
+            new BOMPartData{ Id=5, ProjectCode="PROJ002", MoldCode="MOLD003", PartNumber="PART005", WorkOrderNumber="WO003", Material="橡胶", BarcodeInfo="BC005", ProcessPersonnel="钱七" },
+            new BOMPartData{ Id=6, ProjectCode="PROJ003", MoldCode="MOLD004", PartNumber="PART006", WorkOrderNumber="WO004", Material="陶瓷", BarcodeInfo="BC006", ProcessPersonnel="孙八" },
+        };
+        Console.WriteLine("使用模拟数据初始化");
+    }
+
+    // 加载项目代码列表
+    private void LoadProjectCodes()
+    {
+        projectCodes = allBOMParts
+            .Select(p => p.ProjectCode)
+            .Where(pc => pc != null)
+            .Distinct()
+            .OrderBy(pc => pc)
+            .ToList()!;
+        
+        // 重置选择和后续列表
+        selectedProjectCode = null;
+        selectedMoldCode = null;
+        selectedPartNumber = null;
+        moldCodes.Clear();
+        partNumbers.Clear();
+        selectedPart = null;
+    }
+
+    // 菜单展开/折叠逻辑
+    private void ToggleNode(string nodeKey)
+    {
+        // 检查是否是项目代码节点
+        if (projectCodes.Contains(nodeKey))
+        {
+            if (expandedProjectCodes.Contains(nodeKey))
+            {
+                expandedProjectCodes.Remove(nodeKey);
+                // 同时折叠该项目下的所有模具号节点
+                var moldKeysToRemove = expandedMoldCodes.Where(mk => mk.StartsWith($"{nodeKey}-"))
+                    .ToList();
+                foreach (var mk in moldKeysToRemove)
+                {
+                    expandedMoldCodes.Remove(mk);
+                }
+            }
+            else
+            {
+                expandedProjectCodes.Add(nodeKey);
+            }
+        }
+        // 检查是否是模具号节点
+        else if (nodeKey.Contains("-"))
+        {
+            if (expandedMoldCodes.Contains(nodeKey))
+            {
+                expandedMoldCodes.Remove(nodeKey);
+            }
+            else
+            {
+                expandedMoldCodes.Add(nodeKey);
+            }
+        }
+    }
+
+    // 根据项目代码获取模具号列表
+    private List<string> GetMoldCodesByProjectCode(string projectCode)
+    {
+        return allBOMParts
+            .Where(p => p.ProjectCode == projectCode)
+            .Select(p => p.MoldCode)
+            .Where(mc => mc != null)
+            .Distinct()
+            .OrderBy(mc => mc)
+            .ToList()!;
+    }
+
+    // 根据项目代码和模具号获取零件列表
+    private List<string> GetPartsByProjectAndMold(string projectCode, string moldCode)
+    {
+        return allBOMParts
+            .Where(p => p.ProjectCode == projectCode && p.MoldCode == moldCode)
+            .Select(p => p.PartNumber)
+            .Where(pn => pn != null)
+            .Distinct()
+            .OrderBy(pn => pn)
+            .ToList()!;
+    }
+
+    // 从树菜单中选择零件
+    private async Task SelectPartFromTree(string projectCode, string moldCode, string part)
+    {
+        selectedProjectCode = projectCode;
+        selectedMoldCode = moldCode;
+        selectedPartNumber = part;
+        
+        selectedPart = allBOMParts
+            .FirstOrDefault(p => p.ProjectCode == projectCode && 
+                                p.MoldCode == moldCode && 
+                                p.PartNumber == part);
+        
+        // 重置工艺步骤列表
+        if (selectedPart != null && ProcessManagementService != null)
+        {
+            // 从数据库加载工序信息
+            processSteps = await ProcessManagementService.GetProcessStepsAsync(
+                projectCode, moldCode, part);
+            
+            // 更新stepCounter，确保新添加的工序编号正确
+            if (processSteps.Any())
+            {
+                stepCounter = processSteps.Max(s => s.Id) + 1;
+            }
+            else
+            {
+                stepCounter = 1;
+            }
+        }
+    }
+    
+    // 选择零件（保留兼容旧方法）
+    private async Task SelectPart()
+    {
+        if (string.IsNullOrEmpty(selectedProjectCode) || string.IsNullOrEmpty(selectedMoldCode) || string.IsNullOrEmpty(selectedPartNumber))
+        {
+            selectedPart = null;
+            return;
+        }
+
+        selectedPart = allBOMParts
+            .FirstOrDefault(p => p.ProjectCode == selectedProjectCode && 
+                                p.MoldCode == selectedMoldCode && 
+                                p.PartNumber == selectedPartNumber);
+        
+        // 重置工艺步骤列表
+        if (selectedPart != null && ProcessManagementService != null)
+        {
+            // 从数据库加载工序信息
+            processSteps = await ProcessManagementService.GetProcessStepsAsync(
+                selectedProjectCode, selectedMoldCode, selectedPartNumber);
+            
+            // 更新stepCounter，确保新添加的工序编号正确
+            if (processSteps.Any())
+            {
+                stepCounter = processSteps.Max(s => s.Id) + 1;
+            }
+            else
+            {
+                stepCounter = 1;
+            }
+        }
+    }
+
+
+
+    private void AddProcessStep(string processType, string processName)
+    {
+        if (selectedPart == null)
+        {
+            return;
+        }
+
+        // 存储选中的工序信息，显示编辑按钮
+        selectedProcessType = processType;
+        selectedProcessName = processName;
+        showEditButton = true;
+    }
+
+    private void HandleEditButtonClick()
+    {
+        // 初始化编辑字段
+        editedProcessName = selectedProcessName;
+        editedEstimatedTime = 2.0m; // 默认值
+        editedProcessingPrecision = null;
+        
+        // 隐藏编辑按钮，显示编辑模态框
+        showEditButton = false;
+        showEditModal = true;
+    }
+
+    private void HandleSaveEdit()
+    {
+        // 验证必填字段
+        if (string.IsNullOrEmpty(editedProcessName) || selectedProcessType == null)
+        {
+            return;
+        }
+
+        // 创建新的工序步骤并添加到列表
+        var newStep = new ProcessStepData
+        {
+            Id = stepCounter,
+            StepCode = $"P{stepCounter:D3}",
+            StepTitle = editedProcessName,
+            ProcessType = selectedProcessType,
+            EstimatedTime = editedEstimatedTime,
+            ProcessingPrecision = editedProcessingPrecision,
+            Status = "待进行"
+        };
+        stepCounter++;
+
+        processSteps.Add(newStep);
+        
+        // 关闭模态框
+        showEditModal = false;
+        
+        // 重置选中的工序信息
+        selectedProcessType = null;
+        selectedProcessName = null;
+    }
+
+    private void HandleCancelEdit()
+    {
+        // 关闭模态框
+        showEditModal = false;
+        
+        // 重置编辑字段
+        editedProcessName = null;
+        editedEstimatedTime = 2.0m;
+        editedProcessingPrecision = null;
+        
+        // 重置选中的工序信息
+        selectedProcessType = null;
+        selectedProcessName = null;
+    }
+
+    private void RemoveProcessStep(ProcessStepData step)
+    {
+        processSteps.Remove(step);
+    }
+
+    private void MoveStepUp(ProcessStepData step)
+    {
+        int index = processSteps.FindIndex(s => s.Id == step.Id);
+        if (index > 0)
+        {
+            var temp = processSteps[index];
+            processSteps[index] = processSteps[index - 1];
+            processSteps[index - 1] = temp;
+        }
+    }
+
+    private void MoveStepDown(ProcessStepData step)
+    {
+        int index = processSteps.FindIndex(s => s.Id == step.Id);
+        if (index < processSteps.Count - 1)
+        {
+            var temp = processSteps[index];
+            processSteps[index] = processSteps[index + 1];
+            processSteps[index + 1] = temp;
+        }
+    }
+
+    private async Task SaveProcess()
+    {
+        if (selectedPart != null && processSteps.Any() && ProcessManagementService != null)
+        {
+            var result = await ProcessManagementService.SaveProcessAsync(selectedPart, processSteps);
+            if (result > 0)
+            {
+                // 保存成功，可以添加提示信息
+                Console.WriteLine("工艺保存成功");
+            }
+            else
+            {
+                // 保存失败
+                Console.WriteLine("工艺保存失败");
+            }
+        }
+    }
+
+    // 显示清空确认模态框
+    private void ShowClearConfirmationModal()
+    {
+        showClearModal = true;
+    }
+
+    // 确认清空工艺
+    private async Task ConfirmClearProcesses()
+    {
+        if (selectedPart != null && processSteps.Any() && ProcessManagementService != null)
+        {
+            var result = await ProcessManagementService.ClearProcessAsync(selectedPart.ProjectCode!, selectedPart.MoldCode!, selectedPart.PartNumber!);
+            if (result > 0)
+            {
+                // 清空数据库成功，清空本地列表
+                processSteps.Clear();
+                stepCounter = 1;
+                Console.WriteLine("工艺清空成功");
+            }
+            else
+            {
+                // 清空数据库失败
+                Console.WriteLine("工艺清空失败");
+            }
+        }
+        showClearModal = false;
+    }
+
+    // 取消清空工艺
+    private void CancelClearProcesses()
+    {
+        showClearModal = false;
+    }
+
+}

@@ -1,0 +1,371 @@
+@page "/equipment-management"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components
+@using BlazorApp1.Services
+
+<PageTitle>设备管理</PageTitle>
+
+<div class="container-fluid mt-2">
+    <h1>设备管理</h1>
+    <p>设备管理页面内容将在这里展示</p>
+    
+    <!-- 设备列表 -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title">
+                <span class="oi oi-list-rich"></span> 设备列表
+            </h5>
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary btn-sm" @onclick="ShowAddModal">
+                    <span class="oi oi-plus"></span> 添加设备
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" @onclick="ShowDeleteConfirmationModal" disabled="@(!EquipmentList.Any(e => e.IsSelected))">
+                    <span class="oi oi-trash"></span> 删除设备
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th><input type="checkbox" @onchange="ToggleSelectAll" checked="@IsAllSelected" /></th>
+                            <th>设备序号</th>
+                            <th>设备名称</th>
+                            <th>设备类别</th>
+                            <th>设备类型</th>
+                            <th>设备型号</th>
+                            <th>设备位置</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var equipment in EquipmentList)
+                        {
+                            <tr>
+                                <td><input type="checkbox" @bind="equipment.IsSelected" /></td>
+                                <td>@equipment.EquipmentSerialNumber</td>
+                                <td>@equipment.EquipmentName</td>
+                                <td>@equipment.EquipmentCategory</td>
+                                <td>@equipment.EquipmentType</td>
+                                <td>@equipment.EquipmentModel</td>
+                                <td>@equipment.EquipmentLocation</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加设备模态窗口 -->
+@if (IsAddModalVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addEquipmentModalLabel">添加设备</h5>
+                    <button type="button" class="close" @onclick="HideAddModal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="equipmentName" class="form-label">设备名称</label>
+                            <input type="text" class="form-control" id="equipmentName" @bind="EquipmentName" placeholder="请输入设备名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="equipmentType" class="form-label">设备类型</label>
+                            <select class="form-control" id="equipmentType" @bind="SelectedEquipmentType">
+                                <option value="铣床">铣床</option>
+                                <option value="火花机">火花机</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipmentCategory" class="form-label">设备类别</label>
+                            <select class="form-control" id="equipmentCategory" @bind="SelectedEquipmentCategory">
+                                @foreach (var category in EquipmentCategories)
+                                {
+                                    <option value="@category">@category</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipmentModel" class="form-label">设备型号</label>
+                            <select class="form-control" id="equipmentModel" @bind="SelectedEquipmentModel">
+                                @foreach (var model in EquipmentModels)
+                                {
+                                    <option value="@model">@model</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="equipmentLocation" class="form-label">设备位置</label>
+                            <input type="text" class="form-control" id="equipmentLocation" @bind="EquipmentLocation" placeholder="请输入设备位置">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HideAddModal">取消</button>
+                    <button type="button" class="btn btn-primary" @onclick="AddEquipment">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- 删除确认弹窗 -->
+@if (IsDeleteModalVisible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">删除确认</h5>
+                    <button type="button" class="close" @onclick="HideDeleteModal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>您确定要删除选中的设备吗？此操作不可撤销。</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HideDeleteModal">取消</button>
+                    <button type="button" class="btn btn-danger" @onclick="async () => await ConfirmDelete()">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    // 注入设备管理服务
+    [Inject]
+    private EquipmentManagementService? EquipmentManagementService { get; set; }
+    
+    private bool IsAddModalVisible { get; set; } = false;
+    // 全选相关变量
+    private bool IsAllSelected { get; set; } = false;
+    // 删除确认弹窗相关变量
+    private bool IsDeleteModalVisible { get; set; } = false;
+    
+    // 设备列表数据
+    private List<EquipmentManagementService.EquipmentData> EquipmentList { get; set; } = new List<EquipmentManagementService.EquipmentData>();
+    
+    // 表单数据
+    private string EquipmentName { get; set; } = string.Empty;
+    private string EquipmentLocation { get; set; } = string.Empty;
+    
+    private string _selectedEquipmentType = "铣床"; // 默认选择铣床
+    private string SelectedEquipmentType
+    {
+        get => _selectedEquipmentType;
+        set
+        {
+            _selectedEquipmentType = value;
+            
+            // 根据设备类别更新设备类型选项
+            if (_selectedEquipmentType == "铣床")
+            {
+                EquipmentCategories = new List<string> { "3轴", "5轴" };
+                SelectedEquipmentCategory = "3轴";
+            }
+            else if (_selectedEquipmentType == "火花机")
+            {
+                EquipmentCategories = new List<string> { "慢走丝切割", "电火花成型" };
+                SelectedEquipmentCategory = "慢走丝切割";
+            }
+            else
+            {
+                EquipmentCategories = new List<string>();
+                SelectedEquipmentCategory = string.Empty;
+            }
+            
+            // 更新设备型号
+            UpdateEquipmentModels();
+        }
+    }
+    private List<string> EquipmentCategories { get; set; } = new List<string> { "3轴", "5轴" }; // 默认显示铣床的类别
+    private string _selectedEquipmentCategory = "3轴"; // 默认选择3轴
+    private string SelectedEquipmentCategory
+    {
+        get => _selectedEquipmentCategory;
+        set
+        {
+            _selectedEquipmentCategory = value;
+            
+            // 根据设备类别和类型更新设备型号选项
+            UpdateEquipmentModels();
+        }
+    }
+    private List<string> EquipmentModels { get; set; } = new List<string>(); // 设备型号列表
+    private string SelectedEquipmentModel { get; set; } = string.Empty;
+    
+    // 设备型号数据结构
+    private readonly Dictionary<string, Dictionary<string, List<string>>> _equipmentModelData = new Dictionary<string, Dictionary<string, List<string>>>
+    {
+        { "铣床", new Dictionary<string, List<string>>
+            { 
+                { "3轴", new List<string> { "MILL X 400", "MILL S 500", "MILL S 600", "MILL S 800", "MILL P 500", "MILL P 500 VHP", "MILL P 900", "MILL E 800", "MILL E 1200", "VCE 600 Pro", "VCE 800 Pro", "VCE 1000 Pro", "VCE 1200 Pro", "VCE 1400 Pro", "VCE 1600 Pro", "VCE 2000 Pro", "MILL S 400 石墨", "MILL S 500 石墨", "HSM 500 石墨", "HSM 500" } },
+                { "5轴", new List<string> { "MILL S/X 200 U", "MILL S/X 400 U", "MILL S/X 600 U", "MILL P 500 U", "MILL P 800 U", "MILL P 1300 U", "MILL E 500 U", "MILL E 700 U", "MILL E 1000 U", "MILL E 1400 U", "MILL E 1900 U" } }
+            }
+        },
+        { "火花机", new Dictionary<string, List<string>>
+            { 
+                { "慢走丝切割", new List<string> { "CUT X 350", "CUT X 500", "CUT X 600", "CUT 1000", "CUT 1000 OiiTech", "CUT 1000 X-treme", "CUT 2000", "CUT 3000", "CUT P 350", "CUT P 500", "CUT P 600", "CUT F 350", "CUT F 600", "CUT E 350", "CUT E 600", "CUT E 800", "CUT S 400" } },
+                { "电火花成型", new List<string> { "FORM X 400", "FORM X 600", "FORM P 350", "FORM P 500", "FORM P 600", "FORM E 350", "FORM E 500", "FORM E 600", "FORM S 350", "FORM S 500", "FORM S 600", "FORM H 500", "FORM H 600" } }
+            }
+        }
+    };
+    
+    // 根据设备类型和类别更新设备型号
+    private void UpdateEquipmentModels()
+    {
+        if (_equipmentModelData.TryGetValue(_selectedEquipmentType, out var categoriesDict))
+        {
+            if (categoriesDict.TryGetValue(_selectedEquipmentCategory, out var models))
+            {
+                EquipmentModels = models;
+                SelectedEquipmentModel = models.Count > 0 ? models[0] : string.Empty;
+            }
+            else
+            {
+                EquipmentModels = new List<string>();
+                SelectedEquipmentModel = string.Empty;
+            }
+        }
+        else
+        {
+            EquipmentModels = new List<string>();
+            SelectedEquipmentModel = string.Empty;
+        }
+    }
+
+    // 页面初始化时加载设备列表
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEquipmentList();
+    }
+    
+    // 加载设备列表
+    private async Task LoadEquipmentList()
+    {
+        if (EquipmentManagementService != null)
+        {
+            EquipmentList = await EquipmentManagementService.GetAllEquipmentsAsync();
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        // 重置表单数据
+        EquipmentName = string.Empty;
+        EquipmentLocation = string.Empty;
+        
+        // 初始化默认值
+        SelectedEquipmentType = "铣床";
+        EquipmentCategories = new List<string> { "3轴", "5轴" };
+        SelectedEquipmentCategory = "3轴";
+        UpdateEquipmentModels();
+        
+        IsAddModalVisible = true;
+    }
+
+    private void HideAddModal()
+    {
+        IsAddModalVisible = false;
+    }
+
+    // 保存设备
+    private async Task AddEquipment()
+    {
+        if (EquipmentManagementService != null && !string.IsNullOrWhiteSpace(EquipmentName))
+        {
+            // 创建设备数据对象
+            var equipment = new EquipmentManagementService.EquipmentData
+            {
+                EquipmentSerialNumber = await GenerateSerialNumber(), // 生成设备序号
+                EquipmentName = EquipmentName,
+                EquipmentCategory = SelectedEquipmentType, // 设备类型保存到设备类别字段
+                EquipmentType = SelectedEquipmentCategory, // 设备类别保存到设备类型字段
+                EquipmentModel = SelectedEquipmentModel,
+                EquipmentLocation = EquipmentLocation
+            };
+            
+            // 保存到数据库
+            bool success = await EquipmentManagementService.AddEquipmentAsync(equipment);
+            
+            if (success)
+            {
+                // 重新加载设备列表
+                await LoadEquipmentList();
+            }
+        }
+        
+        // 关闭模态窗口
+        HideAddModal();
+    }
+    
+    // 生成设备序号（从1开始递增）
+    private async Task<string> GenerateSerialNumber()
+    {
+        int maxSerial = 0;
+        if (EquipmentManagementService != null)
+        {
+            maxSerial = await EquipmentManagementService.GetMaxEquipmentSerialNumberAsync();
+        }
+        // 生成新的序号：当前最大序号 + 1
+        return (maxSerial + 1).ToString();
+    }
+    
+    // 全选/取消全选
+    private void ToggleSelectAll()
+    {
+        IsAllSelected = !IsAllSelected;
+        foreach (var equipment in EquipmentList)
+        {
+            equipment.IsSelected = IsAllSelected;
+        }
+    }
+    
+    // 显示删除确认弹窗
+    private void ShowDeleteConfirmationModal()
+    {
+        IsDeleteModalVisible = true;
+    }
+    
+    // 隐藏删除弹窗
+    private void HideDeleteModal()
+    {
+        IsDeleteModalVisible = false;
+    }
+    
+    // 确认删除设备
+    private async Task ConfirmDelete()
+    {
+        if (EquipmentManagementService != null)
+        {
+            // 获取所有选中的设备
+            var selectedEquipments = EquipmentList.Where(e => e.IsSelected).ToList();
+            
+            // 逐个删除设备
+            foreach (var equipment in selectedEquipments)
+            {
+                await EquipmentManagementService.DeleteEquipmentAsync(equipment);
+            }
+            
+            // 重新加载设备列表
+            await LoadEquipmentList();
+            
+            // 取消全选状态
+            IsAllSelected = false;
+        }
+        
+        // 隐藏删除弹窗
+        HideDeleteModal();
+    }
+}

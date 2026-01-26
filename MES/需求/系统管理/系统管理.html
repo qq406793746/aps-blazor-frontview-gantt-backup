@@ -1,0 +1,2804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统管理 - UNITED MACHINING 模具制造MES系统</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <!-- 统一的 Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1a365d',      // 深蓝色主色调
+                        secondary: '#2a4365',    // 次要蓝色
+                        accent: '#ed8936',       // 橙色强调色
+                        success: '#38a169',      // 绿色 - 成功/正常
+                        warning: '#ed8936',      // 橙色 - 警告
+                        danger: '#e53e3e',       // 红色 - 危险/异常
+                        light: '#f7fafc',        // 浅色背景
+                        dark: '#1a202c',         // 深色文本
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        card: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .bg-gradient-primary {
+                background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .scrollbar-thin {
+                scrollbar-width: thin;
+            }
+            .scrollbar-thin::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            .fade-in {
+                animation: fadeIn 0.3s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .slide-in {
+                animation: slideIn 0.3s ease-in-out;
+            }
+            @keyframes slideIn {
+                from { transform: translateY(10px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .rotate-icon {
+                transition: transform 0.3s ease;
+            }
+            .rotate-icon.open {
+                transform: rotate(180deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- 顶部导航栏 -->
+    <header class="bg-gradient-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-bold text-shadow">UNITED MACHINING</h1>
+                <span class="hidden md:inline-block text-sm">|</span>
+                <span class="hidden md:inline-block text-sm">模具制造MES系统</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <nav>
+                    <ul class="flex space-x-6">
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">首页</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">项目管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">工艺管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">排产管理</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">制造信息</a></li>
+                        <li><a href="#" class="text-white hover:text-accent transition-all-300">物料物流</a></li>
+                        <li><a href="#" class="text-accent font-medium transition-all-300">系统管理</a></li>
+                    </ul>
+                </nav>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm">Michael Qian</span>
+                    <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-primary">
+                        <i class="fa fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 左侧功能菜单 -->
+        <div class="w-full md:w-1/4 lg:w-1/5">
+            <div class="bg-white rounded-lg shadow-card p-4 sticky top-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-primary flex items-center">
+                        <i class="fa fa-cogs mr-2"></i>系统管理
+                    </h3>
+                    <div class="flex items-center space-x-2">
+                        <span id="currentDateTime" class="text-xs text-gray-500"></span>
+                    </div>
+                </div>
+                
+                <nav class="space-y-1">
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md bg-blue-50 text-primary font-medium transition-all-300" data-tab="dashboard">
+                        <div class="flex items-center">
+                            <i class="fa fa-dashboard w-5 text-center mr-2"></i>
+                            <span>系统概览</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="users">
+                        <div class="flex items-center">
+                            <i class="fa fa-users w-5 text-center mr-2"></i>
+                            <span>用户管理</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="roles">
+                        <div class="flex items-center">
+                            <i class="fa fa-user-circle w-5 text-center mr-2"></i>
+                            <span>角色权限</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="system">
+                        <div class="flex items-center">
+                            <i class="fa fa-wrench w-5 text-center mr-2"></i>
+                            <span>系统配置</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="logs">
+                        <div class="flex items-center">
+                            <i class="fa fa-list-alt w-5 text-center mr-2"></i>
+                            <span>日志管理</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="backup">
+                        <div class="flex items-center">
+                            <i class="fa fa-database w-5 text-center mr-2"></i>
+                            <span>备份恢复</span>
+                        </div>
+                    </button>
+                    
+                    <button class="w-full flex items-center justify-between px-3 py-2 text-left rounded-md hover:bg-gray-50 text-gray-700 transition-all-300" data-tab="monitor">
+                        <div class="flex items-center">
+                            <i class="fa fa-line-chart w-5 text-center mr-2"></i>
+                            <span>系统监控</span>
+                        </div>
+                    </button>
+                </nav>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-700 mb-3">快速操作</h4>
+                    <div class="space-y-2">
+                        <button id="quickBackupBtn" class="w-full flex items-center justify-center px-3 py-2 rounded-md bg-accent text-white hover:bg-orange-600 transition-all-300">
+                            <i class="fa fa-download mr-2"></i>
+                            <span>立即备份</span>
+                        </button>
+                        
+                        <button id="quickClearCacheBtn" class="w-full flex items-center justify-center px-3 py-2 rounded-md border border-primary text-primary hover:bg-blue-50 transition-all-300">
+                            <i class="fa fa-refresh mr-2"></i>
+                            <span>清理缓存</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <h4 class="text-sm font-medium text-gray-700 mb-3">系统状态</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-gray-600">CPU使用率</span>
+                                <span class="text-primary font-medium">23%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                <div class="bg-primary h-1.5 rounded-full" style="width: 23%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-gray-600">内存使用率</span>
+                                <span class="text-warning font-medium">67%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                <div class="bg-warning h-1.5 rounded-full" style="width: 67%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1">
+                                <span class="text-gray-600">磁盘使用率</span>
+                                <span class="text-success font-medium">45%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                                <div class="bg-success h-1.5 rounded-full" style="width: 45%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧主内容区 -->
+        <div class="w-full md:w-3/4 lg:w-4/5">
+            <!-- 页面标题 -->
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-primary">系统管理</h2>
+                <p class="text-gray-600">管理用户、权限、系统配置和监控</p>
+            </div>
+
+            <!-- 内容区域 -->
+            <div id="contentArea">
+                <!-- 系统概览 -->
+                <div id="dashboardTab" class="tab-content fade-in">
+                    <!-- 系统状态卡片 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">系统版本</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">v2.5.3</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
+                                    <i class="fa fa-code-fork"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-success flex items-center">
+                                    <i class="fa fa-check-circle mr-1"></i>最新版本
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">在线用户</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">24</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-success">
+                                    <i class="fa fa-users"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-gray-500">
+                                    管理员: 2 | 操作员: 15 | 查看者: 7
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">运行时间</p>
+                                    <h3 class="text-2xl font-bold text-primary mt-1">32天</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-accent">
+                                    <i class="fa fa-clock-o"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-gray-500">
+                                    上次重启: 2025-06-19 08:15:30
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">数据库状态</p>
+                                    <h3 class="text-2xl font-bold text-success mt-1">正常</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-success">
+                                    <i class="fa fa-database"></i>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center text-xs">
+                                <span class="text-gray-500">
+                                    上次备份: 2025-07-20 23:00:00
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统统计图表 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-primary">用户活跃度</h3>
+                                <div class="flex space-x-2">
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-download"></i>
+                                    </button>
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="userActivityChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg shadow-card p-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-primary">系统资源使用</h3>
+                                <div class="flex space-x-2">
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-download"></i>
+                                    </button>
+                                    <button class="p-1 text-gray-500 hover:text-primary">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="resourceUsageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统通知 -->
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">系统通知</h3>
+                            <button class="text-sm text-primary hover:text-secondary">
+                                查看全部 <i class="fa fa-angle-right ml-1"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-start p-3 bg-green-50 border border-green-100 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i class="fa fa-check-circle text-green-500"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-sm font-medium text-green-800">系统备份成功</h4>
+                                        <span class="text-xs text-green-600">2025-07-20 23:00:15</span>
+                                    </div>
+                                    <p class="text-xs text-green-700 mt-1">
+                                        自动备份任务已成功完成，备份文件已保存至指定位置。
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i class="fa fa-exclamation-triangle text-yellow-500"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-sm font-medium text-yellow-800">内存使用率偏高</h4>
+                                        <span class="text-xs text-yellow-600">2025-07-21 14:30:45</span>
+                                    </div>
+                                    <p class="text-xs text-yellow-700 mt-1">
+                                        系统内存使用率达到67%，建议检查并优化内存使用情况。
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i class="fa fa-info-circle text-blue-500"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-sm font-medium text-blue-800">新用户注册</h4>
+                                        <span class="text-xs text-blue-600">2025-07-21 10:15:20</span>
+                                    </div>
+                                    <p class="text-xs text-blue-700 mt-1">
+                                        新用户"钱七"已注册，角色为"初级技师"，请确认权限设置。
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start p-3 bg-gray-50 border border-gray-100 rounded-lg">
+                                <div class="flex-shrink-0 mt-0.5">
+                                    <i class="fa fa-bell text-gray-500"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <div class="flex justify-between">
+                                        <h4 class="text-sm font-medium text-gray-800">系统更新提醒</h4>
+                                        <span class="text-xs text-gray-600">2025-07-20 09:00:00</span>
+                                    </div>
+                                    <p class="text-xs text-gray-700 mt-1">
+                                        系统新版本 v2.6.0 已发布，包含多项功能优化和安全更新，建议及时升级。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 最近操作日志 -->
+                    <div class="bg-white rounded-lg shadow-card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">最近操作日志</h3>
+                            <button class="text-sm text-primary hover:text-secondary">
+                                查看全部 <i class="fa fa-angle-right ml-1"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            用户
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作类型
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作内容
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            IP地址
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 15:30:45</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                            <div class="text-xs text-gray-500">管理员</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                用户管理
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">修改用户"钱七"的权限</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.100</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 14:25:12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                            <div class="text-xs text-gray-500">工艺工程师</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                工艺管理
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">更新工艺路线"汽车模具A"</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.105</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 13:15:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">王五</div>
+                                            <div class="text-xs text-gray-500">生产主管</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                排产管理
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">调整生产计划"WO-2025-001"</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.110</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 11:45:20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">赵六</div>
+                                            <div class="text-xs text-gray-500">初级技师</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                登录
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">用户登录系统</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.115</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 用户管理 -->
+                <div id="usersTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">用户管理</h3>
+                            <div class="flex space-x-2">
+                                <button id="newUserBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-plus mr-1"></i> 新增用户
+                                </button>
+                                <button id="importUsersBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-upload mr-1"></i> 导入用户
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 查询条件 -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label for="userSearch" class="block text-sm font-medium text-gray-700 mb-1">搜索用户</label>
+                                <input type="text" id="userSearch" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="用户名/姓名/手机号">
+                            </div>
+                            <div>
+                                <label for="userRole" class="block text-sm font-medium text-gray-700 mb-1">用户角色</label>
+                                <select id="userRole" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">全部角色</option>
+                                    <option value="admin">管理员</option>
+                                    <option value="process_engineer">工艺工程师</option>
+                                    <option value="production_manager">生产主管</option>
+                                    <option value="operator">操作员</option>
+                                    <option value="viewer">查看者</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="userStatus" class="block text-sm font-medium text-gray-700 mb-1">用户状态</label>
+                                <select id="userStatus" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">全部状态</option>
+                                    <option value="active">启用</option>
+                                    <option value="inactive">禁用</option>
+                                    <option value="locked">锁定</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="searchUsersBtn" class="w-full px-3 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-search mr-1"></i> 查询
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 用户列表 -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            用户ID
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            用户名
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            姓名
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            角色
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            部门
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            手机号
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            最后登录
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">U001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">admin</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                管理员
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">管理部</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">13800138001</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                启用
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 15:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">编辑</button>
+                                            <button class="text-danger hover:text-red-700">禁用</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">U002</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">engineer1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                工艺工程师
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">工艺部</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">13800138002</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                启用
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 14:25</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">编辑</button>
+                                            <button class="text-danger hover:text-red-700">禁用</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">U003</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">manager1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">王五</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                生产主管
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">生产部</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">13800138003</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                启用
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 13:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">编辑</button>
+                                            <button class="text-danger hover:text-red-700">禁用</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">U004</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">operator1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">赵六</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                操作员
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">CNC车间</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">13800138004</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                启用
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 11:45</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">编辑</button>
+                                            <button class="text-danger hover:text-red-700">禁用</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">U005</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">user5</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">钱七</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                操作员
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">质检部</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">13800138005</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                未激活
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">-</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">编辑</button>
+                                            <button class="text-success hover:text-green-700">激活</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-sm text-gray-500">
+                                显示 1 至 5 条，共 25 条记录
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    上一页
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                    1
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    2
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    3
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    4
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    5
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 角色权限 -->
+                <div id="rolesTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 角色列表 -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-lg shadow-card p-4 h-full">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">角色列表</h3>
+                                    <button id="newRoleBtn" class="px-2 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-plus"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-2 mb-4">
+                                    <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg cursor-pointer">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-primary">管理员</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">系统角色</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">拥有系统所有权限</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all-300">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-gray-700">工艺工程师</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">系统角色</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">工艺管理相关权限</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all-300">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-gray-700">生产主管</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">系统角色</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">生产管理相关权限</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all-300">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-gray-700">操作员</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800">系统角色</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">生产操作相关权限</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all-300">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-gray-700">查看者</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-800">系统角色</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">仅查看权限</div>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all-300">
+                                        <div class="flex justify-between items-center">
+                                            <div class="font-medium text-gray-700">仓库管理员</div>
+                                            <span class="px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800">自定义</span>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">物料管理相关权限</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 权限设置 -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-lg shadow-card p-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">权限设置 - 管理员</h3>
+                                    <div class="flex space-x-2">
+                                        <button id="copyRoleBtn" class="px-2 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                            <i class="fa fa-copy mr-1"></i> 复制权限
+                                        </button>
+                                        <button id="saveRoleBtn" class="px-2 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                            <i class="fa fa-save mr-1"></i> 保存设置
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- 权限树 -->
+                                <div class="space-y-4 max-h-[600px] overflow-y-auto scrollbar-thin">
+                                    <!-- 系统管理 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-cogs text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">系统管理</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">用户管理</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">角色权限</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">系统配置</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">日志管理</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">备份恢复</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 项目管理 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-folder text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">项目管理</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">项目创建</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">项目编辑</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">项目删除</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">项目查看</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 工艺管理 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-wrench text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">工艺管理</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">工艺制定</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">工序管理</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">BOM管理</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">工艺路线管理</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 排产管理 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-calendar text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">排产管理</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">生产计划创建</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">甘特图排产</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">设备排班</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">生产调度</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 制造信息 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-tachometer text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">制造信息</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">机床状态监控</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">任务看板</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">加工时间记录</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 物料物流 -->
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 cursor-pointer">
+                                            <div class="flex items-center">
+                                                <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                <i class="fa fa-cubes text-gray-500 mr-2"></i>
+                                                <span class="font-medium text-gray-700">物料物流</span>
+                                            </div>
+                                            <i class="fa fa-angle-down text-gray-500 rotate-icon"></i>
+                                        </div>
+                                        <div class="p-2 bg-white">
+                                            <div class="space-y-2 pl-6">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">物料入库</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">物料出库</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">库存查询</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary mr-2" checked>
+                                                    <span class="text-sm text-gray-700">物料流转</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统配置 -->
+                <div id="systemTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 基本配置 -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">基本配置</h3>
+                                    <button id="saveBasicConfigBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-save mr-1"></i> 保存配置
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="systemName" class="block text-sm font-medium text-gray-700 mb-1">系统名称</label>
+                                            <input type="text" id="systemName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="UNITED MACHINING 模具制造MES系统">
+                                        </div>
+                                        <div>
+                                            <label for="companyName" class="block text-sm font-medium text-gray-700 mb-1">公司名称</label>
+                                            <input type="text" id="companyName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="UNITED MACHINING 制造有限公司">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="systemLogo" class="block text-sm font-medium text-gray-700 mb-1">系统Logo</label>
+                                            <div class="flex items-center space-x-2">
+                                                <input type="file" id="systemLogo" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <button class="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 focus:outline-none">
+                                                    <i class="fa fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label for="favicon" class="block text-sm font-medium text-gray-700 mb-1">网站图标</label>
+                                            <div class="flex items-center space-x-2">
+                                                <input type="file" id="favicon" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <button class="px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200 focus:outline-none">
+                                                    <i class="fa fa-eye"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="systemDescription" class="block text-sm font-medium text-gray-700 mb-1">系统描述</label>
+                                        <textarea id="systemDescription" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">UNITED MACHINING 模具制造MES系统是一套专为模具制造企业设计的制造执行系统，涵盖项目管理、工艺管理、排产管理、制造信息和物料物流等核心功能模块。</textarea>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="defaultLanguage" class="block text-sm font-medium text-gray-700 mb-1">默认语言</label>
+                                            <select id="defaultLanguage" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="zh-CN" selected>简体中文</option>
+                                                <option value="en-US">English</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="defaultTimezone" class="block text-sm font-medium text-gray-700 mb-1">默认时区</label>
+                                            <select id="defaultTimezone" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="Asia/Shanghai" selected>中国标准时间 (UTC+8)</option>
+                                                <option value="America/New_York">美国东部时间 (UTC-5)</option>
+                                                <option value="Europe/London">格林威治标准时间 (UTC+0)</option>
+                                                <option value="Asia/Tokyo">日本标准时间 (UTC+9)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="dateFormat" class="block text-sm font-medium text-gray-700 mb-1">日期格式</label>
+                                            <select id="dateFormat" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="YYYY-MM-DD" selected>YYYY-MM-DD</option>
+                                                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                                <option value="YYYY年MM月DD日">YYYY年MM月DD日</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="timeFormat" class="block text-sm font-medium text-gray-700 mb-1">时间格式</label>
+                                            <select id="timeFormat" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="24" selected>24小时制</option>
+                                                <option value="12">12小时制</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 安全配置 -->
+                            <div class="bg-white rounded-lg shadow-card p-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">安全配置</h3>
+                                    <button id="saveSecurityConfigBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-save mr-1"></i> 保存配置
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="passwordPolicy" class="block text-sm font-medium text-gray-700 mb-1">密码策略</label>
+                                            <select id="passwordPolicy" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="low">低 (最少6位，不强制复杂)</option>
+                                                <option value="medium" selected>中 (最少8位，必须包含字母和数字)</option>
+                                                <option value="high">高 (最少10位，必须包含大小写字母、数字和特殊字符)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="passwordExpiry" class="block text-sm font-medium text-gray-700 mb-1">密码有效期 (天)</label>
+                                            <input type="number" id="passwordExpiry" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="90" min="0" max="365">
+                                            <p class="text-xs text-gray-500 mt-1">0表示永不过期</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="loginAttempts" class="block text-sm font-medium text-gray-700 mb-1">登录失败锁定阈值</label>
+                                            <input type="number" id="loginAttempts" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="5" min="0" max="10">
+                                            <p class="text-xs text-gray-500 mt-1">0表示不锁定</p>
+                                        </div>
+                                        <div>
+                                            <label for="lockoutDuration" class="block text-sm font-medium text-gray-700 mb-1">锁定时长 (分钟)</label>
+                                            <input type="number" id="lockoutDuration" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="30" min="0" max="1440">
+                                            <p class="text-xs text-gray-500 mt-1">0表示永久锁定，需要管理员解锁</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="sessionTimeout" class="block text-sm font-medium text-gray-700 mb-1">会话超时 (分钟)</label>
+                                            <input type="number" id="sessionTimeout" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="30" min="1" max="1440">
+                                        </div>
+                                        <div>
+                                            <label for="concurrentSessions" class="block text-sm font-medium text-gray-700 mb-1">允许同时登录数</label>
+                                            <input type="number" id="concurrentSessions" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="1" min="1" max="10">
+                                            <p class="text-xs text-gray-500 mt-1">0表示不限制</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="enableTwoFactorAuth" class="rounded text-primary focus:ring-primary">
+                                        <label for="enableTwoFactorAuth" class="text-sm font-medium text-gray-700">启用双因素认证</label>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="recordLoginHistory" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="recordLoginHistory" class="text-sm font-medium text-gray-700">记录登录历史</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 邮件配置 -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">邮件配置</h3>
+                                    <button id="saveEmailConfigBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-save mr-1"></i> 保存配置
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="enableEmail" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="enableEmail" class="text-sm font-medium text-gray-700">启用邮件通知</label>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="smtpServer" class="block text-sm font-medium text-gray-700 mb-1">SMTP服务器</label>
+                                        <input type="text" id="smtpServer" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="smtp.example.com">
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="smtpPort" class="block text-sm font-medium text-gray-700 mb-1">端口</label>
+                                            <input type="number" id="smtpPort" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="587" min="1" max="65535">
+                                        </div>
+                                        <div>
+                                            <label for="smtpEncryption" class="block text-sm font-medium text-gray-700 mb-1">加密方式</label>
+                                            <select id="smtpEncryption" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                                <option value="tls" selected>TLS</option>
+                                                <option value="ssl">SSL</option>
+                                                <option value="none">无</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="smtpUsername" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                                        <input type="text" id="smtpUsername" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="noreply@example.com">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="smtpPassword" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                                        <input type="password" id="smtpPassword" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="********">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="fromEmail" class="block text-sm font-medium text-gray-700 mb-1">发件人邮箱</label>
+                                        <input type="email" id="fromEmail" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="noreply@example.com">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="fromName" class="block text-sm font-medium text-gray-700 mb-1">发件人名称</label>
+                                        <input type="text" id="fromName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="UNITED MACHINING MES系统">
+                                    </div>
+                                    
+                                    <button id="testEmailBtn" class="w-full px-3 py-2 bg-success text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all-300">
+                                        <i class="fa fa-paper-plane mr-1"></i> 测试邮件配置
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 备份配置 -->
+                            <div class="bg-white rounded-lg shadow-card p-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">备份配置</h3>
+                                    <button id="saveBackupConfigBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-save mr-1"></i> 保存配置
+                                    </button>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="enableAutoBackup" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="enableAutoBackup" class="text-sm font-medium text-gray-700">启用自动备份</label>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupFrequency" class="block text-sm font-medium text-gray-700 mb-1">备份频率</label>
+                                        <select id="backupFrequency" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <option value="daily" selected>每天</option>
+                                            <option value="weekly">每周</option>
+                                            <option value="monthly">每月</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupTime" class="block text-sm font-medium text-gray-700 mb-1">备份时间</label>
+                                        <input type="time" id="backupTime" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="23:00">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupRetention" class="block text-sm font-medium text-gray-700 mb-1">保留备份数量</label>
+                                        <input type="number" id="backupRetention" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="30" min="1" max="365">
+                                        <p class="text-xs text-gray-500 mt-1">超过此数量的旧备份将被自动删除</p>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupPath" class="block text-sm font-medium text-gray-700 mb-1">备份路径</label>
+                                        <input type="text" id="backupPath" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value="/backup/mes_system">
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="backupCompress" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="backupCompress" class="text-sm font-medium text-gray-700">压缩备份文件</label>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="backupEmailNotification" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="backupEmailNotification" class="text-sm font-medium text-gray-700">备份完成邮件通知</label>
+                                    </div>
+                                    
+                                    <button id="manualBackupBtn" class="w-full px-3 py-2 bg-accent text-white rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all-300">
+                                        <i class="fa fa-download mr-1"></i> 立即备份
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 日志管理 -->
+                <div id="logsTab" class="tab-content hidden">
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">日志管理</h3>
+                            <div class="flex space-x-2">
+                                <button id="exportLogsBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-download mr-1"></i> 导出日志
+                                </button>
+                                <button id="clearLogsBtn" class="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                    <i class="fa fa-trash mr-1"></i> 清空日志
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 查询条件 -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label for="logType" class="block text-sm font-medium text-gray-700 mb-1">日志类型</label>
+                                <select id="logType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">全部类型</option>
+                                    <option value="login">登录日志</option>
+                                    <option value="operation">操作日志</option>
+                                    <option value="system">系统日志</option>
+                                    <option value="error">错误日志</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="logUser" class="block text-sm font-medium text-gray-700 mb-1">操作用户</label>
+                                <input type="text" id="logUser" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="用户名">
+                            </div>
+                            <div>
+                                <label for="logDateRange" class="block text-sm font-medium text-gray-700 mb-1">日期范围</label>
+                                <div class="flex items-center space-x-2">
+                                    <input type="date" id="logStartDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <span>至</span>
+                                    <input type="date" id="logEndDate" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                </div>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="searchLogsBtn" class="w-full px-3 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-search mr-1"></i> 查询
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 日志列表 -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            日志类型
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            用户
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作内容
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            IP地址
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            详情
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 15:30:45</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                操作日志
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">张三 (admin)</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm text-gray-900">修改用户"钱七"的权限</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.100</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 14:25:12</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                错误日志
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">李四 (engineer1)</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm text-gray-900">上传工艺文件失败</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.105</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                失败
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 13:15:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                系统日志
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">系统</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm text-gray-900">自动备份任务完成</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">127.0.0.1</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 11:45:20</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                登录日志
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">赵六 (operator1)</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm text-gray-900">用户登录系统</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.115</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                成功
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 10:30:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                登录日志
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">未知用户</div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="text-sm text-gray-900">用户登录失败 - 用户名或密码错误</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">192.168.1.200</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                失败
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-sm text-gray-500">
+                                显示 1 至 5 条，共 125 条记录
+                            </div>
+                            <div class="flex space-x-1">
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                    上一页
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                    1
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    2
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    3
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    4
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    5
+                                </button>
+                                <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 备份恢复 -->
+                <div id="backupTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- 备份列表 -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-primary">备份列表</h3>
+                                    <button id="createBackupBtn" class="px-3 py-1 bg-primary text-white text-sm rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-plus mr-1"></i> 创建备份
+                                    </button>
+                                </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    备份名称
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    备份类型
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    备份时间
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    文件大小
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    备份人
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    状态
+                                                </th>
+                                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    操作
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <tr>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">backup_20250720_230000</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        自动备份
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">2025-07-20 23:00:00</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">1.2 GB</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">系统</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        正常
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                    <button class="text-primary hover:text-secondary mr-2">恢复</button>
+                                                    <button class="text-primary hover:text-secondary mr-2">下载</button>
+                                                    <button class="text-danger hover:text-red-700">删除</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">backup_20250715_153000</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        手动备份
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">2025-07-15 15:30:00</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">1.1 GB</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">张三</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        正常
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                    <button class="text-primary hover:text-secondary mr-2">恢复</button>
+                                                    <button class="text-primary hover:text-secondary mr-2">下载</button>
+                                                    <button class="text-danger hover:text-red-700">删除</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">backup_20250710_230000</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        自动备份
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">2025-07-10 23:00:00</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">1.0 GB</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">系统</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        正常
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                    <button class="text-primary hover:text-secondary mr-2">恢复</button>
+                                                    <button class="text-primary hover:text-secondary mr-2">下载</button>
+                                                    <button class="text-danger hover:text-red-700">删除</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">backup_20250705_230000</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        自动备份
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">2025-07-05 23:00:00</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">980 MB</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">系统</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                        部分损坏
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                    <button class="text-primary hover:text-secondary mr-2">恢复</button>
+                                                    <button class="text-primary hover:text-secondary mr-2">下载</button>
+                                                    <button class="text-danger hover:text-red-700">删除</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <input type="checkbox" class="rounded text-primary focus:ring-primary">
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">backup_20250701_100000</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        手动备份
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">2025-07-01 10:00:00</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">950 MB</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <div class="text-sm text-gray-900">张三</div>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap">
+                                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        正常
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                    <button class="text-primary hover:text-secondary mr-2">恢复</button>
+                                                    <button class="text-primary hover:text-secondary mr-2">下载</button>
+                                                    <button class="text-danger hover:text-red-700">删除</button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- 分页 -->
+                                <div class="flex justify-between items-center mt-4">
+                                    <div class="text-sm text-gray-500">
+                                        显示 1 至 5 条，共 15 条记录
+                                    </div>
+                                    <div class="flex space-x-1">
+                                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+                                            上一页
+                                        </button>
+                                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm bg-primary text-white">
+                                            1
+                                        </button>
+                                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                            2
+                                        </button>
+                                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                            3
+                                        </button>
+                                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                            下一页
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 备份恢复操作 -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                                <h3 class="text-lg font-semibold text-primary mb-4">备份恢复操作</h3>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="backupType" class="block text-sm font-medium text-gray-700 mb-1">备份类型</label>
+                                        <select id="backupType" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <option value="full" selected>完整备份</option>
+                                            <option value="data">仅数据备份</option>
+                                            <option value="config">仅配置备份</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupName" class="block text-sm font-medium text-gray-700 mb-1">备份名称</label>
+                                        <input type="text" id="backupName" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="自动生成">
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="backupDescription" class="block text-sm font-medium text-gray-700 mb-1">备份描述</label>
+                                        <textarea id="backupDescription" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="请输入备份描述..."></textarea>
+                                    </div>
+                                    
+                                    <button id="executeBackupBtn" class="w-full px-3 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                        <i class="fa fa-download mr-1"></i> 执行备份
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-white rounded-lg shadow-card p-4">
+                                <h3 class="text-lg font-semibold text-primary mb-4">恢复操作</h3>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="restoreFile" class="block text-sm font-medium text-gray-700 mb-1">上传备份文件</label>
+                                        <input type="file" id="restoreFile" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <p class="text-xs text-gray-500 mt-1">支持 .bak, .zip, .tar.gz 格式</p>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="overwriteData" class="rounded text-primary focus:ring-primary">
+                                        <label for="overwriteData" class="text-sm font-medium text-gray-700">覆盖现有数据</label>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="restoreConfig" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="restoreConfig" class="text-sm font-medium text-gray-700">恢复系统配置</label>
+                                    </div>
+                                    
+                                    <div class="flex items-center space-x-2">
+                                        <input type="checkbox" id="restoreData" class="rounded text-primary focus:ring-primary" checked>
+                                        <label for="restoreData" class="text-sm font-medium text-gray-700">恢复业务数据</label>
+                                    </div>
+                                    
+                                    <div class="p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                                        <div class="flex">
+                                            <div class="flex-shrink-0">
+                                                <i class="fa fa-exclamation-triangle text-yellow-500"></i>
+                                            </div>
+                                            <div class="ml-3">
+                                                <h4 class="text-sm font-medium text-yellow-800">恢复警告</h4>
+                                                <p class="text-xs text-yellow-700 mt-1">
+                                                    恢复操作将覆盖现有数据，请确保已创建当前数据的备份。恢复过程中系统将不可用。
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button id="executeRestoreBtn" class="w-full px-3 py-2 bg-danger text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent transition-all-300">
+                                        <i class="fa fa-upload mr-1"></i> 执行恢复
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统监控 -->
+                <div id="monitorTab" class="tab-content hidden">
+                    <!-- 系统资源监控 -->
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">系统资源监控</h3>
+                            <div class="flex space-x-2">
+                                <button id="refreshMonitorBtn" class="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                    <i class="fa fa-refresh mr-1"></i> 刷新
+                                </button>
+                                <button id="exportMonitorBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-download mr-1"></i> 导出
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-sm font-medium text-gray-700">CPU使用率</h4>
+                                    <span class="text-sm font-medium text-primary">23%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                    <div class="bg-primary h-2 rounded-full" style="width: 23%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>0%</span>
+                                    <span>50%</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-sm font-medium text-gray-700">内存使用率</h4>
+                                    <span class="text-sm font-medium text-warning">67%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                    <div class="bg-warning h-2 rounded-full" style="width: 67%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>0%</span>
+                                    <span>50%</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-sm font-medium text-gray-700">磁盘使用率</h4>
+                                    <span class="text-sm font-medium text-success">45%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                    <div class="bg-success h-2 rounded-full" style="width: 45%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>0%</span>
+                                    <span>50%</span>
+                                    <span>100%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-3">CPU使用率趋势 (最近24小时)</h4>
+                                <div class="h-64">
+                                    <canvas id="cpuUsageChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-3">内存使用率趋势 (最近24小时)</h4>
+                                <div class="h-64">
+                                    <canvas id="memoryUsageChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据库监控 -->
+                    <div class="bg-white rounded-lg shadow-card p-4 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">数据库监控</h3>
+                            <div class="flex space-x-2">
+                                <button id="optimizeDbBtn" class="px-3 py-1 border border-primary text-primary text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                                    <i class="fa fa-cogs mr-1"></i> 优化
+                                </button>
+                                <button id="checkDbBtn" class="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all-300">
+                                    <i class="fa fa-check-circle mr-1"></i> 检查
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-1">
+                                    <h4 class="text-sm font-medium text-gray-700">数据库大小</h4>
+                                    <span class="text-sm font-medium text-primary">15.2 GB</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    包含索引: 2.3 GB
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-1">
+                                    <h4 class="text-sm font-medium text-gray-700">连接数</h4>
+                                    <span class="text-sm font-medium text-primary">45</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    最大连接数: 100
+                                </div>
+                            </div>
+                            
+                            <div class="bg-gray-50 p-3 rounded-lg">
+                                <div class="flex justify-between items-center mb-1">
+                                    <h4 class="text-sm font-medium text-gray-700">查询性能</h4>
+                                    <span class="text-sm font-medium text-success">良好</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    平均响应时间: 0.2 ms
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            表名
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            记录数
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            数据大小
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            索引大小
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            最后更新
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">users</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">25</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">1.2 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">0.5 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 10:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                正常
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">projects</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2.5 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">1.0 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-20 14:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                正常
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">processes</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">45</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">5.8 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2.3 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 14:25</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                正常
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">work_orders</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">120</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">15.2 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">8.5 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 13:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                正常
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">materials</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">248</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">12.5 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">6.8 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-07-21 15:30</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                正常
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 应用服务监控 -->
+                    <div class="bg-white rounded-lg shadow-card p-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-primary">应用服务监控</h3>
+                            <div class="flex space-x-2">
+                                <button id="restartServiceBtn" class="px-3 py-1 border border-danger text-danger text-sm rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-danger focus:border-transparent transition-all-300">
+                                    <i class="fa fa-refresh mr-1"></i> 重启服务
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            服务名称
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            状态
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            启动时间
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            CPU使用率
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            内存使用
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            版本
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            操作
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">Web服务器</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                运行中
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-06-19 08:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">15%</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">512 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">v2.5.3</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">重启</button>
+                                            <button class="text-primary hover:text-secondary">查看日志</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">应用服务</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                运行中
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-06-19 08:16</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">25%</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">1.2 GB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">v2.5.3</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">重启</button>
+                                            <button class="text-primary hover:text-secondary">查看日志</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">数据库服务</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                运行中
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-06-19 08:14</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">30%</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2.5 GB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">v10.15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">重启</button>
+                                            <button class="text-primary hover:text-secondary">查看日志</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">缓存服务</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                运行中
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-06-19 08:15</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">10%</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">256 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">v6.2</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">重启</button>
+                                            <button class="text-primary hover:text-secondary">查看日志</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">消息队列</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                运行中
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">2025-06-19 08:16</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">5%</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">128 MB</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">v3.8</div>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                            <button class="text-primary hover:text-secondary mr-2">重启</button>
+                                            <button class="text-primary hover:text-secondary">查看日志</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 保存成功提示模态框 -->
+    <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <i class="fa fa-check text-2xl text-green-500"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-semibold text-center text-gray-900 mb-2">操作成功</h3>
+            <p id="successMessage" class="text-gray-600 text-center mb-6">操作已成功完成</p>
+            <div class="flex justify-center">
+                <button id="closeSuccessModalBtn" class="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all-300">
+                    确定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentTab = 'dashboard';
+        
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前日期时间
+            updateCurrentDateTime();
+            
+            // 绑定事件
+            bindEvents();
+            
+            // 初始化图表
+            initCharts();
+            
+            // 设置自动刷新
+            setInterval(function() {
+                updateCurrentDateTime();
+            }, 60000); // 每分钟刷新一次
+        });
+
+        // 绑定事件
+        function bindEvents() {
+            // 标签页切换事件
+            document.querySelectorAll('[data-tab]').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    switchTab(tabId);
+                    
+                    // 更新标签样式
+                    document.querySelectorAll('[data-tab]').forEach(t => {
+                        t.classList.remove('bg-blue-50', 'text-primary', 'font-medium');
+                        t.classList.add('hover:bg-gray-50', 'text-gray-700');
+                    });
+                    this.classList.remove('hover:bg-gray-50', 'text-gray-700');
+                    this.classList.add('bg-blue-50', 'text-primary', 'font-medium');
+                });
+            });
+            
+            // 快速操作按钮事件
+            document.getElementById('quickBackupBtn').addEventListener('click', function() {
+                showSuccessMessage('备份任务已启动，将在后台执行');
+            });
+            
+            document.getElementById('quickClearCacheBtn').addEventListener('click', function() {
+                showSuccessMessage('缓存清理完成');
+            });
+            
+            // 成功提示模态框事件
+            document.getElementById('closeSuccessModalBtn').addEventListener('click', function() {
+                document.getElementById('successModal').classList.add('hidden');
+            });
+            
+            // 用户管理按钮事件
+            document.getElementById('newUserBtn').addEventListener('click', function() {
+                showSuccessMessage('新增用户表单已打开');
+            });
+            
+            document.getElementById('importUsersBtn').addEventListener('click', function() {
+                showSuccessMessage('用户导入功能已启动');
+            });
+            
+            document.getElementById('searchUsersBtn').addEventListener('click', function() {
+                showSuccessMessage('用户查询完成');
+            });
+            
+            // 角色权限按钮事件
+            document.getElementById('newRoleBtn').addEventListener('click', function() {
+                showSuccessMessage('新增角色表单已打开');
+            });
+            
+            document.getElementById('saveRoleBtn').addEventListener('click', function() {
+                showSuccessMessage('角色权限设置已保存');
+            });
+            
+            // 系统配置按钮事件
+            document.getElementById('saveBasicConfigBtn').addEventListener('click', function() {
+                showSuccessMessage('基本配置已保存');
+            });
+            
+            document.getElementById('saveSecurityConfigBtn').addEventListener('click', function() {
+                showSuccessMessage('安全配置已保存');
+            });
+            
+            document.getElementById('saveEmailConfigBtn').addEventListener('click', function() {
+                showSuccessMessage('邮件配置已保存');
+            });
+            
+            document.getElementById('testEmailBtn').addEventListener('click', function() {
+                showSuccessMessage('测试邮件已发送，请查收');
+            });
+            
+            document.getElementById('saveBackupConfigBtn').addEventListener('click', function() {
+                showSuccessMessage('备份配置已保存');
+            });
+            
+            document.getElementById('manualBackupBtn').addEventListener('click', function() {
+                showSuccessMessage('手动备份任务已启动');
+            });
+            
+            // 日志管理按钮事件
+            document.getElementById('exportLogsBtn').addEventListener('click', function() {
+                showSuccessMessage('日志导出任务已启动');
+            });
+            
+            document.getElementById('clearLogsBtn').addEventListener('click', function() {
+                showSuccessMessage('日志清理完成');
+            });
+            
+            document.getElementById('searchLogsBtn').addEventListener('click', function() {
+                showSuccessMessage('日志查询完成');
+            });
+            
+            // 备份恢复按钮事件
+            document.getElementById('createBackupBtn').addEventListener('click', function() {
+                showSuccessMessage('备份创建任务已启动');
+            });
+            
+            document.getElementById('executeBackupBtn').addEventListener('click', function() {
+                showSuccessMessage('备份执行任务已启动');
+            });
+            
+            document.getElementById('executeRestoreBtn').addEventListener('click', function() {
+                showSuccessMessage('恢复操作已开始，请等待完成');
+            });
+            
+            // 系统监控按钮事件
+            document.getElementById('refreshMonitorBtn').addEventListener('click', function() {
+                showSuccessMessage('监控数据已刷新');
+            });
+            
+            document.getElementById('exportMonitorBtn').addEventListener('click', function() {
+                showSuccessMessage('监控数据导出任务已启动');
+            });
+            
+            document.getElementById('optimizeDbBtn').addEventListener('click', function() {
+                showSuccessMessage('数据库优化任务已启动');
+            });
+            
+            document.getElementById('checkDbBtn').addEventListener('click', function() {
+                showSuccessMessage('数据库检查完成，一切正常');
+            });
+            
+            document.getElementById('restartServiceBtn').addEventListener('click', function() {
+                showSuccessMessage('服务重启任务已启动');
+            });
+        }
+
+        // 切换标签页
+        function switchTab(tabId) {
+            currentTab = tabId;
+            
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // 显示选中的标签内容
+            const selectedContent = document.getElementById(`${tabId}Tab`);
+            if (selectedContent) {
+                selectedContent.classList.remove('hidden');
+                selectedContent.classList.add('fade-in');
+            }
+        }
+
+        // 初始化图表
+        function initCharts() {
+            // 用户活跃度图表
+            const userActivityCtx = document.getElementById('userActivityChart').getContext('2d');
+            new Chart(userActivityCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+                    datasets: [{
+                        label: '活跃用户数',
+                        data: [5, 3, 2, 18, 22, 24, 15, 8],
+                        borderColor: '#3182ce',
+                        backgroundColor: 'rgba(49, 130, 206, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 5
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // 系统资源使用图表
+            const resourceUsageCtx = document.getElementById('resourceUsageChart').getContext('2d');
+            new Chart(resourceUsageCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+                    datasets: [
+                        {
+                            label: 'CPU使用率',
+                            data: [15, 10, 8, 25, 30, 23, 18, 12],
+                            borderColor: '#3182ce',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.4
+                        },
+                        {
+                            label: '内存使用率',
+                            data: [60, 58, 55, 70, 75, 67, 65, 62],
+                            borderColor: '#ed8936',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // CPU使用率趋势图表
+            const cpuUsageCtx = document.getElementById('cpuUsageChart').getContext('2d');
+            new Chart(cpuUsageCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                    datasets: [{
+                        label: 'CPU使用率',
+                        data: [12, 10, 8, 15, 25, 30, 28, 25, 23, 20, 18, 15],
+                        borderColor: '#3182ce',
+                        backgroundColor: 'rgba(49, 130, 206, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // 内存使用率趋势图表
+            const memoryUsageCtx = document.getElementById('memoryUsageChart').getContext('2d');
+            new Chart(memoryUsageCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                    datasets: [{
+                        label: '内存使用率',
+                        data: [62, 60, 58, 65, 70, 75, 72, 70, 67, 65, 64, 63],
+                        borderColor: '#ed8936',
+                        backgroundColor: 'rgba(237, 137, 54, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新当前日期时间
+        function updateCurrentDateTime() {
+            const now = new Date();
+            document.getElementById('currentDateTime').textContent = now.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // 显示成功消息
+        function showSuccessMessage(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('successModal').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
