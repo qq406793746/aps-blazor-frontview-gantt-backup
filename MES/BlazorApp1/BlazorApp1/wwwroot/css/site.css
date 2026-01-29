@@ -199,8 +199,307 @@ html, body {
 
 
 /* DHTMLX Gantt tweaks */
-.gantt_container { font-size: 12px; }
-.gantt_row .gantt_cell, .gantt_scale_cell { font-size: 12px; }
-.gantt_task_line.urgent { background-color: #e74c3c; }
-.gantt_task_line.locked { background-color: #7f8c8d; }
+.gantt_container { font-size: 12px; background-color: #fff; }
+.gantt_grid, .gantt_task { background-color: #fff; }
+.gantt_grid_scale, .gantt_task_scale { background-color: #F7F9FC; border-bottom: 1px solid #EEF2F6; }
+.gantt_row .gantt_cell, .gantt_scale_cell { font-size: 12px; color: #6B7280; }
+.gantt_task_row, .gantt_row { border-bottom: 1px solid #EEF2F6; }
+.gantt_task_line { border: 1px solid rgba(44, 58, 75, 0.2); border-radius: 4px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+.gantt_task_content { color: #2C3A4B; font-size: 12px; line-height: 26px; padding-left: 6px; }
+.gantt_task_line.urgent { border-color: #EF4444; }
+.gantt_task_line.locked { border-color: #0F172A; }
+.gantt_link_line { stroke: #94A3B8; stroke-width: 1; }
+.gantt_link_arrow { fill: #94A3B8; }
+.gantt_marker_today { background-color: transparent; border-left: 1px dashed #EF4444; }
+
+/* Resource Gantt (custom) */
+:root {
+  --rg-border: #e2e8f0;
+  --rg-bg: #ffffff;
+  --rg-header: #f8fafc;
+  --rg-working: #f1f3f5;
+  --rg-downtime: repeating-linear-gradient(
+      45deg,
+      rgba(148, 163, 184, 0.25),
+      rgba(148, 163, 184, 0.25) 6px,
+      rgba(148, 163, 184, 0.4) 6px,
+      rgba(148, 163, 184, 0.4) 12px
+  );
+  --rg-text: #0f172a;
+  --rg-muted: #64748b;
+  --rg-late: #dc2626;
+  --rg-violation: #2563eb;
+}
+
+.rg-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rg-toolbar {
+  background: var(--rg-bg);
+  border: 1px solid var(--rg-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.rg-shell {
+  background: var(--rg-bg);
+  border: 1px solid var(--rg-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rg-header-row {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  border-bottom: 1px solid var(--rg-border);
+  background: var(--rg-header);
+}
+
+.rg-header-spacer {
+  border-right: 1px solid var(--rg-border);
+}
+
+.rg-header-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.rg-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 480px;
+  height: 560px;
+}
+
+.rg-resource-list {
+  border-right: 1px solid var(--rg-border);
+  overflow: hidden;
+  height: 100%;
+}
+
+.rg-resource-scroll,
+.rg-canvas-scroll {
+  overflow: auto;
+  height: 100%;
+}
+
+.rg-resource-item {
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--rg-border);
+  font-size: 13px;
+  color: var(--rg-text);
+}
+
+.rg-resource-item .rg-resource-code {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rg-resource-item .rg-resource-type {
+  font-size: 11px;
+  color: var(--rg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rg-canvas {
+  position: relative;
+  background: #ffffff;
+}
+
+.rg-row {
+  position: relative;
+  height: 42px;
+  border-bottom: 1px solid var(--rg-border);
+}
+
+.rg-working {
+  position: absolute;
+  top: 6px;
+  height: 30px;
+  background: var(--rg-working);
+  border-radius: 6px;
+}
+
+.rg-downtime {
+  position: absolute;
+  top: 6px;
+  height: 30px;
+  background: var(--rg-downtime);
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* 移除所有导致Y方向重叠的样式 - 让任务条回到正常位置 */
+.rg-bar {
+  position: absolute;
+  top: 7px;
+  height: 28px;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 12px;
+  color: var(--rg-text);
+  background: #7aa2f7;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* 移除所有重叠处理样式 - 让任务条回到正常位置 */
+
+/* 响应式调整 - 在页面缩小时确保任务条可见 */
+@media (max-width: 1200px) {
+  .rg-bar { height: 26px; }
+}
+
+@media (max-width: 768px) {
+  .rg-bar { height: 24px; }
+}
+
+.rg-bar.late {
+  color: var(--rg-late);
+  font-weight: 600;
+}
+
+.rg-bar.violation:not(.late) {
+  color: var(--rg-violation);
+  font-weight: 600;
+}
+
+.rg-bar.violation {
+  border-color: rgba(37, 99, 235, 0.8);
+}
+
+.rg-bar.selected {
+  outline: 2px solid rgba(37, 99, 235, 0.8);
+  outline-offset: -1px;
+}
+
+.rg-bar.focus {
+  outline: 2px solid #0f172a;
+  outline-offset: -1px;
+}
+
+.rg-bar .rg-bar-line {
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.rg-bar.compact {
+  padding: 0 4px;
+}
+
+.rg-bar.compact .rg-bar-line {
+  display: none;
+}
+
+.rg-debug-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.rg-dim .rg-bar,
+.rg-dim .rg-link {
+  opacity: 0.15;
+}
+
+.rg-dim .rg-bar.selected,
+.rg-dim .rg-link.selected {
+  opacity: 1;
+}
+
+.rg-links {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.rg-link {
+  stroke: #64748b;
+  stroke-width: 1;
+  fill: none;
+}
+
+.rg-link.selected {
+  stroke-width: 3;
+  stroke: #0f172a;
+}
+
+.rg-timeline {
+  position: relative;
+  height: 64px;
+  border-bottom: 1px solid var(--rg-border);
+}
+
+.rg-timeline-row {
+  display: flex;
+  height: 32px;
+  border-bottom: 1px solid var(--rg-border);
+}
+
+.rg-timeline-cell {
+  border-right: 1px solid var(--rg-border);
+  font-size: 11px;
+  color: var(--rg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rg-weekend {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.rg-planning-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #2563eb;
+  opacity: 0.7;
+  z-index: 3;
+}
+
+.rg-tooltip {
+  position: fixed;
+  z-index: 50;
+  background: #0f172a;
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  max-width: 240px;
+  pointer-events: none;
+}
+
+.rg-detail-panel {
+  border: 1px solid var(--rg-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
 

@@ -1,0 +1,496 @@
+@using System.Globalization
+@using Microsoft.JSInterop
+@inject IJSRuntime Js
+
+<div class="rg-shell">
+    <div class="text-muted small px-2 py-1">
+        Visible resources: @VisibleResources.Count |
+        Filtered resources: @FilteredResources.Count |
+        Snapshot resources: @Snapshot.Resources.Count |
+        Snapshot assignments: @Snapshot.Assignments.Count |
+        Filtered assignments: @FilteredAssignments.Count |
+        Buckets: @AssignmentsByResource.Count |
+        Types: @string.Join(",", ResourceTypes) |
+        Unassigned resources: @(FilteredResources.Any(r => r.Code == "UNASSIGNED") ? "Yes" : "No") |
+        Unassigned assignments: @(FilteredAssignments.Any(a => a.ResourceId == 0) ? "Yes" : "No")
+    </div>
+    <div class="rg-header-row">
+        <div class="rg-header-spacer"></div>
+        <div class="rg-header-scroll" id="@HeaderId">
+            <TimelineHeader From="From" To="To" PxPerMinute="PxPerMinute" />
+        </div>
+    </div>
+    <div class="rg-body">
+        <div class="rg-resource-list">
+            <div class="rg-resource-scroll" id="@LeftId">
+                <ResourceList Resources="VisibleResources"
+                              RowHeight="RowHeight"
+                              TopSpacer="TopSpacer"
+                              BottomSpacer="BottomSpacer" />
+            </div>
+        </div>
+        <div class="rg-canvas-scroll" id="@RightId" @onscroll="OnScrollAsync">
+            <div class="rg-canvas" style="width:@CanvasWidthPxpx; height:@CanvasHeightPxpx;">
+                <GanttCanvas From="From"
+                             To="To"
+                             PxPerMinute="PxPerMinute"
+                             RowHeight="RowHeight"
+                             BarHeight="BarHeight"
+                             VisibleResources="VisibleResources"
+                             TopSpacer="TopSpacer"
+                             BottomSpacer="BottomSpacer"
+                             ResourceAssignments="@AssignmentsByResource"
+                             CalendarsByResource="@CalendarsByResource"
+                             CanvasWidthPx="CanvasWidthPx"
+                             CanvasHeightPx="CanvasHeightPx"
+                             SelectedTaskId="SelectedTaskId"
+                             SelectedWorkItemId="SelectedWorkItemId"
+                             HighlightOnlySelected="HighlightOnlySelected"
+                             Links="VisibleLinks"
+                             LinkPaths="LinkPaths"
+                             PlanningStartTime="Snapshot.Meta.PlanningStartTime"
+                             OnTaskClicked="HandleTaskClicked"
+                             OnBarHover="HandleBarHover"
+                             OnBarHoverEnd="HandleBarHoverEnd"
+                             DebugOverlay="DebugOverlay"
+                             />
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Tooltip != null)
+{
+    <div class="rg-tooltip" style="left:@Tooltip.Xpx; top:@Tooltip.Ypx;">
+        @foreach (var line in Tooltip.Lines)
+        {
+            <div>@line</div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public ResourceGanttSnapshot Snapshot { get; set; } = new();
+    [Parameter] public DateTime From { get; set; }
+    [Parameter] public DateTime To { get; set; }
+    [Parameter] public double PxPerMinute { get; set; } = 2;
+    [Parameter] public int RowHeight { get; set; } = 42;
+    [Parameter] public int BarHeight { get; set; } = 28;
+    [Parameter] public IReadOnlySet<string> ResourceTypes { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    [Parameter] public string? ResourceKeyword { get; set; }
+    [Parameter] public string? OrderKeyword { get; set; }
+    [Parameter] public bool HighlightOnlySelected { get; set; }
+    [Parameter] public long? SelectedTaskId { get; set; }
+    [Parameter] public long? SelectedWorkItemId { get; set; }
+    [Parameter] public EventCallback<GanttAssignment> OnTaskSelected { get; set; }
+    [Parameter] public bool DebugOverlay { get; set; }
+
+    private string LeftId { get; } = $"rg-left-{Guid.NewGuid():N}";
+    private string RightId { get; } = $"rg-right-{Guid.NewGuid():N}";
+    private string HeaderId { get; } = $"rg-header-{Guid.NewGuid():N}";
+
+    private IReadOnlyList<GanttResource> FilteredResources { get; set; } = Array.Empty<GanttResource>();
+    private IReadOnlyList<GanttAssignment> FilteredAssignments { get; set; } = Array.Empty<GanttAssignment>();
+    private Dictionary<string, List<GanttAssignment>> AssignmentsByResource { get; set; } = new();
+    private Dictionary<string, GanttCalendar> CalendarsByResource { get; set; } = new();
+    private IReadOnlyList<GanttResource> VisibleResources { get; set; } = Array.Empty<GanttResource>();
+    private IReadOnlyList<GanttLink> VisibleLinks { get; set; } = Array.Empty<GanttLink>();
+
+    private double CanvasWidthPx => Math.Max(200, (To - From).TotalMinutes * PxPerMinute);
+    private double CanvasHeightPx => Math.Max(RowHeight, FilteredResources.Count * RowHeight);
+    private string CanvasWidthPxpx => $"{CanvasWidthPx}px";
+    private string CanvasHeightPxpx => $"{CanvasHeightPx}px";
+
+    private double TopSpacer { get; set; }
+    private double BottomSpacer { get; set; }
+    private ScrollInfo ScrollState { get; set; } = new();
+    private bool _initialized;
+    private bool _needsLinkUpdate;
+
+    private IReadOnlyList<GanttLinkPath> LinkPaths { get; set; } = Array.Empty<GanttLinkPath>();
+    private TooltipState? Tooltip { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var baseResources = ApplyResourceFilters(Snapshot.Resources).ToList();
+        if (baseResources.Count == 0 && Snapshot.Resources.Count > 0)
+        {
+            baseResources = Snapshot.Resources.ToList();
+        }
+        FilteredAssignments = ApplyAssignmentFilters(Snapshot.Assignments);
+
+        var resourceKeySet = new HashSet<string>(baseResources.Select(r => BuildResourceKey(r.Type, r.Id)));
+        var missingAssignments = FilteredAssignments
+            .Where(a => !resourceKeySet.Contains(BuildResourceKey(a.ResourceType, a.ResourceId)))
+            .ToList();
+
+        if (missingAssignments.Count > 0)
+        {
+            var synthetic = missingAssignments
+                .GroupBy(a => NormalizeType(a.ResourceType))
+                .Select(g => new GanttResource
+                {
+                    Id = 0,
+                    Code = "UNASSIGNED",
+                    Name = "Unassigned",
+                    Type = g.Key,
+                    Status = "Unknown",
+                    Capacity = 1,
+                    CalendarId = 0
+                });
+
+            baseResources.AddRange(synthetic);
+        }
+
+        FilteredResources = baseResources;
+        CalendarsByResource = Snapshot.Calendars
+            .Where(c => c.ResourceType.Equals("Machine", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(c => BuildResourceKey(c.ResourceType, c.ResourceId), c => c);
+        AssignmentsByResource = FilteredAssignments
+            .GroupBy(a => BuildResourceKey(a.ResourceType, a.ResourceId))
+            .ToDictionary(g => g.Key, g => g.OrderBy(a => a.Start).ToList());
+        var taskIds = new HashSet<long>(FilteredAssignments.Select(a => a.TaskId));
+        VisibleLinks = Snapshot.Links
+            .Where(l => taskIds.Contains(l.FromTaskId) && taskIds.Contains(l.ToTaskId))
+            .ToList();
+        UpdateVisibleRange();
+        if (VisibleResources.Count == 0 && FilteredResources.Count > 0)
+        {
+            VisibleResources = FilteredResources.Take(50).ToList();
+            TopSpacer = 0;
+            BottomSpacer = Math.Max(0, (FilteredResources.Count - VisibleResources.Count) * RowHeight);
+        }
+        _needsLinkUpdate = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Js.InvokeVoidAsync("ResourceGanttInterop.initScrollSync", LeftId, RightId, HeaderId);
+            _initialized = true;
+            await UpdateScrollInfoAsync();
+            UpdateVisibleRange();
+            _needsLinkUpdate = true;
+            StateHasChanged();
+        }
+
+        if (_initialized && _needsLinkUpdate)
+        {
+            _needsLinkUpdate = false;
+            await UpdateLinkPathsAsync();
+        }
+    }
+
+    private async Task OnScrollAsync()
+    {
+        await UpdateScrollInfoAsync();
+        UpdateVisibleRange();
+        _needsLinkUpdate = true;
+        StateHasChanged();
+    }
+
+    private async Task UpdateScrollInfoAsync()
+    {
+        var info = await Js.InvokeAsync<ScrollInfo>("ResourceGanttInterop.getScrollInfo", RightId);
+        if (info != null)
+        {
+            ScrollState = info;
+        }
+    }
+
+    private void UpdateVisibleRange()
+    {
+        if (FilteredResources.Count == 0)
+        {
+            VisibleResources = Array.Empty<GanttResource>();
+            TopSpacer = 0;
+            BottomSpacer = 0;
+            return;
+        }
+
+        if (FilteredResources.Count <= 200)
+        {
+            VisibleResources = FilteredResources.ToList();
+            TopSpacer = 0;
+            BottomSpacer = 0;
+            return;
+        }
+
+        if (ScrollState.ClientHeight <= 0)
+        {
+            VisibleResources = FilteredResources.Take(50).ToList();
+            TopSpacer = 0;
+            BottomSpacer = Math.Max(0, (FilteredResources.Count - VisibleResources.Count) * RowHeight);
+            return;
+        }
+
+        var buffer = 6;
+        var start = Math.Max(0, (int)Math.Floor(ScrollState.ScrollTop / RowHeight) - buffer);
+        var end = Math.Min(FilteredResources.Count - 1,
+            (int)Math.Ceiling((ScrollState.ScrollTop + ScrollState.ClientHeight) / RowHeight) + buffer);
+
+        if (end < start)
+        {
+            start = 0;
+            end = Math.Min(FilteredResources.Count - 1, buffer);
+        }
+
+        VisibleResources = FilteredResources.Skip(start).Take(end - start + 1).ToList();
+        if (VisibleResources.Count == 0)
+        {
+            VisibleResources = FilteredResources.Take(50).ToList();
+            TopSpacer = 0;
+            BottomSpacer = Math.Max(0, (FilteredResources.Count - VisibleResources.Count) * RowHeight);
+            return;
+        }
+        TopSpacer = start * RowHeight;
+        BottomSpacer = Math.Max(0, (FilteredResources.Count - end - 1) * RowHeight);
+    }
+
+    private static string BuildResourceKey(string type, long id)
+        => $"{NormalizeType(type)}:{id}";
+
+    private IReadOnlyList<GanttResource> ApplyResourceFilters(IReadOnlyList<GanttResource> input)
+    {
+        if (input.Count == 0)
+        {
+            return input;
+        }
+
+        IEnumerable<GanttResource> query = input;
+        if (ResourceTypes.Count > 0)
+        {
+            query = query.Where(r => ResourceTypes.Contains(NormalizeType(r.Type)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(ResourceKeyword))
+        {
+            var keyword = ResourceKeyword.Trim();
+            query = query.Where(r =>
+                r.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || r.Code.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return query
+            .OrderBy(r => string.Equals(r.Code, "UNASSIGNED", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(r => r.Name)
+            .ThenBy(r => r.Code)
+            .ToList();
+    }
+
+    private IReadOnlyList<GanttAssignment> ApplyAssignmentFilters(IReadOnlyList<GanttAssignment> input)
+    {
+        if (input.Count == 0)
+        {
+            return input;
+        }
+
+        IEnumerable<GanttAssignment> query = input;
+        if (ResourceTypes.Count > 0)
+        {
+            var allowed = new HashSet<string>(ResourceTypes.Select(NormalizeType), StringComparer.OrdinalIgnoreCase);
+            var filtered = query.Where(a => allowed.Contains(NormalizeType(a.ResourceType)));
+            query = filtered.Any() ? filtered : query;
+        }
+
+        if (!string.IsNullOrWhiteSpace(OrderKeyword))
+        {
+            var keyword = OrderKeyword.Trim();
+            if (!keyword.Equals("OrderNo/LabelLines", StringComparison.OrdinalIgnoreCase) && keyword.Length >= 2)
+            {
+                query = query.Where(a =>
+                    (!string.IsNullOrWhiteSpace(a.OrderNo) && a.OrderNo.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                    || (a.Display.LabelLines != null && a.Display.LabelLines.Any(l => l.Contains(keyword, StringComparison.OrdinalIgnoreCase))));
+            }
+        }
+
+        var result = query.ToList();
+        if (result.Count == 0 && input.Count > 0)
+        {
+            return input;
+        }
+        return result;
+    }
+
+    private static string NormalizeType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            return "Machine";
+        }
+
+        var trimmed = type.Trim();
+        var pipeIndex = trimmed.IndexOf('|', StringComparison.Ordinal);
+        if (pipeIndex > 0)
+        {
+            return trimmed.Substring(0, pipeIndex).Trim();
+        }
+
+        var commaIndex = trimmed.IndexOf(',', StringComparison.Ordinal);
+        if (commaIndex > 0)
+        {
+            return trimmed.Substring(0, commaIndex).Trim();
+        }
+
+        var slashIndex = trimmed.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex > 0)
+        {
+            return trimmed.Substring(0, slashIndex).Trim();
+        }
+
+        return trimmed;
+    }
+
+    private async Task UpdateLinkPathsAsync()
+    {
+        var rects = await Js.InvokeAsync<List<BarRect>>("ResourceGanttInterop.getBarRects", RightId, ".rg-bar");
+        if (rects == null || rects.Count == 0)
+        {
+            LinkPaths = Array.Empty<GanttLinkPath>();
+            return;
+        }
+
+        var rectMap = rects
+            .Where(r => long.TryParse(r.Id, out _))
+            .ToDictionary(r => long.Parse(r.Id, CultureInfo.InvariantCulture), r => r);
+
+        var viewLeft = ScrollState.ScrollLeft;
+        var viewRight = ScrollState.ScrollLeft + ScrollState.ClientWidth;
+        var viewTop = ScrollState.ScrollTop;
+        var viewBottom = ScrollState.ScrollTop + ScrollState.ClientHeight;
+
+        var paths = new List<GanttLinkPath>();
+        foreach (var link in VisibleLinks)
+        {
+            if (!rectMap.TryGetValue(link.FromTaskId, out var fromRect) || !rectMap.TryGetValue(link.ToTaskId, out var toRect))
+            {
+                continue;
+            }
+
+            if (!IsRectVisible(fromRect, viewLeft, viewRight, viewTop, viewBottom)
+                && !IsRectVisible(toRect, viewLeft, viewRight, viewTop, viewBottom))
+            {
+                continue;
+            }
+
+            var startX = fromRect.X + fromRect.Width;
+            var startY = fromRect.Y + fromRect.Height / 2;
+            var endX = toRect.X;
+            var endY = toRect.Y + toRect.Height / 2;
+            var midX = (startX + endX) / 2;
+            var path = $"M {startX:F1} {startY:F1} C {midX:F1} {startY:F1}, {midX:F1} {endY:F1}, {endX:F1} {endY:F1}";
+
+            var isSelected = SelectedWorkItemId.HasValue && link.WorkItemId == SelectedWorkItemId.Value;
+            paths.Add(new GanttLinkPath
+            {
+                Path = path,
+                IsSelected = isSelected
+            });
+        }
+
+        LinkPaths = paths;
+    }
+
+    private static bool IsRectVisible(BarRect rect, double left, double right, double top, double bottom)
+        => rect.X + rect.Width >= left && rect.X <= right && rect.Y + rect.Height >= top && rect.Y <= bottom;
+
+    private async Task HandleTaskClicked(GanttAssignment assignment)
+    {
+        if (DebugOverlay)
+        {
+            await Js.InvokeVoidAsync("ResourceGanttInterop.logSelectedBar", RightId, assignment.TaskId.ToString(CultureInfo.InvariantCulture), PxPerMinute);
+        }
+
+        if (OnTaskSelected.HasDelegate)
+        {
+            await OnTaskSelected.InvokeAsync(assignment);
+        }
+    }
+
+    private void HandleBarHover(GanttBarHoverEvent info)
+    {
+        var lines = new List<string>
+        {
+            $"Task:{info.Assignment.TaskId}",
+            $"Start:{info.Assignment.Start:yyyy-MM-dd HH:mm}",
+            $"End:{info.Assignment.End:yyyy-MM-dd HH:mm}"
+        };
+
+        if (info.Assignment.DueDate.HasValue)
+        {
+            lines.Add($"Due:{info.Assignment.DueDate:yyyy-MM-dd HH:mm}");
+        }
+
+        if (info.Assignment.Violations.Count > 0)
+        {
+            lines.Add(string.Join(", ", info.Assignment.Violations.Select(v => v.Code)));
+        }
+
+        Tooltip = new TooltipState
+        {
+            Lines = lines,
+            X = info.ClientX + 12,
+            Y = info.ClientY + 12
+        };
+    }
+
+    private void HandleBarHoverEnd()
+    {
+        Tooltip = null;
+    }
+
+    public async Task KeepCenterAsync(DateTime centerTime, double newPxPerMinute)
+    {
+        if (!_initialized)
+        {
+            return;
+        }
+
+        var info = await Js.InvokeAsync<ScrollInfo>("ResourceGanttInterop.getScrollInfo", RightId);
+        if (info == null)
+        {
+            return;
+        }
+
+        var minutes = (centerTime - From).TotalMinutes;
+        var newScrollLeft = minutes * newPxPerMinute - info.ClientWidth / 2;
+        if (newScrollLeft < 0)
+        {
+            newScrollLeft = 0;
+        }
+        await Js.InvokeVoidAsync("ResourceGanttInterop.setScrollLeft", RightId, newScrollLeft);
+    }
+
+    public DateTime GetCenterTime()
+    {
+        var minutes = (ScrollState.ScrollLeft + ScrollState.ClientWidth / 2) / PxPerMinute;
+        return From.AddMinutes(minutes);
+    }
+
+    private sealed class ScrollInfo
+    {
+        public double ScrollTop { get; set; }
+        public double ScrollLeft { get; set; }
+        public double ClientWidth { get; set; } = 900;
+        public double ClientHeight { get; set; } = 600;
+    }
+
+    private sealed class BarRect
+    {
+        public string Id { get; set; } = "";
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
+
+    private sealed class TooltipState
+    {
+        public List<string> Lines { get; set; } = new();
+        public double X { get; set; }
+        public double Y { get; set; }
+        public string Xpx => $"{X}px";
+        public string Ypx => $"{Y}px";
+    }
+}

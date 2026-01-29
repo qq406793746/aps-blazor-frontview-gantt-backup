@@ -11,6 +11,8 @@ main {
 
 .sidebar {
     background-color: #16285a;
+    position: relative;
+    transition: width 0.2s ease;
 }
 
 .top-row {
@@ -44,6 +46,12 @@ main {
     .top-row a, .top-row .btn-link {
         margin-left: 0;
     }
+
+    .sidebar-toggle {
+        top: 12px;
+        left: 12px;
+        transform: none;
+    }
 }
 
 @media (min-width: 641px) {
@@ -73,4 +81,39 @@ main {
 article.content {
     min-width: 0;
     overflow-x: hidden;
+}
+
+.sidebar-toggle {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 16px;
+    background: #ffffff;
+    color: #1f2937;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.sidebar-toggle:hover {
+    background: #f3f4f6;
+}
+
+.sidebar-collapsed .sidebar {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.sidebar-collapsed .sidebar-toggle {
+    position: fixed;
+    top: 12px;
+    left: 8px;
+    right: auto;
+    border-color: #d1d5db;
 }

@@ -1,0 +1,416 @@
+@page "/gantt/resource"
+@using System.Globalization
+@inject IGanttApiClient GanttApi
+@inject IApsApiService ApsApi
+@inject ILogger<GanttResource> Logger
+@inject NavigationManager NavigationManager
+
+<div class="rg-page">
+    <h3>Resource Gantt (Asprova style)</h3>
+
+    <div class="rg-toolbar">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">PlanId</label>
+                <input class="form-control" type="number" @bind="PlanId" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">From</label>
+                <input class="form-control" type="datetime-local" @bind="FromInput" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">To</label>
+                <input class="form-control" type="datetime-local" @bind="ToInput" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">LinksMode</label>
+                <select class="form-select" @bind="LinksMode">
+                    <option value="seq">seq</option>
+                    <option value="none">none</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" @onclick="LoadSnapshot" disabled="@loading">Refresh</button>
+            </div>
+        </div>
+
+        <div class="row g-2 mt-2 align-items-end">
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" @onclick="LoadLatestPlan" disabled="@loading">Load latest plan</button>
+            </div>
+            <div class="col-md-10 text-muted">
+                @if (!string.IsNullOrWhiteSpace(PlanHint))
+                {
+                    <span>@PlanHint</span>
+                }
+                <span class="ms-2">Resources=@Snapshot.Resources.Count, Assignments=@Snapshot.Assignments.Count, Links=@Snapshot.Links.Count, Unassigned=@Snapshot.Assignments.Count(a => a.ResourceId == 0)</span>
+            </div>
+        </div>
+
+        <div class="row g-2 mt-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Resource types</label>
+                <div class="d-flex gap-2 flex-wrap">
+                    @foreach (var type in AvailableTypes)
+                    {
+                        <label class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" checked="@SelectedTypes.Contains(type)"
+                                   @onchange="(e) => ToggleType(type, e)" />
+                            <span class="form-check-label">@type</span>
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Resource keyword</label>
+                <input class="form-control" @bind="ResourceKeyword" placeholder="Machine / Person / Tool" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Order keyword</label>
+                <input class="form-control" @bind="OrderKeyword" placeholder="OrderNo/LabelLines" />
+            </div>
+            <div class="col-md-3 d-flex gap-2 align-items-end">
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="HighlightOnlySelected" />
+                    <span class="form-check-label">Highlight selected links only</span>
+                </label>
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="IncludePersons" />
+                    <span class="form-check-label">Person</span>
+                </label>
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="IncludeTools" />
+                    <span class="form-check-label">Tool</span>
+                </label>
+                <label class="form-check">
+                    <input class="form-check-input" type="checkbox" @bind="IncludeVendors" />
+                    <span class="form-check-label">Outsource</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="row g-2 mt-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Zoom</label>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" @onclick="ZoomOut">Zoom-</button>
+                    <button class="btn btn-outline-secondary" @onclick="ZoomIn">Zoom+</button>
+                    <button class="btn btn-outline-secondary" @onclick="JumpToPlanning">Jump to plan start</button>
+                    <button class="btn btn-outline-secondary" @onclick="JumpToFirstTask">Jump to first task</button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">View density</label>
+                <div class="text-muted">px/min: @PxPerMinute.ToString("0.00")</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted">PlanNo: @Snapshot.Meta.PlanNo | Window: @Snapshot.Meta.From.ToString("yyyy-MM-dd HH:mm") ~ @Snapshot.Meta.To.ToString("yyyy-MM-dd HH:mm")</div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    @if (loading)
+    {
+        <div class="text-muted">Loading...</div>
+    }
+    else if (Snapshot.Assignments.Count == 0)
+    {
+        <div class="text-muted">No assignments. Check plan and time window.</div>
+    }
+
+    <ResourceGantt @ref="GanttRef"
+                   Snapshot="Snapshot"
+                   From="Snapshot.Meta.From"
+                   To="Snapshot.Meta.To"
+                   PxPerMinute="PxPerMinute"
+                   RowHeight="RowHeight"
+                   BarHeight="BarHeight"
+                   ResourceTypes="SelectedTypes"
+                   ResourceKeyword="ResourceKeyword"
+                   OrderKeyword="OrderKeyword"
+                   HighlightOnlySelected="HighlightOnlySelected"
+                   SelectedTaskId="SelectedTaskId"
+                   SelectedWorkItemId="SelectedWorkItemId"
+                   DebugOverlay="DebugOverlay"
+                   OnTaskSelected="OnTaskSelected" />
+
+    @if (SelectedAssignment != null)
+    {
+        <div class="rg-detail-panel mt-2">
+            <strong>Task @SelectedAssignment.TaskId</strong>
+            <div>Resource: @SelectedAssignment.ResourceType @SelectedAssignment.ResourceId</div>
+            <div>Order: @SelectedAssignment.OrderNo</div>
+            <div>Operation: @SelectedAssignment.OperationName (@SelectedAssignment.OpSeq)</div>
+            <div>Start: @SelectedAssignment.Start:yyyy-MM-dd HH:mm</div>
+            <div>End: @SelectedAssignment.End:yyyy-MM-dd HH:mm</div>
+            <div>Due: @SelectedAssignment.DueDate</div>
+            <div>Violations: @string.Join(", ", SelectedAssignment.Violations.Select(v => v.Code))</div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool loading;
+    private string? error;
+
+    private long PlanId { get; set; }
+    private DateTime? FromInput { get; set; } = DateTime.Today.AddDays(-14);
+    private DateTime? ToInput { get; set; } = DateTime.Today;
+    private string LinksMode { get; set; } = "seq";
+    private bool IncludePersons { get; set; } = true;
+    private bool IncludeTools { get; set; }
+    private bool IncludeVendors { get; set; }
+    private bool HighlightOnlySelected { get; set; } = true;
+    private bool DebugOverlay { get; set; }
+
+    private string? ResourceKeyword { get; set; }
+    private string? OrderKeyword { get; set; }
+    private string? PlanHint { get; set; }
+
+    private ResourceGanttSnapshot Snapshot { get; set; } = new();
+    private HashSet<string> SelectedTypes { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string> AvailableTypes => Snapshot.Resources
+        .Select(r => r.Type)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(t => t)
+        .ToList();
+
+    private double PxPerMinute { get; set; } = 1.6;
+    private int RowHeight { get; set; } = 42;
+    private int BarHeight { get; set; } = 28;
+
+    private long? SelectedTaskId { get; set; }
+    private long? SelectedWorkItemId { get; set; }
+    private GanttAssignment? SelectedAssignment { get; set; }
+    private ResourceGantt? GanttRef { get; set; }
+    private DateTime? PendingScrollTime { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        DebugOverlay = IsDebugEnabled(NavigationManager.Uri);
+        await LoadLatestPlan();
+        if (PlanId > 0)
+        {
+            await LoadSnapshot();
+        }
+    }
+
+    private async Task LoadSnapshot()
+    {
+        await LoadSnapshotInternal(retryIfEmpty: true);
+    }
+
+    private async Task LoadSnapshotInternal(bool retryIfEmpty)
+    {
+        if (PlanId <= 0)
+        {
+            error = "PlanId must be greater than 0.";
+            return;
+        }
+
+        loading = true;
+        error = null;
+        try
+        {
+            var snapshot = await GanttApi.GetResourceSnapshotAsync(
+                PlanId,
+                FromInput,
+                ToInput,
+                IncludePersons,
+                IncludeTools,
+                IncludeVendors,
+                LinksMode,
+                null,
+                CancellationToken.None);
+
+            Snapshot = snapshot;
+            if (Snapshot.Meta.From != default)
+            {
+                FromInput = Snapshot.Meta.From;
+            }
+            if (Snapshot.Meta.To != default)
+            {
+                ToInput = Snapshot.Meta.To;
+            }
+
+            SelectedTypes.Clear();
+            foreach (var type in AvailableTypes)
+            {
+                SelectedTypes.Add(type);
+            }
+
+            var first = Snapshot.Assignments
+                .Where(a => a.Start != default)
+                .OrderBy(a => a.Start)
+                .FirstOrDefault();
+            PendingScrollTime = first?.Start ?? Snapshot.Meta.PlanningStartTime;
+
+            if (Snapshot.Assignments.Count == 0 && retryIfEmpty)
+            {
+                PlanHint = "No assignments in the current window. Retrying with default time window.";
+                FromInput = null;
+                ToInput = null;
+                await LoadSnapshotInternal(retryIfEmpty: false);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            Logger.LogError(ex, "Load gantt snapshot failed.");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (PendingScrollTime.HasValue && GanttRef != null && !loading)
+        {
+            var time = PendingScrollTime.Value;
+            PendingScrollTime = null;
+            await GanttRef.KeepCenterAsync(time, PxPerMinute);
+        }
+    }
+
+    private async Task LoadLatestPlan()
+    {
+        loading = true;
+        error = null;
+        try
+        {
+            var latest = await ApsApi.GetLatestPlanAsync(CancellationToken.None);
+            if (latest == null)
+            {
+                PlanHint = "No plan found. Create a plan first.";
+                return;
+            }
+            PlanId = latest.Id;
+            PlanHint = $"Latest plan loaded: {latest.PlanNo} (PlanId={latest.Id})";
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            Logger.LogError(ex, "Load latest plan failed.");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ToggleType(string type, ChangeEventArgs e)
+    {
+        var isChecked = e.Value is bool b && b;
+        if (isChecked)
+        {
+            SelectedTypes.Add(type);
+        }
+        else
+        {
+            SelectedTypes.Remove(type);
+        }
+    }
+
+    private async Task OnTaskSelected(GanttAssignment assignment)
+    {
+        SelectedAssignment = assignment;
+        SelectedTaskId = assignment.TaskId;
+        SelectedWorkItemId = assignment.WorkItemId;
+        await Task.CompletedTask;
+    }
+
+    private async Task ZoomIn()
+    {
+        await Zoom(1.25);
+    }
+
+    private async Task ZoomOut()
+    {
+        await Zoom(0.8);
+    }
+
+    private async Task Zoom(double factor)
+    {
+        if (Snapshot.Meta.From == default || Snapshot.Meta.To == default)
+        {
+            return;
+        }
+
+        var centerTime = GanttRef?.GetCenterTime() ?? Snapshot.Meta.From.AddMinutes((Snapshot.Meta.To - Snapshot.Meta.From).TotalMinutes / 2);
+        PxPerMinute = Math.Clamp(PxPerMinute * factor, 0.2, 6.0);
+        if (GanttRef != null)
+        {
+            await GanttRef.KeepCenterAsync(centerTime, PxPerMinute);
+        }
+    }
+
+    private async Task JumpToPlanning()
+    {
+        if (!Snapshot.Meta.PlanningStartTime.HasValue || GanttRef == null)
+        {
+            return;
+        }
+        await GanttRef.KeepCenterAsync(Snapshot.Meta.PlanningStartTime.Value, PxPerMinute);
+    }
+
+    private async Task JumpToFirstTask()
+    {
+        if (GanttRef == null)
+        {
+            return;
+        }
+        var first = Snapshot.Assignments
+            .OrderBy(a => a.Start)
+            .FirstOrDefault();
+        if (first == null)
+        {
+            return;
+        }
+        await GanttRef.KeepCenterAsync(first.Start, PxPerMinute);
+    }
+
+    private static bool IsDebugEnabled(string uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            return false;
+        }
+
+        if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+        {
+            return false;
+        }
+
+        var query = parsed.Query;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return false;
+        }
+
+        var parts = query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var kv = part.Split('=', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (kv.Length == 0)
+            {
+                continue;
+            }
+            var key = Uri.UnescapeDataString(kv[0]);
+            if (!key.Equals("debug", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            var value = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : "";
+            return value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+}

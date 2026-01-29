@@ -1,0 +1,114 @@
+<div style="height:@TopSpacerpx;"></div>
+@if (Resources.Count == 0)
+{
+    <div class="rg-resource-item">
+        <div class="rg-resource-code">No resources</div>
+        <div class="rg-resource-type">Check filters or snapshot data.</div>
+    </div>
+}
+else
+{
+    foreach (var resource in Resources)
+    {
+        var primary = GetPrimaryLabel(resource);
+        var secondary = GetSecondaryLabel(resource);
+        <div class="rg-resource-item">
+            <div class="rg-resource-code">@primary</div>
+            <div class="rg-resource-type">@secondary</div>
+        </div>
+    }
+}
+<div style="height:@BottomSpacerpx;"></div>
+
+@code {
+    [Parameter] public IReadOnlyList<GanttResource> Resources { get; set; } = Array.Empty<GanttResource>();
+    [Parameter] public int RowHeight { get; set; } = 42;
+    [Parameter] public double TopSpacer { get; set; }
+    [Parameter] public double BottomSpacer { get; set; }
+
+    private string TopSpacerpx => $"{TopSpacer}px";
+    private string BottomSpacerpx => $"{BottomSpacer}px";
+
+    private static string GetPrimaryLabel(GanttResource resource)
+    {
+        var name = CleanLabel(resource.Name);
+        var code = CleanLabel(resource.Code);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return code;
+        }
+        return "Unnamed resource";
+    }
+
+    private static string GetSecondaryLabel(GanttResource resource)
+    {
+        var code = CleanLabel(resource.Code);
+        var type = FormatType(resource.Type);
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return $"Code: {code} | Type: {type}";
+        }
+        return $"Type: {type}";
+    }
+
+    private static string CleanLabel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+        var trimmed = value.Trim();
+        if (trimmed.IndexOf('\uFFFD') >= 0)
+        {
+            return "";
+        }
+        var onlyQuestionMarks = trimmed.All(ch => ch == '?' || char.IsWhiteSpace(ch));
+        return onlyQuestionMarks ? "" : trimmed;
+    }
+
+    private static string FormatType(string? type)
+    {
+        var normalized = NormalizeType(type);
+        return normalized switch
+        {
+            "Machine" => "Machine",
+            "Person" => "Person",
+            "Tool" => "Tool",
+            "Vendor" => "Outsource",
+            _ => normalized
+        };
+    }
+
+    private static string NormalizeType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            return "Machine";
+        }
+
+        var trimmed = type.Trim();
+        var pipeIndex = trimmed.IndexOf('|', StringComparison.Ordinal);
+        if (pipeIndex > 0)
+        {
+            return trimmed.Substring(0, pipeIndex).Trim();
+        }
+
+        var commaIndex = trimmed.IndexOf(',', StringComparison.Ordinal);
+        if (commaIndex > 0)
+        {
+            return trimmed.Substring(0, commaIndex).Trim();
+        }
+
+        var slashIndex = trimmed.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex > 0)
+        {
+            return trimmed.Substring(0, slashIndex).Trim();
+        }
+
+        return trimmed;
+    }
+}

@@ -4,9 +4,12 @@
 
 <PageTitle>BlazorApp1</PageTitle>
 
-<div class="page">
+<div class="page @(isSidebarCollapsed ? "sidebar-collapsed" : "")">
     <div class="sidebar">
         <NavMenu />
+        <button class="sidebar-toggle" type="button" @onclick="ToggleSidebar" title="切换导航栏" aria-label="切换导航栏">
+            <span class="oi @(isSidebarCollapsed ? "oi-chevron-right" : "oi-chevron-left")" aria-hidden="true"></span>
+        </button>
     </div>
 
     <main>
@@ -26,6 +29,13 @@
 </div>
 
 @code {
+    private bool isSidebarCollapsed;
+
+    private void ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+    }
+
     protected override void OnInitialized()
     {
         // 暂时注释掉认证检查，以便测试数据显示

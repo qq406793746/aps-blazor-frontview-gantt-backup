@@ -1,0 +1,245 @@
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="@(HighlightOnlySelected && SelectedWorkItemId.HasValue ? "rg-dim" : "")">
+    <div style="height:@TopSpacerpx;"></div>
+    @{
+        var baseRowIndex = RowHeight > 0 ? (int)Math.Round(TopSpacer / RowHeight) : 0;
+    }
+    @for (var i = 0; i < VisibleResources.Count; i++)
+    {
+        var resource = VisibleResources[i];
+        var rowIndex = baseRowIndex + i;
+        <div class="rg-row" style="width:@CanvasWidthPxpx;">
+            @{
+                var resourceKey = BuildResourceKey(resource.Type, resource.Id);
+                if (CalendarsByResource.TryGetValue(resourceKey, out var calendar))
+                {
+                    foreach (var interval in calendar.WorkingIntervals)
+                    {
+                        <div class="rg-working" style="@BuildIntervalStyle(interval.Start, interval.End)"></div>
+                    }
+                    foreach (var downtime in calendar.Downtimes)
+                    {
+                        <div class="rg-downtime" style="@BuildIntervalStyle(downtime.Start, downtime.End)"></div>
+                    }
+                }
+
+                if (ResourceAssignments.TryGetValue(resourceKey, out var items))
+                {
+                    // Sort by start time to calculate non-overlapping positions.
+                    var sortedItems = items.OrderBy(a => a.Start).ToList();
+                    var placedPositions = new List<(double start, double end)>();
+
+                    for (var assignmentIndex = 0; assignmentIndex < sortedItems.Count; assignmentIndex++)
+                    {
+                        var assignment = sortedItems[assignmentIndex];
+                        var left = GetBarLeft(assignment);
+                        var width = GetBarWidth(assignment);
+                        var overlapClass = GetOverlapClass(assignmentIndex);
+
+                        // Move right until the bar no longer overlaps existing bars.
+                        var adjustedLeft = left;
+                        var currentEnd = left + width;
+
+                        foreach (var placed in placedPositions)
+                        {
+                            if (adjustedLeft < placed.end && currentEnd > placed.start)
+                            {
+                                adjustedLeft = placed.end + 2;
+                                currentEnd = adjustedLeft + width;
+                            }
+                        }
+
+                        placedPositions.Add((adjustedLeft, currentEnd));
+
+                        <div class="@BuildBarClass(assignment, width) @overlapClass"
+                             style="@BuildBarStyle(assignment, adjustedLeft, width)"
+                             data-task-id="@assignment.TaskId"
+                             data-row-index="@rowIndex"
+                             data-assignment-index="@assignmentIndex"
+                             @onclick="() => OnTaskClicked.InvokeAsync(assignment)"
+                             @onmousemove="(e) => OnBarHover.InvokeAsync(BuildHoverEvent(assignment, e))"
+                             @onmouseleave="() => OnBarHoverEnd.InvokeAsync()">
+                            @if (DebugOverlay)
+                            {
+                                <div class="rg-debug-overlay">
+                                    @($"{assignment.TaskId} | x={left:F1}->{adjustedLeft:F1} w={width:F1} | row={rowIndex} | idx={assignmentIndex}")
+                                </div>
+                            }
+                            @foreach (var line in assignment.Display.LabelLines.Take(3))
+                            {
+                                <div class="rg-bar-line">@line</div>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </div>
+    }
+    <div style="height:@BottomSpacerpx;"></div>
+</div>
+
+<svg class="rg-links" style="width:@CanvasWidthPxpx; height:@CanvasHeightPxpx;">
+    @foreach (var link in LinkPaths)
+    {
+        <path class="rg-link @(link.IsSelected ? "selected" : "")" d="@link.Path"></path>
+    }
+</svg>
+
+@if (PlanningLineX.HasValue)
+{
+    <div class="rg-planning-line" style="left:@PlanningLineXpx;"></div>
+}
+
+@code {
+    [Parameter] public DateTime From { get; set; }
+    [Parameter] public DateTime To { get; set; }
+    [Parameter] public double PxPerMinute { get; set; } = 2;
+    [Parameter] public int RowHeight { get; set; } = 42;
+    [Parameter] public int BarHeight { get; set; } = 28;
+    [Parameter] public IReadOnlyList<GanttResource> VisibleResources { get; set; } = Array.Empty<GanttResource>();
+    [Parameter] public double TopSpacer { get; set; }
+    [Parameter] public double BottomSpacer { get; set; }
+    [Parameter] public Dictionary<string, List<GanttAssignment>> ResourceAssignments { get; set; } = new();
+    [Parameter] public Dictionary<string, GanttCalendar> CalendarsByResource { get; set; } = new();
+    [Parameter] public double CanvasWidthPx { get; set; }
+    [Parameter] public double CanvasHeightPx { get; set; }
+    [Parameter] public long? SelectedTaskId { get; set; }
+    [Parameter] public long? SelectedWorkItemId { get; set; }
+    [Parameter] public bool HighlightOnlySelected { get; set; }
+    [Parameter] public IReadOnlyList<GanttLink> Links { get; set; } = Array.Empty<GanttLink>();
+    [Parameter] public IReadOnlyList<GanttLinkPath> LinkPaths { get; set; } = Array.Empty<GanttLinkPath>();
+    [Parameter] public EventCallback<GanttAssignment> OnTaskClicked { get; set; }
+    [Parameter] public EventCallback<GanttBarHoverEvent> OnBarHover { get; set; }
+    [Parameter] public EventCallback OnBarHoverEnd { get; set; }
+    [Parameter] public bool DebugOverlay { get; set; }
+
+    [Parameter] public DateTime? PlanningStartTime { get; set; }
+
+    private double? PlanningLineX => PlanningStartTime.HasValue
+        ? (PlanningStartTime.Value - From).TotalMinutes * PxPerMinute
+        : null;
+
+    private string TopSpacerpx => $"{TopSpacer}px";
+    private string BottomSpacerpx => $"{BottomSpacer}px";
+    private string CanvasWidthPxpx => $"{CanvasWidthPx}px";
+    private string CanvasHeightPxpx => $"{CanvasHeightPx}px";
+    private string PlanningLineXpx => $"{PlanningLineX:F1}px";
+
+    private string BuildIntervalStyle(DateTime start, DateTime end)
+    {
+        var left = (start - From).TotalMinutes * PxPerMinute;
+        var width = (end - start).TotalMinutes * PxPerMinute;
+        if (width < 2) width = 2;
+        return $"left:{left:F1}px;width:{width:F1}px;";
+    }
+
+    private string BuildBarStyle(GanttAssignment assignment, double left, double width)
+    {
+        var color = ResolveColor(assignment);
+        return $"left:{left:F1}px;width:{width:F1}px;height:{BarHeight}px;background:{color};";
+    }
+
+    private string BuildBarClass(GanttAssignment assignment, double width)
+    {
+        var classes = new List<string> { "rg-bar" };
+        if (width < 48)
+        {
+            classes.Add("compact");
+        }
+        if (assignment.IsLate)
+        {
+            classes.Add("late");
+        }
+        if (assignment.Violations.Count > 0)
+        {
+            classes.Add("violation");
+        }
+        if (SelectedWorkItemId.HasValue && assignment.WorkItemId == SelectedWorkItemId.Value)
+        {
+            classes.Add("selected");
+        }
+        if (SelectedTaskId.HasValue && assignment.TaskId == SelectedTaskId.Value)
+        {
+            classes.Add("focus");
+        }
+        return string.Join(" ", classes);
+    }
+
+    private double GetBarLeft(GanttAssignment assignment)
+        => (assignment.Start - From).TotalMinutes * PxPerMinute;
+
+    private double GetBarWidth(GanttAssignment assignment)
+    {
+        var width = (assignment.End - assignment.Start).TotalMinutes * PxPerMinute;
+        if (width < 4)
+        {
+            width = 4;
+        }
+        return width;
+    }
+
+    private static string ResolveColor(GanttAssignment assignment)
+    {
+        var key = assignment.WorkItemId?.ToString(CultureInfo.InvariantCulture)
+            ?? assignment.OrderNo
+            ?? assignment.TaskId.ToString(CultureInfo.InvariantCulture);
+        var hash = key.Aggregate(0, (current, ch) => current * 31 + ch);
+        var palette = new[]
+        {
+            "#6C7FF2", "#9BD36E", "#7FD8E6", "#E9A6C7", "#A6B3C8", "#8BC2F0",
+            "#B8E18B", "#F2C27A", "#C3B7F2", "#F2A7A7", "#7FB2A9", "#A1C6FF"
+        };
+        var index = Math.Abs(hash) % palette.Length;
+        return palette[index];
+    }
+
+    private static GanttBarHoverEvent BuildHoverEvent(GanttAssignment assignment, MouseEventArgs e)
+    {
+        return new GanttBarHoverEvent
+        {
+            Assignment = assignment,
+            ClientX = e.ClientX,
+            ClientY = e.ClientY
+        };
+    }
+
+    private static string GetOverlapClass(int assignmentIndex)
+    {
+        // Use index to generate a stable class name per bar.
+        return $"rg-bar-overlap-{assignmentIndex}";
+    }
+
+    private static string BuildResourceKey(string type, long id)
+        => $"{NormalizeType(type)}:{id}";
+
+    private static string NormalizeType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            return "Machine";
+        }
+
+        var trimmed = type.Trim();
+        var pipeIndex = trimmed.IndexOf('|', StringComparison.Ordinal);
+        if (pipeIndex > 0)
+        {
+            return trimmed.Substring(0, pipeIndex).Trim();
+        }
+
+        var commaIndex = trimmed.IndexOf(',', StringComparison.Ordinal);
+        if (commaIndex > 0)
+        {
+            return trimmed.Substring(0, commaIndex).Trim();
+        }
+
+        var slashIndex = trimmed.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex > 0)
+        {
+            return trimmed.Substring(0, slashIndex).Trim();
+        }
+
+        return trimmed;
+    }
+}
