@@ -1,6 +1,17 @@
 window.ResourceGanttInterop = (function () {
     var syncMap = new Map();
 
+    function getScrollbarSize(el) {
+        if (!el) return 0;
+        return Math.max(0, el.offsetHeight - el.clientHeight);
+    }
+
+    function syncScrollPadding(left, right) {
+        if (!left || !right) return;
+        var h = getScrollbarSize(right);
+        left.style.paddingBottom = h ? (h + "px") : "";
+    }
+
     function initScrollSync(leftId, rightId, headerId) {
         var left = document.getElementById(leftId);
         var right = document.getElementById(rightId);
@@ -25,7 +36,8 @@ window.ResourceGanttInterop = (function () {
         function syncFromRight() {
             if (isSyncing) return;
             isSyncing = true;
-            left.scrollTop = right.scrollTop;
+            var maxLeft = Math.max(0, left.scrollHeight - left.clientHeight);
+            left.scrollTop = Math.min(right.scrollTop, maxLeft);
             if (header) {
                 header.scrollLeft = right.scrollLeft;
             }
@@ -34,6 +46,16 @@ window.ResourceGanttInterop = (function () {
 
         left.addEventListener("scroll", syncFromLeft, { passive: true });
         right.addEventListener("scroll", syncFromRight, { passive: true });
+
+        syncScrollPadding(left, right);
+
+        if ("ResizeObserver" in window) {
+            var ro = new ResizeObserver(function () {
+                syncScrollPadding(left, right);
+            });
+            ro.observe(right);
+            ro.observe(left);
+        }
 
         if (header) {
             header.addEventListener("scroll", function () {

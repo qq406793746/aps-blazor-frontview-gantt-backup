@@ -87,3 +87,25 @@
   - Visit /gantt/resource?debug=1, click a bar; check console logs.
   - Confirm debug overlay text appears on bars when debug=1.
   - Toggle sidebar visibility via the button.
+
+## 2026-01-29 Resource Gantt UX fixes
+
+- Goal: align resource list and gantt rows, improve label readability, hide right scrollbar, and stabilize sidebar collapse behavior.
+- Changes:
+  - Resource list rows bound to RowHeight; gantt rows set explicit RowHeight to prevent vertical drift.
+  - Right canvas scrollbar hidden; left scrollbar kept; scroll sync padding added to align ranges.
+  - Resource labels now use Chinese “编码/类型” with type mapping; garbled names filtered out.
+  - Task bar labels prioritize part (ItemHint), then operation, then order; adaptive line count by bar width.
+  - Sidebar collapse hides content container instead of only frame.
+- Files:
+  - MES\BlazorApp1\BlazorApp1\Components\Gantt\GanttCanvas.razor
+  - MES\BlazorApp1\BlazorApp1\Components\Gantt\ResourceList.razor
+  - MES\BlazorApp1\BlazorApp1\Shared\MainLayout.razor
+  - MES\BlazorApp1\BlazorApp1\Shared\MainLayout.razor.css
+  - MES\BlazorApp1\BlazorApp1\wwwroot\css\site.css
+  - MES\BlazorApp1\BlazorApp1\wwwroot\js\resource-gantt.js
+  - docs\codex_log.md
+- How to verify:
+  - Visit /gantt/resource and confirm left/right rows align at scroll bottom.
+  - Check resource list labels show “编码/类型” and no “???” names.
+  - Confirm right scrollbar hidden while left scrollbar remains.

@@ -50,6 +50,7 @@ main {
     .sidebar-toggle {
         top: 12px;
         left: 12px;
+        right: auto;
         transform: none;
     }
 }
@@ -83,6 +84,12 @@ article.content {
     overflow-x: hidden;
 }
 
+.sidebar {
+    background-color: #16285a;
+    position: relative;
+    transition: width 0.2s ease;
+}
+
 .sidebar-toggle {
     position: absolute;
     top: 12px;
@@ -98,16 +105,27 @@ article.content {
     justify-content: center;
     z-index: 1000;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    opacity: 0.8;
+    pointer-events: auto;
+    transition: all 0.2s ease;
 }
 
 .sidebar-toggle:hover {
     background: #f3f4f6;
+    opacity: 1;
+}
+
+.sidebar-toggle:focus,
+.sidebar-toggle:focus-visible,
+.sidebar-toggle:active {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .sidebar-collapsed .sidebar {
     width: 0;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible; /* 改为visible，让按钮可以显示出来 */
 }
 
 .sidebar-collapsed .sidebar-toggle {
@@ -116,4 +134,23 @@ article.content {
     left: 8px;
     right: auto;
     border-color: #d1d5db;
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    opacity: 1;
+    z-index: 1001;
+}
+
+.sidebar-collapsed .sidebar-toggle::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+}
+
+.sidebar-content {
+    height: 100%;
+}
+
+.sidebar-collapsed .sidebar-content {
+    display: none;
 }

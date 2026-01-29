@@ -6,7 +6,9 @@
 
 <div class="page @(isSidebarCollapsed ? "sidebar-collapsed" : "")">
     <div class="sidebar">
-        <NavMenu />
+        <div class="sidebar-content">
+            <NavMenu />
+        </div>
         <button class="sidebar-toggle" type="button" @onclick="ToggleSidebar" title="切换导航栏" aria-label="切换导航栏">
             <span class="oi @(isSidebarCollapsed ? "oi-chevron-right" : "oi-chevron-left")" aria-hidden="true"></span>
         </button>

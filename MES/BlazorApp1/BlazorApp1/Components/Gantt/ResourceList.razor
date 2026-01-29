@@ -1,7 +1,7 @@
 <div style="height:@TopSpacerpx;"></div>
 @if (Resources.Count == 0)
 {
-    <div class="rg-resource-item">
+    <div class="rg-resource-item" style="height:@RowHeightpx;">
         <div class="rg-resource-code">No resources</div>
         <div class="rg-resource-type">Check filters or snapshot data.</div>
     </div>
@@ -10,9 +10,8 @@ else
 {
     foreach (var resource in Resources)
     {
-        var primary = GetPrimaryLabel(resource);
-        var secondary = GetSecondaryLabel(resource);
-        <div class="rg-resource-item">
+        var (primary, secondary) = BuildLabels(resource);
+        <div class="rg-resource-item" style="height:@RowHeightpx;">
             <div class="rg-resource-code">@primary</div>
             <div class="rg-resource-type">@secondary</div>
         </div>
@@ -28,31 +27,23 @@ else
 
     private string TopSpacerpx => $"{TopSpacer}px";
     private string BottomSpacerpx => $"{BottomSpacer}px";
+    private string RowHeightpx => $"{RowHeight}px";
 
-    private static string GetPrimaryLabel(GanttResource resource)
+    private static (string Primary, string Secondary) BuildLabels(GanttResource resource)
     {
         var name = CleanLabel(resource.Name);
         var code = CleanLabel(resource.Code);
-        if (!string.IsNullOrWhiteSpace(name))
-        {
-            return name;
-        }
-        if (!string.IsNullOrWhiteSpace(code))
-        {
-            return code;
-        }
-        return "Unnamed resource";
-    }
-
-    private static string GetSecondaryLabel(GanttResource resource)
-    {
-        var code = CleanLabel(resource.Code);
         var type = FormatType(resource.Type);
-        if (!string.IsNullOrWhiteSpace(code))
-        {
-            return $"Code: {code} | Type: {type}";
-        }
-        return $"Type: {type}";
+
+        var primary = !string.IsNullOrWhiteSpace(name)
+            ? name
+            : (!string.IsNullOrWhiteSpace(code) ? code : "Unnamed resource");
+
+        var secondary = string.IsNullOrWhiteSpace(code) || primary == code
+            ? $"类型: {type}"
+            : $"编码: {code} | 类型: {type}";
+
+        return (primary, secondary);
     }
 
     private static string CleanLabel(string? value)
@@ -62,7 +53,7 @@ else
             return "";
         }
         var trimmed = value.Trim();
-        if (trimmed.IndexOf('\uFFFD') >= 0)
+        if (trimmed.IndexOf('\uFFFD') >= 0 || trimmed.Contains('?'))
         {
             return "";
         }
@@ -75,10 +66,10 @@ else
         var normalized = NormalizeType(type);
         return normalized switch
         {
-            "Machine" => "Machine",
-            "Person" => "Person",
-            "Tool" => "Tool",
-            "Vendor" => "Outsource",
+            "Machine" => "机台",
+            "Person" => "人员",
+            "Tool" => "工装",
+            "Vendor" => "外协",
             _ => normalized
         };
     }

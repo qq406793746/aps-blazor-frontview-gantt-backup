@@ -217,7 +217,7 @@ html, body {
   --rg-border: #e2e8f0;
   --rg-bg: #ffffff;
   --rg-header: #f8fafc;
-  --rg-working: #f1f3f5;
+  --rg-working: rgba(34, 197, 94, 0.15);
   --rg-downtime: repeating-linear-gradient(
       45deg,
       rgba(148, 163, 184, 0.25),
@@ -242,6 +242,29 @@ html, body {
   border: 1px solid var(--rg-border);
   border-radius: 8px;
   padding: 12px;
+}
+
+/* 确保工具栏内的元素不重叠 */
+.rg-toolbar .row {
+  margin-bottom: 8px;
+}
+
+.rg-toolbar .form-label {
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.rg-toolbar .text-muted {
+  line-height: 1.4;
+}
+
+/* 防止按钮组在小屏幕上重叠 */
+.rg-toolbar .d-flex.gap-2 {
+  flex-wrap: wrap;
+}
+
+.rg-toolbar .btn {
+  margin-bottom: 4px;
 }
 
 .rg-shell {
@@ -284,6 +307,25 @@ html, body {
 .rg-canvas-scroll {
   overflow: auto;
   height: 100%;
+}
+
+.rg-resource-scroll {
+  overflow-y: scroll;
+}
+
+.rg-canvas-scroll {
+  overflow-x: auto;
+  overflow-y: scroll;
+  scrollbar-width: none;
+}
+
+.rg-canvas-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 12px;
+}
+
+.rg-canvas-scroll::-webkit-scrollbar:horizontal {
+  height: 12px;
 }
 
 .rg-resource-item {
@@ -338,6 +380,32 @@ html, body {
   background: var(--rg-downtime);
   border-radius: 6px;
   border: 1px solid rgba(148, 163, 184, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.rg-working {
+  position: absolute;
+  top: 6px;
+  height: 30px;
+  background: var(--rg-working);
+  border-radius: 6px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.rg-interval-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* 移除所有导致Y方向重叠的样式 - 让任务条回到正常位置 */
@@ -502,4 +570,3 @@ html, body {
   padding: 10px;
   background: #fff;
 }
-

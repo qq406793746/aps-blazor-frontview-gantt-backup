@@ -10,18 +10,30 @@
     {
         var resource = VisibleResources[i];
         var rowIndex = baseRowIndex + i;
-        <div class="rg-row" style="width:@CanvasWidthPxpx;">
+        <div class="rg-row" style="width:@CanvasWidthPxpx;height:@RowHeightpx;">
             @{
                 var resourceKey = BuildResourceKey(resource.Type, resource.Id);
                 if (CalendarsByResource.TryGetValue(resourceKey, out var calendar))
                 {
                     foreach (var interval in calendar.WorkingIntervals)
                     {
-                        <div class="rg-working" style="@BuildIntervalStyle(interval.Start, interval.End)"></div>
+                        var intervalWidth = (interval.End - interval.Start).TotalMinutes * PxPerMinute;
+                        <div class="rg-working" style="@BuildIntervalStyle(interval.Start, interval.End)" title="Working time: @interval.Start.ToString("HH:mm") - @interval.End.ToString("HH:mm")">
+                            @if (intervalWidth > 60) // Only show text if interval is wide enough
+                            {
+                                <span class="rg-interval-label">Work</span>
+                            }
+                        </div>
                     }
                     foreach (var downtime in calendar.Downtimes)
                     {
-                        <div class="rg-downtime" style="@BuildIntervalStyle(downtime.Start, downtime.End)"></div>
+                        var intervalWidth = (downtime.End - downtime.Start).TotalMinutes * PxPerMinute;
+                        <div class="rg-downtime" style="@BuildIntervalStyle(downtime.Start, downtime.End)" title="Downtime: @downtime.Start.ToString("HH:mm") - @downtime.End.ToString("HH:mm")">
+                            @if (intervalWidth > 60) // Only show text if interval is wide enough
+                            {
+                                <span class="rg-interval-label">Down</span>
+                            }
+                        </div>
                     }
                 }
 
@@ -67,9 +79,13 @@
                                     @($"{assignment.TaskId} | x={left:F1}->{adjustedLeft:F1} w={width:F1} | row={rowIndex} | idx={assignmentIndex}")
                                 </div>
                             }
-                            @foreach (var line in assignment.Display.LabelLines.Take(3))
-                            {
-                                <div class="rg-bar-line">@line</div>
+                            @{
+                                var lines = GetBarLines(assignment);
+                                var maxLines = width < 36 ? 1 : (width < 80 ? 2 : 3);
+                                foreach (var line in lines.Take(maxLines))
+                                {
+                                    <div class="rg-bar-line">@line</div>
+                                }
                             }
                         </div>
                     }
@@ -126,6 +142,7 @@
     private string CanvasWidthPxpx => $"{CanvasWidthPx}px";
     private string CanvasHeightPxpx => $"{CanvasHeightPx}px";
     private string PlanningLineXpx => $"{PlanningLineX:F1}px";
+    private string RowHeightpx => $"{RowHeight}px";
 
     private string BuildIntervalStyle(DateTime start, DateTime end)
     {
@@ -203,6 +220,49 @@
             ClientX = e.ClientX,
             ClientY = e.ClientY
         };
+    }
+
+    private static IReadOnlyList<string> GetBarLines(GanttAssignment assignment)
+    {
+        var labelLines = assignment.Display?.LabelLines?
+            .Where(l => !string.IsNullOrWhiteSpace(l))
+            .ToList() ?? new List<string>();
+
+        var result = new List<string>();
+        var partName = assignment.ItemHint;
+        if (!string.IsNullOrWhiteSpace(partName))
+        {
+            result.Add(partName);
+        }
+
+        var op = !string.IsNullOrWhiteSpace(assignment.OperationName)
+            ? assignment.OperationName
+            : (assignment.OpSeq > 0 ? $"Op {assignment.OpSeq}" : "");
+        if (!string.IsNullOrWhiteSpace(op))
+        {
+            result.Add(op);
+        }
+
+        if (!string.IsNullOrWhiteSpace(assignment.OrderNo))
+        {
+            result.Add(assignment.OrderNo);
+        }
+
+        foreach (var line in labelLines)
+        {
+            if (result.Contains(line, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+            result.Add(line);
+        }
+
+        if (result.Count > 0)
+        {
+            return result;
+        }
+
+        return new List<string> { $"Task {assignment.TaskId}" };
     }
 
     private static string GetOverlapClass(int assignmentIndex)
