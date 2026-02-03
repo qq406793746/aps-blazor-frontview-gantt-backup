@@ -151,8 +151,8 @@
     <div class="classic-gantt-panel">
         <ResourceGantt @ref="GanttRef"
                        Snapshot="Snapshot"
-                       From="Snapshot.Meta.From"
-                       To="Snapshot.Meta.To"
+                       From="DisplayFrom"
+                       To="DisplayTo"
                        PxPerMinute="PxPerMinute"
                        RowHeight="RowHeight"
                        BarHeight="BarHeight"
@@ -210,9 +210,9 @@
     private DateTime? ToInput { get; set; } = DateTime.Today;
     private string LinksMode { get; set; } = "seq";
     private bool IncludePersons { get; set; } = true;
-    private bool IncludeTools { get; set; }
-    private bool IncludeVendors { get; set; }
-    private bool HighlightOnlySelected { get; set; } = true;
+    private bool IncludeTools { get; set; } = true;
+    private bool IncludeVendors { get; set; } = true;
+    private bool HighlightOnlySelected { get; set; } = false;
     private bool DebugOverlay { get; set; }
 
     private string? ResourceKeyword { get; set; }
@@ -236,6 +236,8 @@
     private GanttAssignment? SelectedAssignment { get; set; }
     private ResourceGantt? GanttRef { get; set; }
     private DateTime? PendingScrollTime { get; set; }
+    private DateTime DisplayFrom => GetDisplayFrom();
+    private DateTime DisplayTo => GetDisplayTo();
 
     protected override async Task OnInitializedAsync()
     {
@@ -296,6 +298,16 @@
                 .OrderBy(a => a.Start)
                 .FirstOrDefault();
             PendingScrollTime = first?.Start ?? Snapshot.Meta.PlanningStartTime;
+
+            if (!IncludeVendors
+                && Snapshot.Assignments.Count > 0
+                && Snapshot.Assignments.All(a => a.ResourceId == 0))
+            {
+                PlanHint = "Detected all assignments as Unassigned; retrying with Outsource enabled.";
+                IncludeVendors = true;
+                await LoadSnapshotInternal(retryIfEmpty: false);
+                return;
+            }
 
             if (Snapshot.Assignments.Count == 0 && retryIfEmpty)
             {
@@ -421,6 +433,44 @@
             return;
         }
         await GanttRef.KeepCenterAsync(first.Start, PxPerMinute);
+    }
+
+    private DateTime GetDisplayFrom()
+    {
+        var metaFrom = Snapshot.Meta.From;
+        var minStart = Snapshot.Assignments.Count > 0
+            ? Snapshot.Assignments.Min(a => a.Start)
+            : DateTime.MinValue;
+
+        var from = metaFrom != default ? metaFrom : (FromInput ?? DateTime.Today.AddDays(-7));
+        if (minStart != default && minStart < from)
+        {
+            from = minStart;
+        }
+
+        return from;
+    }
+
+    private DateTime GetDisplayTo()
+    {
+        var metaTo = Snapshot.Meta.To;
+        var maxEnd = Snapshot.Assignments.Count > 0
+            ? Snapshot.Assignments.Max(a => a.End)
+            : DateTime.MinValue;
+
+        var to = metaTo != default ? metaTo : (ToInput ?? DateTime.Today.AddDays(7));
+        if (maxEnd != default && maxEnd > to)
+        {
+            to = maxEnd;
+        }
+
+        var from = GetDisplayFrom();
+        if (to <= from)
+        {
+            to = from.AddDays(1);
+        }
+
+        return to;
     }
 
     private static bool IsDebugEnabled(string uri)

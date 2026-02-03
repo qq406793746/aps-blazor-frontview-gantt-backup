@@ -4,7 +4,7 @@
     <div class="rg-timeline-row">
         @foreach (var day in Days)
         {
-            <div class="rg-timeline-cell @day.CssClass" style="width:@day.Widthpx;">
+            <div class="rg-timeline-cell rg-day-cell @day.CssClass" style="width:@day.Widthpx;">
                 @day.Label
             </div>
         }
@@ -12,7 +12,7 @@
     <div class="rg-timeline-row">
         @foreach (var hour in Hours)
         {
-            <div class="rg-timeline-cell @hour.CssClass" style="width:@hour.Widthpx;">
+            <div class="rg-timeline-cell rg-hour-cell @hour.CssClass" style="width:@hour.Widthpx;">
                 @hour.Label
             </div>
         }
@@ -39,40 +39,78 @@
     {
         var days = new List<Cell>();
         var hours = new List<Cell>();
-        var cursor = From.Date;
-        var end = To.Date;
-        var dayWidth = 24 * 60 * PxPerMinute;
-        while (cursor <= end)
+        var dayCursor = From;
+        while (dayCursor < To)
         {
-            var isWeekend = cursor.DayOfWeek == DayOfWeek.Saturday || cursor.DayOfWeek == DayOfWeek.Sunday;
+            var nextDay = dayCursor.Date.AddDays(1);
+            if (nextDay <= dayCursor)
+            {
+                nextDay = dayCursor.AddDays(1);
+            }
+            var segmentEnd = nextDay < To ? nextDay : To;
+            var width = (segmentEnd - dayCursor).TotalMinutes * PxPerMinute;
             days.Add(new Cell
             {
-                Label = cursor.ToString("MM-dd", CultureInfo.InvariantCulture),
-                Width = dayWidth,
-                CssClass = isWeekend ? "rg-weekend" : ""
+                Label = $"{dayCursor:MM-dd} {GetWeekLabel(dayCursor.DayOfWeek)}",
+                Width = width,
+                CssClass = GetDayCss(dayCursor.DayOfWeek)
             });
-            cursor = cursor.AddDays(1);
+            dayCursor = segmentEnd;
         }
 
-        var hourStep = PxPerMinute >= 1.8 ? 1 : (PxPerMinute >= 1.0 ? 2 : 4);
+        const int hourStep = 2;
         var hourCursor = From;
+        var hourIndex = 0;
+        var hourCellWidth = hourStep * 60 * PxPerMinute;
+        var hourLabelStride = Math.Max(1, (int)Math.Ceiling(30d / Math.Max(1d, hourCellWidth)));
         while (hourCursor < To)
         {
             var next = hourCursor.AddHours(hourStep);
+            if (next > To)
+            {
+                next = To;
+            }
             var width = (next - hourCursor).TotalMinutes * PxPerMinute;
-            var isWeekend = hourCursor.DayOfWeek == DayOfWeek.Saturday || hourCursor.DayOfWeek == DayOfWeek.Sunday;
+            var showLabel = hourIndex % hourLabelStride == 0;
+            var label = "";
+            if (showLabel)
+            {
+                label = width >= 22 ? hourCursor.ToString("HH:mm", CultureInfo.InvariantCulture) : hourCursor.ToString("HH", CultureInfo.InvariantCulture);
+            }
             hours.Add(new Cell
             {
-                Label = hourCursor.ToString("HH:mm", CultureInfo.InvariantCulture),
+                Label = label,
                 Width = width,
-                CssClass = isWeekend ? "rg-weekend" : ""
+                CssClass = ""
             });
             hourCursor = next;
+            hourIndex++;
         }
 
         Days = days;
         Hours = hours;
     }
+
+    private static string GetWeekLabel(DayOfWeek dayOfWeek)
+        => dayOfWeek switch
+        {
+            DayOfWeek.Monday => "星期一",
+            DayOfWeek.Tuesday => "星期二",
+            DayOfWeek.Wednesday => "星期三",
+            DayOfWeek.Thursday => "星期四",
+            DayOfWeek.Friday => "星期五",
+            DayOfWeek.Saturday => "星期六",
+            DayOfWeek.Sunday => "星期日",
+            _ => string.Empty
+        };
+
+    private static string GetDayCss(DayOfWeek dayOfWeek)
+        => dayOfWeek switch
+        {
+            DayOfWeek.Saturday => "rg-day-sat",
+            DayOfWeek.Sunday => "rg-day-sun",
+            _ => "rg-day-weekday"
+        };
 
     private sealed class Cell
     {

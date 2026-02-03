@@ -735,6 +735,31 @@ html, body {
   border-right: 1px solid #9ca3af;
 }
 
+.classic-gantt-panel .rg-day-cell {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.classic-gantt-panel .rg-day-cell.rg-day-weekday {
+  background: #3f8f4e;
+}
+
+.classic-gantt-panel .rg-day-cell.rg-day-sat {
+  background: #3b82c4;
+}
+
+.classic-gantt-panel .rg-day-cell.rg-day-sun {
+  background: #9a6b3a;
+}
+
+.classic-gantt-panel .rg-hour-cell {
+  background: #f3f4f6;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
 .classic-gantt-panel .rg-resource-list {
   border-right: 1px solid #6b7280;
 }
@@ -757,31 +782,124 @@ html, body {
   color: #374151;
 }
 
-.classic-gantt-panel .rg-row {
-  border-bottom: 1px solid #6b7280;
+.classic-gantt-panel .rg-canvas {
+  position: relative;
+  background: #fefefe;
+  isolation: isolate;
 }
 
-.classic-gantt-panel .rg-working {
-  top: 7px;
-  height: 28px;
+.classic-gantt-panel .rg-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(156, 163, 175, 0.6) 0,
+      rgba(156, 163, 175, 0.6) 1px,
+      transparent 1px,
+      transparent var(--rg-day-step)
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(209, 213, 219, 0.9) 0,
+      rgba(209, 213, 219, 0.9) 1px,
+      transparent 1px,
+      transparent var(--rg-hour-step)
+    );
+}
+
+.classic-gantt-panel .rg-canvas::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--rg-frozen-zone-width);
+  background: rgba(251, 191, 36, 0.22);
+  border-right: 2px solid #2563eb;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.classic-gantt-panel .rg-row {
+  border-bottom: 1px solid #6b7280;
+  display: block !important;
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 2;
+}
+
+.classic-gantt-panel .rg-row::before {
+  content: none;
+}
+
+.classic-gantt-panel .rg-shift-column {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
   border-radius: 2px;
-  background: rgba(209, 213, 219, 0.7);
-  border: 1px solid rgba(156, 163, 175, 0.55);
+  background: rgba(229, 231, 235, 0.78);
+  pointer-events: none;
+  z-index: 1;
+}
+
+
+.classic-gantt-panel .rg-working {
+  top: 6px;
+  height: 30px;
+  border-radius: 2px;
+  background: rgba(229, 231, 235, 0.85);
+  border: 1px solid rgba(107, 114, 128, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  z-index: 2;
 }
 
 .classic-gantt-panel .rg-downtime {
-  top: 7px;
-  height: 28px;
+  top: 6px;
+  height: 30px;
   border-radius: 2px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(156, 163, 175, 0.2) 0,
+    rgba(156, 163, 175, 0.2) 6px,
+    rgba(203, 213, 225, 0.55) 6px,
+    rgba(203, 213, 225, 0.55) 12px
+  );
+  border: 1px solid rgba(107, 114, 128, 0.5);
+  z-index: 3;
 }
 
 .classic-gantt-panel .rg-bar {
-  top: 8px;
+  top: 2px !important;
+  transform: none !important;
+  bottom: auto !important;
   height: 24px;
   border-radius: 2px;
   font-size: 10px;
-  border: 1px solid rgba(15, 23, 42, 0.35);
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
+  color: #111827;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.28);
+  padding: 2px 6px 2px 8px;
+  position: absolute;
+  z-index: 4;
+}
+
+.classic-gantt-panel .rg-dim .rg-bar {
+  opacity: 1;
+}
+
+.classic-gantt-panel .rg-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .classic-gantt-panel .rg-bar .rg-bar-line {

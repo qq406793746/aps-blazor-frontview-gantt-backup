@@ -2,6 +2,13 @@
 @using Microsoft.AspNetCore.Components.Web
 
 <div class="@(HighlightOnlySelected && SelectedWorkItemId.HasValue ? "rg-dim" : "")">
+    @{
+        var shiftBands = GetDailyShiftBands();
+    }
+    @foreach (var shiftBand in shiftBands)
+    {
+        <div class="rg-shift-column" style="@BuildShiftColumnStyle(shiftBand.Start, shiftBand.End)"></div>
+    }
     <div style="height:@TopSpacerpx;"></div>
     @{
         var baseRowIndex = RowHeight > 0 ? (int)Math.Round(TopSpacer / RowHeight) : 0;
@@ -10,7 +17,7 @@
     {
         var resource = VisibleResources[i];
         var rowIndex = baseRowIndex + i;
-        <div class="rg-row" style="width:@CanvasWidthPxpx;height:@RowHeightpx;">
+        <div class="rg-row" style="position:relative;width:@CanvasWidthPxpx;height:@RowHeightpx;overflow:visible;">
             @{
                 var resourceKey = BuildResourceKey(resource.Type, resource.Id);
                 if (CalendarsByResource.TryGetValue(resourceKey, out var calendar))
@@ -37,11 +44,10 @@
                     }
                 }
 
-                if (ResourceAssignments.TryGetValue(resourceKey, out var items))
+                var items = ResolveAssignments(resourceKey, resource);
+                if (items != null)
                 {
-                    // Sort by start time to calculate non-overlapping positions.
                     var sortedItems = items.OrderBy(a => a.Start).ToList();
-                    var placedPositions = new List<(double start, double end)>();
 
                     for (var assignmentIndex = 0; assignmentIndex < sortedItems.Count; assignmentIndex++)
                     {
@@ -50,23 +56,8 @@
                         var width = GetBarWidth(assignment);
                         var overlapClass = GetOverlapClass(assignmentIndex);
 
-                        // Move right until the bar no longer overlaps existing bars.
-                        var adjustedLeft = left;
-                        var currentEnd = left + width;
-
-                        foreach (var placed in placedPositions)
-                        {
-                            if (adjustedLeft < placed.end && currentEnd > placed.start)
-                            {
-                                adjustedLeft = placed.end + 2;
-                                currentEnd = adjustedLeft + width;
-                            }
-                        }
-
-                        placedPositions.Add((adjustedLeft, currentEnd));
-
                         <div class="@BuildBarClass(assignment, width) @overlapClass"
-                             style="@BuildBarStyle(assignment, adjustedLeft, width)"
+                             style="@BuildBarStyle(assignment, left, width)"
                              data-task-id="@assignment.TaskId"
                              data-row-index="@rowIndex"
                              data-assignment-index="@assignmentIndex"
@@ -76,7 +67,7 @@
                             @if (DebugOverlay)
                             {
                                 <div class="rg-debug-overlay">
-                                    @($"{assignment.TaskId} | x={left:F1}->{adjustedLeft:F1} w={width:F1} | row={rowIndex} | idx={assignmentIndex}")
+                                    @($"{assignment.TaskId} | x={left:F1} w={width:F1} | row={rowIndex} | idx={assignmentIndex}")
                                 </div>
                             }
                             @{
@@ -117,6 +108,7 @@
     [Parameter] public IReadOnlyList<GanttResource> VisibleResources { get; set; } = Array.Empty<GanttResource>();
     [Parameter] public double TopSpacer { get; set; }
     [Parameter] public double BottomSpacer { get; set; }
+    [Parameter] public IReadOnlyList<GanttAssignment> AllAssignments { get; set; } = Array.Empty<GanttAssignment>();
     [Parameter] public Dictionary<string, List<GanttAssignment>> ResourceAssignments { get; set; } = new();
     [Parameter] public Dictionary<string, GanttCalendar> CalendarsByResource { get; set; } = new();
     [Parameter] public double CanvasWidthPx { get; set; }
@@ -152,10 +144,53 @@
         return $"left:{left:F1}px;width:{width:F1}px;";
     }
 
+    private string BuildShiftColumnStyle(DateTime start, DateTime end)
+    {
+        var left = (start - From).TotalMinutes * PxPerMinute;
+        var width = (end - start).TotalMinutes * PxPerMinute;
+        if (width < 2) width = 2;
+        return $"position:absolute;left:{left:F1}px;top:0;bottom:0;width:{width:F1}px;";
+    }
+
+    private IReadOnlyList<(DateTime Start, DateTime End)> GetDailyShiftBands()
+    {
+        var bands = new List<(DateTime Start, DateTime End)>();
+        if (To <= From)
+        {
+            return bands;
+        }
+
+        var day = From.Date;
+        var last = To.Date.AddDays(1);
+        while (day < last)
+        {
+            var start = day.AddHours(8);
+            var end = day.AddHours(20);
+            if (end > From && start < To)
+            {
+                if (start < From)
+                {
+                    start = From;
+                }
+                if (end > To)
+                {
+                    end = To;
+                }
+                if (end > start)
+                {
+                    bands.Add((start, end));
+                }
+            }
+            day = day.AddDays(1);
+        }
+
+        return bands;
+    }
+
     private string BuildBarStyle(GanttAssignment assignment, double left, double width)
     {
         var color = ResolveColor(assignment);
-        return $"left:{left:F1}px;width:{width:F1}px;height:{BarHeight}px;background:{color};";
+        return $"position:absolute !important;left:{left:F1}px;top:2px !important;bottom:auto !important;transform:none !important;width:{width:F1}px;height:{BarHeight}px;background:{color};";
     }
 
     private string BuildBarClass(GanttAssignment assignment, double width)
@@ -274,6 +309,36 @@
     private static string BuildResourceKey(string type, long id)
         => $"{NormalizeType(type)}:{id}";
 
+    private List<GanttAssignment>? ResolveAssignments(string resourceKey, GanttResource resource)
+    {
+        if (ResourceAssignments.TryGetValue(resourceKey, out var exact))
+        {
+            return exact;
+        }
+
+        // Fallback 1: type-normalized + same resource id.
+        var normalizedType = NormalizeType(resource.Type);
+        var byTypeAndId = AllAssignments
+            .Where(a => a.ResourceId == resource.Id && NormalizeType(a.ResourceType) == normalizedType)
+            .OrderBy(a => a.Start)
+            .ToList();
+        if (byTypeAndId.Count > 0)
+        {
+            return byTypeAndId;
+        }
+
+        // Fallback 2: explicit UNASSIGNED row.
+        if (string.Equals(resource.Code, "UNASSIGNED", StringComparison.OrdinalIgnoreCase))
+        {
+            return AllAssignments
+                .Where(a => a.ResourceId == 0)
+                .OrderBy(a => a.Start)
+                .ToList();
+        }
+
+        return null;
+    }
+
     private static string NormalizeType(string? type)
     {
         if (string.IsNullOrWhiteSpace(type))
@@ -298,6 +363,24 @@
         if (slashIndex > 0)
         {
             return trimmed.Substring(0, slashIndex).Trim();
+        }
+
+        var normalized = trimmed.ToLowerInvariant();
+        if (normalized.Contains("machine") || normalized.Contains("机台") || normalized.Contains("设备"))
+        {
+            return "Machine";
+        }
+        if (normalized.Contains("person") || normalized.Contains("人员") || normalized.Contains("人力") || normalized.Contains("员工"))
+        {
+            return "Person";
+        }
+        if (normalized.Contains("tool") || normalized.Contains("夹具") || normalized.Contains("工装") || normalized.Contains("模具"))
+        {
+            return "Tool";
+        }
+        if (normalized.Contains("vendor") || normalized.Contains("外协") || normalized.Contains("供应商"))
+        {
+            return "Vendor";
         }
 
         return trimmed;

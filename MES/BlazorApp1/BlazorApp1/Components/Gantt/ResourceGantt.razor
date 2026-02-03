@@ -31,7 +31,7 @@
             <div class="rg-resize-handle" id="@ResizeId" title="拖拽调整资源栏宽度"></div>
         </div>
         <div class="rg-canvas-scroll" id="@RightId" @onscroll="OnScrollAsync">
-            <div class="rg-canvas" style="width:@CanvasWidthPxpx; height:@CanvasHeightPxpx;">
+            <div class="rg-canvas" style="@CanvasStyle">
                 <GanttCanvas From="From"
                              To="To"
                              PxPerMinute="PxPerMinute"
@@ -40,6 +40,7 @@
                              VisibleResources="VisibleResources"
                              TopSpacer="TopSpacer"
                              BottomSpacer="BottomSpacer"
+                             AllAssignments="FilteredAssignments"
                              ResourceAssignments="@AssignmentsByResource"
                              CalendarsByResource="@CalendarsByResource"
                              CanvasWidthPx="CanvasWidthPx"
@@ -103,6 +104,28 @@
     private double CanvasHeightPx => Math.Max(RowHeight, FilteredResources.Count * RowHeight);
     private string CanvasWidthPxpx => $"{CanvasWidthPx}px";
     private string CanvasHeightPxpx => $"{CanvasHeightPx}px";
+    private string CanvasStyle
+    {
+        get
+        {
+            var defaultFrozen = 3.5d * 24d * 60d * PxPerMinute;
+            var frozen = Snapshot.Meta.PlanningStartTime.HasValue
+                ? (Snapshot.Meta.PlanningStartTime.Value - From).TotalMinutes * PxPerMinute
+                : defaultFrozen;
+            if (frozen <= 0)
+            {
+                frozen = defaultFrozen;
+            }
+            frozen = Math.Max(0d, Math.Min(CanvasWidthPx, frozen));
+            var hourStep = Math.Max(6d, 60d * PxPerMinute);
+            var dayStep = Math.Max(24d, 24d * 60d * PxPerMinute);
+            var shiftStart = Math.Max(0d, 8d * 60d * PxPerMinute);
+            var shiftEnd = Math.Max(shiftStart + hourStep, 20d * 60d * PxPerMinute);
+            var dayPhase = From.TimeOfDay.TotalMinutes * PxPerMinute;
+            dayPhase = ((dayPhase % dayStep) + dayStep) % dayStep;
+            return $"width:{CanvasWidthPx:F1}px; height:{CanvasHeightPx:F1}px; --rg-hour-step:{hourStep:F1}px; --rg-day-step:{dayStep:F1}px; --rg-shift-start:{shiftStart:F1}px; --rg-shift-end:{shiftEnd:F1}px; --rg-day-phase:{dayPhase:F1}px; --rg-frozen-zone-width:{frozen:F1}px;";
+        }
+    }
 
     private double TopSpacer { get; set; }
     private double BottomSpacer { get; set; }
@@ -145,13 +168,18 @@
             baseResources.AddRange(synthetic);
         }
 
-        FilteredResources = baseResources;
-        CalendarsByResource = Snapshot.Calendars
-            .Where(c => c.ResourceType.Equals("Machine", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(c => BuildResourceKey(c.ResourceType, c.ResourceId), c => c);
         AssignmentsByResource = FilteredAssignments
             .GroupBy(a => BuildResourceKey(a.ResourceType, a.ResourceId))
             .ToDictionary(g => g.Key, g => g.OrderBy(a => a.Start).ToList());
+        FilteredResources = baseResources
+            .OrderByDescending(r => AssignmentsByResource.ContainsKey(BuildResourceKey(r.Type, r.Id)))
+            .ThenBy(r => string.Equals(r.Code, "UNASSIGNED", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(r => r.Name)
+            .ThenBy(r => r.Code)
+            .ToList();
+        CalendarsByResource = Snapshot.Calendars
+            .Where(c => c.ResourceType.Equals("Machine", StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(c => BuildResourceKey(c.ResourceType, c.ResourceId), c => c);
         var taskIds = new HashSet<long>(FilteredAssignments.Select(a => a.TaskId));
         VisibleLinks = Snapshot.Links
             .Where(l => taskIds.Contains(l.FromTaskId) && taskIds.Contains(l.ToTaskId))
@@ -343,6 +371,24 @@
             return trimmed.Substring(0, slashIndex).Trim();
         }
 
+        var normalized = trimmed.ToLowerInvariant();
+        if (normalized.Contains("machine") || normalized.Contains("机台") || normalized.Contains("设备") || normalized.Contains("机台"))
+        {
+            return "Machine";
+        }
+        if (normalized.Contains("person") || normalized.Contains("人员") || normalized.Contains("人力") || normalized.Contains("员工"))
+        {
+            return "Person";
+        }
+        if (normalized.Contains("tool") || normalized.Contains("夹具") || normalized.Contains("工装") || normalized.Contains("模具"))
+        {
+            return "Tool";
+        }
+        if (normalized.Contains("vendor") || normalized.Contains("外协") || normalized.Contains("供应商"))
+        {
+            return "Vendor";
+        }
+
         return trimmed;
     }
 
@@ -357,7 +403,8 @@
 
         var rectMap = rects
             .Where(r => long.TryParse(r.Id, out _))
-            .ToDictionary(r => long.Parse(r.Id, CultureInfo.InvariantCulture), r => r);
+            .GroupBy(r => long.Parse(r.Id, CultureInfo.InvariantCulture))
+            .ToDictionary(g => g.Key, g => g.First());
 
         var viewLeft = ScrollState.ScrollLeft;
         var viewRight = ScrollState.ScrollLeft + ScrollState.ClientWidth;
