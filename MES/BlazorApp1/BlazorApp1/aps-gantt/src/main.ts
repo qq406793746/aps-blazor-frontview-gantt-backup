@@ -26,6 +26,7 @@ type GanttPayload = {
   resources: ResourceRecord[];
   dateRange?: [string, string];
   markLine?: { date: string; color?: string }[];
+  links?: { linkedFromTaskKey: string; linkedToTaskKey: string; type?: string }[];
 };
 
 type InstanceEntry = {
@@ -171,6 +172,18 @@ function buildOption(records: ResourceRecord[], payload: GanttPayload) {
       }
     }
   };
+
+  if (payload.links && payload.links.length > 0) {
+    option.dependency = {
+      links: payload.links,
+      linkLineStyle: { lineColor: "#94a3b8", lineWidth: 1 },
+      linkSelectedLineStyle: { lineColor: "#64748b", lineWidth: 2 },
+      linkCreatable: false,
+      linkSelectable: false,
+      linkDeletable: false,
+      distanceToTaskBar: 8
+    };
+  }
 
   const range =
     payload.dateRange && payload.dateRange.length === 2

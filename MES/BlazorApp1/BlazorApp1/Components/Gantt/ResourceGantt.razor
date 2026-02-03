@@ -2,7 +2,7 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime Js
 
-<div class="rg-shell">
+<div class="rg-shell" id="@ShellId">
     <div class="text-muted small px-2 py-1">
         Visible resources: @VisibleResources.Count |
         Filtered resources: @FilteredResources.Count |
@@ -28,6 +28,7 @@
                               TopSpacer="TopSpacer"
                               BottomSpacer="BottomSpacer" />
             </div>
+            <div class="rg-resize-handle" id="@ResizeId" title="拖拽调整资源栏宽度"></div>
         </div>
         <div class="rg-canvas-scroll" id="@RightId" @onscroll="OnScrollAsync">
             <div class="rg-canvas" style="width:@CanvasWidthPxpx; height:@CanvasHeightPxpx;">
@@ -85,9 +86,11 @@
     [Parameter] public EventCallback<GanttAssignment> OnTaskSelected { get; set; }
     [Parameter] public bool DebugOverlay { get; set; }
 
+    private string ShellId { get; } = $"rg-shell-{Guid.NewGuid():N}";
     private string LeftId { get; } = $"rg-left-{Guid.NewGuid():N}";
     private string RightId { get; } = $"rg-right-{Guid.NewGuid():N}";
     private string HeaderId { get; } = $"rg-header-{Guid.NewGuid():N}";
+    private string ResizeId { get; } = $"rg-resize-{Guid.NewGuid():N}";
 
     private IReadOnlyList<GanttResource> FilteredResources { get; set; } = Array.Empty<GanttResource>();
     private IReadOnlyList<GanttAssignment> FilteredAssignments { get; set; } = Array.Empty<GanttAssignment>();
@@ -168,6 +171,7 @@
         if (firstRender)
         {
             await Js.InvokeVoidAsync("ResourceGanttInterop.initScrollSync", LeftId, RightId, HeaderId);
+            await Js.InvokeVoidAsync("ResourceGanttInterop.initResourceResizer", ShellId, ResizeId);
             _initialized = true;
             await UpdateScrollInfoAsync();
             UpdateVisibleRange();

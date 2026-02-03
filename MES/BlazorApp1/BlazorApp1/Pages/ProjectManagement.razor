@@ -126,7 +126,7 @@
                         @foreach (var project in currentPageProjects)
                         {
                             <tr>
-                                <td><input type="checkbox" checked="@project.IsSelected" @onchange="(e) => { project.IsSelected = (bool)e.Value; OnProjectSelectionChanged(); }"></td>
+                                <td><input type="checkbox" checked="@project.IsSelected" @onchange="(e) => { project.IsSelected = (bool?)e.Value ?? false; OnProjectSelectionChanged(); }"></td>
                                 <td>@project.ProjectName</td>
                                 <td>@project.ProjectCode</td>
                                 <td>@project.MoldCode</td>

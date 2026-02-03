@@ -1,0 +1,84 @@
+@using System.Globalization
+
+<div class="rg-timeline" style="width:@TotalWidthpx;">
+    <div class="rg-timeline-row">
+        @foreach (var day in Days)
+        {
+            <div class="rg-timeline-cell @day.CssClass" style="width:@day.Widthpx;">
+                @day.Label
+            </div>
+        }
+    </div>
+    <div class="rg-timeline-row">
+        @foreach (var hour in Hours)
+        {
+            <div class="rg-timeline-cell @hour.CssClass" style="width:@hour.Widthpx;">
+                @hour.Label
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public DateTime From { get; set; }
+    [Parameter] public DateTime To { get; set; }
+    [Parameter] public double PxPerMinute { get; set; } = 2;
+
+    private double TotalWidth => Math.Max(200, (To - From).TotalMinutes * PxPerMinute);
+    private string TotalWidthpx => $"{TotalWidth}px";
+
+    private IReadOnlyList<Cell> Days { get; set; } = Array.Empty<Cell>();
+    private IReadOnlyList<Cell> Hours { get; set; } = Array.Empty<Cell>();
+
+    protected override void OnParametersSet()
+    {
+        BuildCells();
+    }
+
+    private void BuildCells()
+    {
+        var days = new List<Cell>();
+        var hours = new List<Cell>();
+        var cursor = From.Date;
+        var end = To.Date;
+        var dayWidth = 24 * 60 * PxPerMinute;
+        while (cursor <= end)
+        {
+            var isWeekend = cursor.DayOfWeek == DayOfWeek.Saturday || cursor.DayOfWeek == DayOfWeek.Sunday;
+            days.Add(new Cell
+            {
+                Label = cursor.ToString("MM-dd", CultureInfo.InvariantCulture),
+                Width = dayWidth,
+                CssClass = isWeekend ? "rg-weekend" : ""
+            });
+            cursor = cursor.AddDays(1);
+        }
+
+        var hourStep = PxPerMinute >= 1.8 ? 1 : (PxPerMinute >= 1.0 ? 2 : 4);
+        var hourCursor = From;
+        while (hourCursor < To)
+        {
+            var next = hourCursor.AddHours(hourStep);
+            var width = (next - hourCursor).TotalMinutes * PxPerMinute;
+            var isWeekend = hourCursor.DayOfWeek == DayOfWeek.Saturday || hourCursor.DayOfWeek == DayOfWeek.Sunday;
+            hours.Add(new Cell
+            {
+                Label = hourCursor.ToString("HH:mm", CultureInfo.InvariantCulture),
+                Width = width,
+                CssClass = isWeekend ? "rg-weekend" : ""
+            });
+            hourCursor = next;
+        }
+
+        Days = days;
+        Hours = hours;
+    }
+
+    private sealed class Cell
+    {
+        public string Label { get; set; } = "";
+        public double Width { get; set; }
+        public string Widthpx => $"{Width}px";
+        public string CssClass { get; set; } = "";
+    }
+}

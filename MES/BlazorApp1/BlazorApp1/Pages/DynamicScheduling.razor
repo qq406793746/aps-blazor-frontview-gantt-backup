@@ -1,4 +1,4 @@
-@page "/dynamic-scheduling"
+﻿@page "/dynamic-scheduling"
 @implements IDisposable
 @using System.Globalization
 @using BlazorApp1.Services
@@ -158,6 +158,9 @@ else if (tasks.Count == 0)
 <hr />
 
 <h4>资源甘特图</h4>
+<div class="mb-2">
+    <a class="btn btn-sm btn-outline-primary" href="/gantt/resource">打开资源甘特图（新）</a>
+</div>
 <div class="aps-resource-gantt-wrap">
     <div id="aps-resource-gantt-shell" class="aps-resource-gantt-shell">
         <div id="aps-resource-gantt" class="border rounded bg-white aps-resource-gantt-container"></div>
@@ -270,7 +273,6 @@ else if (tasks.Count == 0)
 @code {
     private long planId;
     private bool loading;
-    private bool moving;
     private string? errorMessage;
     private readonly List<GanttTaskDto> tasks = new();
     private string viewMode = "Day";
@@ -303,7 +305,6 @@ else if (tasks.Count == 0)
     private readonly List<MoveLogItem> moveLogs = new();
     private DotNetObjectReference<DynamicScheduling>? dotNetRef;
     private DotNetObjectReference<DynamicScheduling>? resourceGanttRef;
-    private bool ganttRendered;
 
     private async Task RunWithTraceAsync(string action, Func<Task> actionFunc)
     {
@@ -334,23 +335,54 @@ else if (tasks.Count == 0)
         {
             await Js.InvokeVoidAsync("ApsGantt.initScheduleRange", "schedule-range", "schedule-start", "schedule-end");
             resourceGanttRef ??= DotNetObjectReference.Create(this);
-            await Js.InvokeVoidAsync("ApsResourceGantt.registerDotNet", resourceGanttRef);
-            await RefreshLists();
+            var resourceGanttReady = await Js.InvokeAsync<bool>("ApsGantt.ensureResourceGanttLoaded");
+            if (resourceGanttReady)
+            {
+                await Js.InvokeVoidAsync("ApsResourceGantt.registerDotNet", resourceGanttRef);
+            }
+            else
+            {
+                Logger.LogWarning("ApsResourceGantt.registerDotNet not available after load attempt.");
+            }
         }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshLists();
     }
 
     private async Task RefreshLists()
     {
-        projects.Clear();
-        var proj = await ApsApi.GetProjectsAsync(1, 200, CancellationToken.None);
-        projects.AddRange(proj.Items);
+        errorMessage = null;
+        loading = true;
 
-        if (selectedProjectId > 0)
+        try
         {
-            await LoadProjectData();
-        }
+            projects.Clear();
+            var proj = await ApsApi.GetProjectsAsync(1, 200, CancellationToken.None);
+            projects.AddRange(proj.Items);
 
-        StateHasChanged();
+            if (selectedProjectId > 0)
+            {
+                await LoadProjectData();
+            }
+        }
+        catch (ApsApiException ex)
+        {
+            errorMessage = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+            Logger.LogWarning(ex, "RefreshLists failed");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Logger.LogError(ex, "RefreshLists failed");
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
     }
 
     private Task OnProjectChanged()
@@ -363,19 +395,38 @@ else if (tasks.Count == 0)
             return;
         }
 
-        var items = await ApsApi.GetWorkItemsAsync(selectedProjectId, 1, 200, CancellationToken.None);
-        workItems.Clear();
-        workItems.AddRange(items.Items);
+        errorMessage = null;
+        loading = true;
 
-        var planItems = await ApsApi.GetPlansAsync(selectedProjectId, 1, 200, CancellationToken.None);
-        plans.Clear();
-        plans.AddRange(planItems.Items);
+        try
+        {
+            var items = await ApsApi.GetWorkItemsAsync(selectedProjectId, 1, 200, CancellationToken.None);
+            workItems.Clear();
+            workItems.AddRange(items.Items);
 
-        var routeItems = await ApsApi.GetRoutesAsync(selectedProjectId, 1, 200, CancellationToken.None);
-        routes.Clear();
-        routes.AddRange(routeItems.Items);
+            var planItems = await ApsApi.GetPlansAsync(selectedProjectId, 1, 200, CancellationToken.None);
+            plans.Clear();
+            plans.AddRange(planItems.Items);
 
-        StateHasChanged();
+            var routeItems = await ApsApi.GetRoutesAsync(selectedProjectId, 1, 200, CancellationToken.None);
+            routes.Clear();
+            routes.AddRange(routeItems.Items);
+        }
+        catch (ApsApiException ex)
+        {
+            errorMessage = ex.Error?.Message ?? ex.RawBody ?? ex.Message;
+            Logger.LogWarning(ex, "LoadProjectData failed for project {ProjectId}", selectedProjectId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Logger.LogError(ex, "LoadProjectData failed for project {ProjectId}", selectedProjectId);
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
     }
 
     private Task OnPlanChanged()
@@ -539,19 +590,28 @@ else if (tasks.Count == 0)
         }
 
         var items = BuildTree(filtered);
-        await Js.InvokeVoidAsync("ApsGantt.render", "aps-gantt", items, dotNetRef, new { view_mode = viewMode });
-        ganttRendered = true;
+        var links = BuildGanttLinks(filtered);
+        await Js.InvokeVoidAsync("ApsGantt.render", "aps-gantt", items, dotNetRef, new { view_mode = viewMode, links });
     }
 
     private async Task RenderResourceGanttAsync()
     {
         var payload = BuildResourceGanttPayload(tasks);
-        await Js.InvokeVoidAsync("ApsResourceGantt.render", "aps-resource-gantt", payload);
+        var resourceGanttReady = await Js.InvokeAsync<bool>("ApsGantt.ensureResourceGanttLoaded");
+        if (resourceGanttReady)
+        {
+            await Js.InvokeVoidAsync("ApsResourceGantt.render", "aps-resource-gantt", payload);
+        }
+        else
+        {
+            Logger.LogWarning("ApsResourceGantt.render not available after load attempt.");
+        }
     }
 
     private static List<object> BuildTree(IReadOnlyList<GanttTaskDto> source)
     {
         var result = new List<object>();
+        var operationColors = BuildOperationColorMap(source);
         var machineGroups = source
             .GroupBy(t => t.MachineCode ?? "UNASSIGNED")
             .OrderBy(g => g.Key);
@@ -593,7 +653,9 @@ else if (tasks.Count == 0)
                         start_date = ToGanttLocal(task.PlannedStart),
                         end_date = ToGanttLocal(task.PlannedEnd),
                         locked = task.IsLocked,
-                        urgent = task.IsUrgent == true
+                        urgent = task.IsUrgent == true,
+                        color = ResolveOperationColor(task, operationColors),
+                        textColor = "#0f172a"
                     });
                 }
             }
@@ -627,7 +689,6 @@ else if (tasks.Count == 0)
             moveError = null;
             moveResult = null;
             lastMoveMessage = null;
-            moving = true;
 
             try
             {
@@ -687,7 +748,6 @@ else if (tasks.Count == 0)
             }
             finally
             {
-                moving = false;
             }
         });
     }
@@ -711,7 +771,6 @@ else if (tasks.Count == 0)
         moveError = null;
         moveResult = null;
         lastMoveMessage = null;
-        moving = true;
 
         try
         {
@@ -738,7 +797,6 @@ else if (tasks.Count == 0)
         }
         finally
         {
-            moving = false;
         }
     }
 
@@ -866,6 +924,7 @@ else if (tasks.Count == 0)
 
     private static ResourceGanttPayload BuildResourceGanttPayload(IReadOnlyList<GanttTaskDto> list)
     {
+        var operationColors = BuildOperationColorMap(list);
         var resources = list
             .Where(t => !string.IsNullOrWhiteSpace(t.MachineCode))
             .GroupBy(t => t.MachineCode!)
@@ -875,19 +934,19 @@ else if (tasks.Count == 0)
                 var children = g
                     .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
                     .OrderBy(t => t.PlannedStart)
-                    .Select(t => new ResourceGanttTask
-                    {
-                        Id = t.TaskId.ToString(CultureInfo.InvariantCulture),
-                        Code = t.OrderNo,
-                        Name = t.OperationName,
-                        StartTime = ToLocalDateTime(t.PlannedStart),
-                        EndTime = ToLocalDateTime(t.PlannedEnd),
-                        Color = ResolveTaskColor(t),
-                        Urgent = t.IsUrgent == true,
-                        Locked = t.IsLocked
-                    })
-                    .Where(t => !string.IsNullOrWhiteSpace(t.StartTime) && !string.IsNullOrWhiteSpace(t.EndTime))
-                    .ToList();
+                .Select(t => new ResourceGanttTask
+                {
+                    Id = t.TaskId.ToString(CultureInfo.InvariantCulture),
+                    Code = t.OrderNo,
+                    Name = t.OperationName,
+                    StartTime = ToLocalDateTime(t.PlannedStart),
+                    EndTime = ToLocalDateTime(t.PlannedEnd),
+                    Color = ResolveOperationColor(t, operationColors),
+                    Urgent = t.IsUrgent == true,
+                    Locked = t.IsLocked
+                })
+                .Where(t => !string.IsNullOrWhiteSpace(t.StartTime) && !string.IsNullOrWhiteSpace(t.EndTime))
+                .ToList();
 
                 return new ResourceGanttResource
                 {
@@ -903,6 +962,8 @@ else if (tasks.Count == 0)
         var planned = list
             .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
             .ToList();
+
+        var links = BuildWorkOrderLinks(planned);
         string[] dateRange;
         if (planned.Count > 0)
         {
@@ -927,21 +988,139 @@ else if (tasks.Count == 0)
         return new ResourceGanttPayload
         {
             Resources = resources,
+            Links = links,
             DateRange = dateRange
         };
     }
 
-    private static string ResolveTaskColor(GanttTaskDto task)
+    private static string ResolveOperationColor(GanttTaskDto task, IReadOnlyDictionary<string, string> operationColors)
     {
-        if (task.IsUrgent == true) return "#ef4444";
-        if (task.IsOutsourced) return "#f59e0b";
-        if (task.IsLocked) return "#0f172a";
-        return "#60a5fa";
+        var key = GetOperationKey(task);
+        if (key != null && operationColors.TryGetValue(key, out var color))
+        {
+            return ToRgba(color, 0.65);
+        }
+        return ToRgba("#6C7FF2", 0.65);
+    }
+
+    private static Dictionary<string, string> BuildOperationColorMap(IReadOnlyList<GanttTaskDto> list)
+    {
+        var palette = new[]
+        {
+            "#6C7FF2", "#9BD36E", "#7FD8E6", "#E9A6C7", "#A6B3C8", "#8BC2F0",
+            "#B8E18B", "#F2C27A", "#C3B7F2", "#F2A7A7", "#7FB2A9", "#A1C6FF"
+        };
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        var index = 0;
+        foreach (var task in list)
+        {
+            var key = GetOperationKey(task);
+            if (string.IsNullOrWhiteSpace(key) || map.ContainsKey(key))
+            {
+                continue;
+            }
+            map[key] = palette[index % palette.Length];
+            index++;
+        }
+        return map;
+    }
+
+    private static string ToRgba(string hex, double alpha)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return $"rgba(108,127,242,{alpha.ToString(CultureInfo.InvariantCulture)})";
+        }
+
+        var value = hex.TrimStart('#');
+        if (value.Length == 3)
+        {
+            value = string.Concat(value[0], value[0], value[1], value[1], value[2], value[2]);
+        }
+
+        if (value.Length != 6)
+        {
+            return hex;
+        }
+
+        var r = Convert.ToInt32(value.Substring(0, 2), 16);
+        var g = Convert.ToInt32(value.Substring(2, 2), 16);
+        var b = Convert.ToInt32(value.Substring(4, 2), 16);
+        return $"rgba({r},{g},{b},{alpha.ToString(CultureInfo.InvariantCulture)})";
+    }
+
+    private static string? GetOperationKey(GanttTaskDto task)
+        => string.IsNullOrWhiteSpace(task.OperationName) ? null : task.OperationName;
+
+    private static string? GetWorkOrderKey(GanttTaskDto task)
+    {
+        if (!string.IsNullOrWhiteSpace(task.OrderNo)) return task.OrderNo;
+        if (task.WorkItemId.HasValue) return task.WorkItemId.Value.ToString(CultureInfo.InvariantCulture);
+        return null;
+    }
+
+    private static List<ResourceGanttLink> BuildWorkOrderLinks(IReadOnlyList<GanttTaskDto> list)
+    {
+        var result = new List<ResourceGanttLink>();
+        var groups = list
+            .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+            .GroupBy(GetWorkOrderKey)
+            .Where(g => g.Key != null);
+
+        foreach (var group in groups)
+        {
+            var ordered = group
+                .OrderBy(t => t.Seq)
+                .ThenBy(t => t.PlannedStart)
+                .ToList();
+            for (var i = 1; i < ordered.Count; i++)
+            {
+                result.Add(new ResourceGanttLink
+                {
+                    LinkedFromTaskKey = ordered[i - 1].TaskId.ToString(CultureInfo.InvariantCulture),
+                    LinkedToTaskKey = ordered[i].TaskId.ToString(CultureInfo.InvariantCulture),
+                    Type = "finish_to_start"
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private static List<GanttLink> BuildGanttLinks(IReadOnlyList<GanttTaskDto> list)
+    {
+        var result = new List<GanttLink>();
+        var groups = list
+            .Where(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue)
+            .GroupBy(GetWorkOrderKey)
+            .Where(g => g.Key != null);
+
+        var linkId = 1;
+        foreach (var group in groups)
+        {
+            var ordered = group
+                .OrderBy(t => t.Seq)
+                .ThenBy(t => t.PlannedStart)
+                .ToList();
+            for (var i = 1; i < ordered.Count; i++)
+            {
+                result.Add(new GanttLink
+                {
+                    Id = linkId++,
+                    Source = ordered[i - 1].TaskId.ToString(CultureInfo.InvariantCulture),
+                    Target = ordered[i].TaskId.ToString(CultureInfo.InvariantCulture),
+                    Type = 0
+                });
+            }
+        }
+
+        return result;
     }
 
     public sealed class ResourceGanttPayload
     {
         public List<ResourceGanttResource> Resources { get; set; } = new();
+        public List<ResourceGanttLink> Links { get; set; } = new();
         public string[]? DateRange { get; set; }
     }
 
@@ -963,6 +1142,21 @@ else if (tasks.Count == 0)
         public string? Color { get; set; }
         public bool Urgent { get; set; }
         public bool Locked { get; set; }
+    }
+
+    public sealed class ResourceGanttLink
+    {
+        public string LinkedFromTaskKey { get; set; } = "";
+        public string LinkedToTaskKey { get; set; } = "";
+        public string Type { get; set; } = "finish_to_start";
+    }
+
+    public sealed class GanttLink
+    {
+        public int Id { get; set; }
+        public string Source { get; set; } = "";
+        public string Target { get; set; } = "";
+        public int Type { get; set; }
     }
 
     public sealed class ResourceGanttDragEnd

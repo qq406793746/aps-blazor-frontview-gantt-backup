@@ -37,7 +37,7 @@ else
 
         var primary = !string.IsNullOrWhiteSpace(name)
             ? name
-            : (!string.IsNullOrWhiteSpace(code) ? code : "Unnamed resource");
+            : (!string.IsNullOrWhiteSpace(code) ? DeriveNameFromCode(resource.Type, code) : "Unnamed resource");
 
         var secondary = string.IsNullOrWhiteSpace(code) || primary == code
             ? $"类型: {type}"
@@ -59,6 +59,72 @@ else
         }
         var onlyQuestionMarks = trimmed.All(ch => ch == '?' || char.IsWhiteSpace(ch));
         return onlyQuestionMarks ? "" : trimmed;
+    }
+
+    private static string DeriveNameFromCode(string? type, string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return "";
+        }
+
+        var parts = code.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+        {
+            return code;
+        }
+
+        var category = parts[1].ToUpperInvariant();
+        var prefix = (type ?? "").Trim();
+        var baseName = MapCategory(prefix, category);
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            return code;
+        }
+
+        var suffix = GetShortSuffix(parts);
+        return string.IsNullOrWhiteSpace(suffix) ? baseName : $"{baseName}-{suffix}";
+    }
+
+    private static string GetShortSuffix(string[] parts)
+    {
+        if (parts.Length >= 3 && parts[2].Length <= 3)
+        {
+            return parts[2];
+        }
+
+        var tail = parts[^1];
+        if (tail.Length <= 3)
+        {
+            return tail;
+        }
+
+        return "";
+    }
+
+    private static string MapCategory(string type, string category)
+    {
+        var isPerson = type.Equals("Person", StringComparison.OrdinalIgnoreCase);
+        var isVendor = type.Equals("Vendor", StringComparison.OrdinalIgnoreCase);
+        var isTool = type.Equals("Tool", StringComparison.OrdinalIgnoreCase);
+        var isMachine = type.Equals("Machine", StringComparison.OrdinalIgnoreCase);
+
+        return category switch
+        {
+            "GR" => isPerson ? "磨床人员" : "磨床",
+            "QC" => isPerson ? "质检人员" : "质检",
+            "OP" => isPerson ? "操作员" : "工序机",
+            "PR" => isPerson ? "程序员" : "工序机",
+            "AT" => isPerson ? "测试员" : "测试机",
+            "MAT" => isPerson ? "物料员" : "物料机",
+            "MOVE" => isPerson ? "搬运员" : "搬运机",
+            "OUT" => isVendor ? "外协" : (isPerson ? "外协人员" : "外协机"),
+            "TOOL" => isTool ? "工装" : (isPerson ? "工装员" : "工装机"),
+            "FLOW" => "流程",
+            "GANTT" => "甘特",
+            "RAND" => "随机",
+            _ => isMachine ? "机台" : (isPerson ? "人员" : category)
+        };
     }
 
     private static string FormatType(string? type)

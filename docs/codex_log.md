@@ -109,3 +109,34 @@
   - Visit /gantt/resource and confirm left/right rows align at scroll bottom.
   - Check resource list labels show “编码/类型” and no “???” names.
   - Confirm right scrollbar hidden while left scrollbar remains.
+## 2026-01-29 - Resource Gantt 资源栏宽度可拖拽
+- 目标：资源栏内容被截断时可由用户拖拽调整显示宽度。
+- 改动：
+  - MES/BlazorApp1/BlazorApp1/Components/Gantt/ResourceGantt.razor
+    - 为资源栏觉得新增拖拽把手，初始化 JS resizer。
+  - MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css
+    - 引入 CSS 变量 --rg-resource-width 控制资源栏宽度；拖拽条样式与 hover 视觉。
+  - MES/BlazorApp1/BlazorApp1/wwwroot/js/resource-gantt.js
+    - 新增 initResourceResizer：按住拖拽调整资源栏宽度，范围 180–520px，localStorage 记忆。
+- 验证：未运行（需打开资源甘特图手动拖拽验证）。
+
+## 2026-02-02 资源甘特图页面改为 classic APS 风格
+
+- 目标：将“动态排产 -> 打开资源甘特图（新）”对应页面 `/gantt/resource` 的前端布局与视觉，改为 `classic-aps-resource-gantt` 仓库风格（经典 APS 工业界面）。
+- 改动：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttResource.razor`
+    - 页面整体改为 classic 结构：顶部菜单栏、工具栏、标题栏。
+    - 保留原有数据控制能力（PlanId/时间窗/链接模式/过滤/缩放），并调整文案与布局为经典风格。
+    - 甘特图外层改为经典面板容器。
+    - 新增底部 tabs（订单甘特图/资源甘特图/BOM/订单表）和属性区域（点击任务显示详情）。
+    - 新增状态栏（Plan/Resources/Tasks + NUM/CAPS/SCROLL）。
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css`
+    - 新增 `classic-*` 样式块并覆盖 `rg-*` 在该页的视觉表现：
+      - 菜单栏/工具栏/标题栏样式；
+      - 甘特主区域边框、时间轴、资源列、任务条、连线、当前线；
+      - 底部 tab、属性面板、状态栏；
+      - 小屏响应式宽度适配。
+- 说明：
+  - 本次仅改 UI 结构与样式，未改后端 API / 数据模型 / 资源甘特图核心交互逻辑。
+- 构建验证：
+  - 执行 `dotnet build BlazorApp1.sln` 失败，原因是 `BlazorApp1.exe` 被运行中进程锁定（PID 38944），属于进程占用问题，不是本次代码编译错误。

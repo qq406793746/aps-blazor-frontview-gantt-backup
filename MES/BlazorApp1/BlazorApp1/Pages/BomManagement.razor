@@ -12,7 +12,7 @@
     
     // 注入JS运行时服务
     [Inject]
-    private IJSRuntime JSRuntime { get; set; }
+    private IJSRuntime? JSRuntime { get; set; }
 
     // BOM数据模型
     public class BOMData
@@ -500,7 +500,10 @@
         if (firstRender)
         {
             // 使用JavaScript初始化拖拽功能
-            await JSRuntime.InvokeVoidAsync("initBomTableResizer");
+            if (JSRuntime != null)
+            {
+                await JSRuntime.InvokeVoidAsync("initBomTableResizer");
+            }
         }
     }
 }

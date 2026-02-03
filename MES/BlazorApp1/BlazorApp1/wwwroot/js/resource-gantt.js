@@ -132,11 +132,77 @@ window.ResourceGanttInterop = (function () {
         });
     }
 
+    function initResourceResizer(shellId, handleId) {
+        var shell = document.getElementById(shellId);
+        var handle = document.getElementById(handleId);
+        if (!shell || !handle) {
+            return;
+        }
+
+        var storageKey = "rg-resource-width-" + shellId;
+        var minWidth = 180;
+        var maxWidth = 520;
+
+        function clamp(value) {
+            return Math.max(minWidth, Math.min(maxWidth, value));
+        }
+
+        function setWidth(value) {
+            var width = clamp(value);
+            shell.style.setProperty("--rg-resource-width", width + "px");
+            try {
+                localStorage.setItem(storageKey, width.toString());
+            } catch (err) {
+                // ignore storage errors
+            }
+        }
+
+        try {
+            var stored = localStorage.getItem(storageKey);
+            if (stored) {
+                var parsed = Number.parseFloat(stored);
+                if (!Number.isNaN(parsed)) {
+                    setWidth(parsed);
+                }
+            }
+        } catch (err) {
+            // ignore storage errors
+        }
+
+        function onPointerMove(evt) {
+            var rect = shell.getBoundingClientRect();
+            setWidth(evt.clientX - rect.left);
+        }
+
+        function onPointerUp(evt) {
+            handle.classList.remove("rg-dragging");
+            document.removeEventListener("pointermove", onPointerMove);
+            document.removeEventListener("pointerup", onPointerUp);
+            try {
+                handle.releasePointerCapture(evt.pointerId);
+            } catch (err) {
+                // ignore
+            }
+        }
+
+        handle.addEventListener("pointerdown", function (evt) {
+            handle.classList.add("rg-dragging");
+            try {
+                handle.setPointerCapture(evt.pointerId);
+            } catch (err) {
+                // ignore
+            }
+            document.addEventListener("pointermove", onPointerMove);
+            document.addEventListener("pointerup", onPointerUp);
+        });
+    }
+
     return {
         initScrollSync: initScrollSync,
         getScrollInfo: getScrollInfo,
         setScrollLeft: setScrollLeft,
         getBarRects: getBarRects,
-        logSelectedBar: logSelectedBar
+        logSelectedBar: logSelectedBar,
+        initResourceResizer: initResourceResizer
     };
 })();

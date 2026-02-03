@@ -5,38 +5,64 @@
 @inject ILogger<GanttResource> Logger
 @inject NavigationManager NavigationManager
 
-<div class="rg-page">
-    <h3>Resource Gantt (Asprova style)</h3>
+<div class="classic-aps-page rg-page">
+    <div class="classic-menu-bar">
+        <button type="button">文件(F)</button>
+        <button type="button">编辑(E)</button>
+        <button type="button">视图(V)</button>
+        <button type="button">数据表格(A)</button>
+        <button type="button">生产计划(S)</button>
+        <button type="button">图表(C)</button>
+        <button type="button">工具(T)</button>
+        <button type="button">帮助(H)</button>
+    </div>
 
-    <div class="rg-toolbar">
+    <div class="classic-icon-bar">
+        <span class="tool-item">保存</span>
+        <span class="tool-item">剪切</span>
+        <span class="tool-item">复制</span>
+        <span class="tool-item">粘贴</span>
+        <span class="tool-item">撤销</span>
+        <span class="tool-item">重做</span>
+        <span class="tool-item">放大</span>
+        <span class="tool-item">缩小</span>
+    </div>
+
+    <div class="classic-title-bar">
+        <strong>资源甘特图</strong>
+        <span>PlanNo: @Snapshot.Meta.PlanNo</span>
+        <span>窗口: @Snapshot.Meta.From.ToString("yyyy-MM-dd HH:mm") ~ @Snapshot.Meta.To.ToString("yyyy-MM-dd HH:mm")</span>
+    </div>
+
+    <div class="rg-toolbar classic-control-panel">
         <div class="row g-2 align-items-end">
             <div class="col-md-2">
                 <label class="form-label">PlanId</label>
                 <input class="form-control" type="number" @bind="PlanId" />
             </div>
             <div class="col-md-3">
-                <label class="form-label">From</label>
+                <label class="form-label">开始</label>
                 <input class="form-control" type="datetime-local" @bind="FromInput" />
             </div>
             <div class="col-md-3">
-                <label class="form-label">To</label>
+                <label class="form-label">结束</label>
                 <input class="form-control" type="datetime-local" @bind="ToInput" />
             </div>
             <div class="col-md-2">
-                <label class="form-label">LinksMode</label>
+                <label class="form-label">链接模式</label>
                 <select class="form-select" @bind="LinksMode">
                     <option value="seq">seq</option>
                     <option value="none">none</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <button class="btn btn-primary w-100" @onclick="LoadSnapshot" disabled="@loading">Refresh</button>
+                <button class="btn btn-primary w-100" @onclick="LoadSnapshot" disabled="@loading">刷新</button>
             </div>
         </div>
 
         <div class="row g-2 mt-2 align-items-end">
             <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" @onclick="LoadLatestPlan" disabled="@loading">Load latest plan</button>
+                <button class="btn btn-outline-secondary w-100" @onclick="LoadLatestPlan" disabled="@loading">加载最新计划</button>
             </div>
             <div class="col-md-10 text-muted">
                 @if (!string.IsNullOrWhiteSpace(PlanHint))
@@ -49,7 +75,7 @@
 
         <div class="row g-2 mt-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label">Resource types</label>
+                <label class="form-label">资源类型</label>
                 <div class="d-flex gap-2 flex-wrap">
                     @foreach (var type in AvailableTypes)
                     {
@@ -62,17 +88,17 @@
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Resource keyword</label>
+                <label class="form-label">资源关键字</label>
                 <input class="form-control" @bind="ResourceKeyword" placeholder="Machine / Person / Tool" />
             </div>
             <div class="col-md-3">
-                <label class="form-label">Order keyword</label>
+                <label class="form-label">工单关键字</label>
                 <input class="form-control" @bind="OrderKeyword" placeholder="OrderNo/LabelLines" />
             </div>
             <div class="col-md-3 d-flex gap-2 align-items-end">
                 <label class="form-check">
                     <input class="form-check-input" type="checkbox" @bind="HighlightOnlySelected" />
-                    <span class="form-check-label">Highlight selected links only</span>
+                    <span class="form-check-label">仅高亮选中链路</span>
                 </label>
                 <label class="form-check">
                     <input class="form-check-input" type="checkbox" @bind="IncludePersons" />
@@ -91,20 +117,19 @@
 
         <div class="row g-2 mt-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label">Zoom</label>
-                <div class="d-flex gap-2">
+                <label class="form-label">缩放</label>
+                <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-outline-secondary" @onclick="ZoomOut">Zoom-</button>
                     <button class="btn btn-outline-secondary" @onclick="ZoomIn">Zoom+</button>
-                    <button class="btn btn-outline-secondary" @onclick="JumpToPlanning">Jump to plan start</button>
-                    <button class="btn btn-outline-secondary" @onclick="JumpToFirstTask">Jump to first task</button>
+                    <button class="btn btn-outline-secondary" @onclick="JumpToPlanning">跳到计划起点</button>
+                    <button class="btn btn-outline-secondary" @onclick="JumpToFirstTask">跳到首任务</button>
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">View density</label>
-                <div class="text-muted">px/min: @PxPerMinute.ToString("0.00")</div>
-            </div>
-            <div class="col-md-6">
-                <div class="text-muted">PlanNo: @Snapshot.Meta.PlanNo | Window: @Snapshot.Meta.From.ToString("yyyy-MM-dd HH:mm") ~ @Snapshot.Meta.To.ToString("yyyy-MM-dd HH:mm")</div>
+                <div class="d-flex flex-column">
+                    <label class="form-label mb-1">视图密度</label>
+                    <div class="text-muted">px/min: @PxPerMinute.ToString("0.00")</div>
+                </div>
             </div>
         </div>
     </div>
@@ -123,35 +148,57 @@
         <div class="text-muted">No assignments. Check plan and time window.</div>
     }
 
-    <ResourceGantt @ref="GanttRef"
-                   Snapshot="Snapshot"
-                   From="Snapshot.Meta.From"
-                   To="Snapshot.Meta.To"
-                   PxPerMinute="PxPerMinute"
-                   RowHeight="RowHeight"
-                   BarHeight="BarHeight"
-                   ResourceTypes="SelectedTypes"
-                   ResourceKeyword="ResourceKeyword"
-                   OrderKeyword="OrderKeyword"
-                   HighlightOnlySelected="HighlightOnlySelected"
-                   SelectedTaskId="SelectedTaskId"
-                   SelectedWorkItemId="SelectedWorkItemId"
-                   DebugOverlay="DebugOverlay"
-                   OnTaskSelected="OnTaskSelected" />
+    <div class="classic-gantt-panel">
+        <ResourceGantt @ref="GanttRef"
+                       Snapshot="Snapshot"
+                       From="Snapshot.Meta.From"
+                       To="Snapshot.Meta.To"
+                       PxPerMinute="PxPerMinute"
+                       RowHeight="RowHeight"
+                       BarHeight="BarHeight"
+                       ResourceTypes="SelectedTypes"
+                       ResourceKeyword="ResourceKeyword"
+                       OrderKeyword="OrderKeyword"
+                       HighlightOnlySelected="HighlightOnlySelected"
+                       SelectedTaskId="SelectedTaskId"
+                       SelectedWorkItemId="SelectedWorkItemId"
+                       DebugOverlay="DebugOverlay"
+                       OnTaskSelected="OnTaskSelected" />
+    </div>
 
-    @if (SelectedAssignment != null)
-    {
-        <div class="rg-detail-panel mt-2">
-            <strong>Task @SelectedAssignment.TaskId</strong>
-            <div>Resource: @SelectedAssignment.ResourceType @SelectedAssignment.ResourceId</div>
-            <div>Order: @SelectedAssignment.OrderNo</div>
-            <div>Operation: @SelectedAssignment.OperationName (@SelectedAssignment.OpSeq)</div>
-            <div>Start: @SelectedAssignment.Start:yyyy-MM-dd HH:mm</div>
-            <div>End: @SelectedAssignment.End:yyyy-MM-dd HH:mm</div>
-            <div>Due: @SelectedAssignment.DueDate</div>
-            <div>Violations: @string.Join(", ", SelectedAssignment.Violations.Select(v => v.Code))</div>
+    <div class="classic-bottom-tabs">
+        <button type="button">订单甘特图</button>
+        <button type="button" class="active">资源甘特图</button>
+        <button type="button">制造BOM表</button>
+        <button type="button">订单表</button>
+    </div>
+
+    <div class="rg-detail-panel classic-property-panel">
+        <div class="property-header">
+            <div>属性</div>
+            <div>值</div>
         </div>
-    }
+        @if (SelectedAssignment != null)
+        {
+            <div class="property-row"><span>TaskId</span><span>@SelectedAssignment.TaskId</span></div>
+            <div class="property-row"><span>资源</span><span>@SelectedAssignment.ResourceType @SelectedAssignment.ResourceId</span></div>
+            <div class="property-row"><span>工单</span><span>@SelectedAssignment.OrderNo</span></div>
+            <div class="property-row"><span>工序</span><span>@SelectedAssignment.OperationName (@SelectedAssignment.OpSeq)</span></div>
+            <div class="property-row"><span>开始</span><span>@SelectedAssignment.Start:yyyy-MM-dd HH:mm</span></div>
+            <div class="property-row"><span>结束</span><span>@SelectedAssignment.End:yyyy-MM-dd HH:mm</span></div>
+            <div class="property-row"><span>交期</span><span>@SelectedAssignment.DueDate</span></div>
+            <div class="property-row"><span>约束</span><span>@string.Join(", ", SelectedAssignment.Violations.Select(v => v.Code))</span></div>
+        }
+        else
+        {
+            <div class="property-row"><span>提示</span><span>点击甘特条查看任务详情</span></div>
+        }
+    </div>
+
+    <div class="classic-status-bar">
+        <span>Plan @PlanId | Resources @Snapshot.Resources.Count | Tasks @Snapshot.Assignments.Count</span>
+        <span>NUM&nbsp;&nbsp;CAPS&nbsp;&nbsp;SCROLL</span>
+    </div>
 </div>
 
 @code {

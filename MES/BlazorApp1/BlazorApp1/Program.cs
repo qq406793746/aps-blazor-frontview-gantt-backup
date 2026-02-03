@@ -24,6 +24,15 @@ builder.Services.AddHttpClient<IApsApiService, ApsApiService>((sp, client) =>
     }
 })
 .AddHttpMessageHandler<TraceIdHandler>();
+builder.Services.AddHttpClient<IGanttApiClient, GanttApiClient>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptions<ApsApiOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(options.BaseUrl))
+    {
+        client.BaseAddress = new Uri(options.BaseUrl);
+    }
+})
+.AddHttpMessageHandler<TraceIdHandler>();
 
 // 从配置中获取数据库连接字符串，并使用默认值作为备用
 var connectionString = builder.Configuration.GetConnectionString("MESProjectManagement") 

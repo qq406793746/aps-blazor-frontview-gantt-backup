@@ -23,6 +23,7 @@ public interface IApsApiService
     Task<PagedResult<ProjectListItemDto>> GetProjectsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken);
     Task<PagedResult<WorkItemListItemDto>> GetWorkItemsAsync(long projectId, int pageIndex, int pageSize, CancellationToken cancellationToken);
     Task<PagedResult<PlanListItemDto>> GetPlansAsync(long projectId, int pageIndex, int pageSize, CancellationToken cancellationToken);
+    Task<PlanListItemDto?> GetLatestPlanAsync(CancellationToken cancellationToken);
     Task<PagedResult<ProcessRouteListItemDto>> GetRoutesAsync(long projectId, int pageIndex, int pageSize, CancellationToken cancellationToken);
     Task<long> CreateWorkItemAsync(WorkItemCreateRequest request, CancellationToken cancellationToken);
     Task<long> CreatePlanAsync(PlanCreateRequest request, CancellationToken cancellationToken);
@@ -104,6 +105,16 @@ public class ApsApiService : IApsApiService
         using var response = await _http.GetAsync(url, cancellationToken);
         return await ReadAsync<PagedResult<PlanListItemDto>>(response, cancellationToken)
                ?? new PagedResult<PlanListItemDto>();
+    }
+
+    public async Task<PlanListItemDto?> GetLatestPlanAsync(CancellationToken cancellationToken)
+    {
+        EnsureBaseAddress();
+        var url = "api/plans?pageIndex=1&pageSize=1";
+        using var response = await _http.GetAsync(url, cancellationToken);
+        var page = await ReadAsync<PagedResult<PlanListItemDto>>(response, cancellationToken)
+                   ?? new PagedResult<PlanListItemDto>();
+        return page.Items.FirstOrDefault();
     }
 
     public async Task<PagedResult<ProcessRouteListItemDto>> GetRoutesAsync(long projectId, int pageIndex, int pageSize, CancellationToken cancellationToken)

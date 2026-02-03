@@ -1,5 +1,6 @@
 window.ApsGantt = (function () {
     var schedulePicker;
+    var markerId = null;
     function applyScale(viewMode) {
         if (viewMode === 'Month') {
             gantt.config.scale_unit = 'month';
@@ -31,13 +32,17 @@ window.ApsGantt = (function () {
         applyScale(options && options.view_mode ? options.view_mode : 'Day');
 
         gantt.config.date_format = '%Y-%m-%d %H:%i';
-        gantt.config.readonly = false;
-        gantt.config.drag_move = true;
+        gantt.config.readonly = true;
+        gantt.config.drag_move = false;
         gantt.config.drag_progress = false;
-        gantt.config.drag_resize = true;
+        gantt.config.drag_resize = false;
         gantt.config.show_progress = false;
         gantt.config.autosize = 'y';
-        gantt.config.grid_width = 320;
+        gantt.config.grid_width = 300;
+        gantt.config.row_height = 42;
+        gantt.config.task_height = 26;
+        gantt.config.show_links = true;
+        gantt.config.drag_links = false;
 
         gantt.templates.task_class = function (start, end, task) {
             if (task.locked) {
@@ -75,7 +80,20 @@ window.ApsGantt = (function () {
         });
 
         gantt.init(elementId);
-        gantt.parse({ data: data });
+        gantt.clearAll();
+        if (typeof gantt.addMarker === 'function') {
+            if (markerId) {
+                gantt.deleteMarker(markerId);
+                markerId = null;
+            }
+            markerId = gantt.addMarker({
+                start_date: new Date(),
+                css: 'gantt_marker_today',
+                text: ''
+            });
+        }
+        var links = options && options.links ? options.links : [];
+        gantt.parse({ data: data, links: links });
     }
 
     function initScheduleRange(rangeInputId, startInputId, endInputId) {
@@ -117,6 +135,37 @@ window.ApsGantt = (function () {
         schedulePicker.setDate([startValue, endValue], true, 'Y-m-d H:i');
     }
 
+    function ensureResourceGanttLoaded() {
+        if (window.ApsResourceGantt && typeof window.ApsResourceGantt.registerDotNet === 'function') {
+            return Promise.resolve(true);
+        }
+
+        return new Promise(function (resolve) {
+            var existing = document.querySelector('script[src*="aps-resource-gantt.js"]');
+            if (existing && existing.dataset.apsGanttLoaded === '1') {
+                resolve(!!(window.ApsResourceGantt && typeof window.ApsResourceGantt.registerDotNet === 'function'));
+                return;
+            }
+
+            var script = existing || document.createElement('script');
+            if (!script.src) {
+                script.src = '/aps-gantt/aps-resource-gantt.js';
+            }
+            script.async = true;
+            script.onload = function () {
+                script.dataset.apsGanttLoaded = '1';
+                resolve(!!(window.ApsResourceGantt && typeof window.ApsResourceGantt.registerDotNet === 'function'));
+            };
+            script.onerror = function () {
+                resolve(false);
+            };
+
+            if (!existing) {
+                document.head.appendChild(script);
+            }
+        });
+    }
+
     function formatDate(date) {
         var yyyy = date.getFullYear();
         var mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -129,6 +178,7 @@ window.ApsGantt = (function () {
     return {
         render: render,
         initScheduleRange: initScheduleRange,
-        setScheduleRange: setScheduleRange
+        setScheduleRange: setScheduleRange,
+        ensureResourceGanttLoaded: ensureResourceGanttLoaded
     };
 })();
