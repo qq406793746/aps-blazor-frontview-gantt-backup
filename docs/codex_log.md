@@ -242,3 +242,16 @@
 - Validation:
   - `dotnet build ... -p:UseAppHost=false` reached compile phase without new C#/Razor errors for these changes.
   - Build copy step failed due existing running process lock on `bin\\Debug\\net8.0\\BlazorApp1.dll` (runtime process remained active).
+
+## 2026-02-04 - Hotfix: duplicate resource key crash in Syncfusion Gantt
+
+- Updated `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`:
+  - Fixed `System.ArgumentException: An item with the same key has already been added` in `GanttResource.GenerateResources`.
+  - Root cause: backend can return same numeric `ResourceId` across different `ResourceType`, which collided in Syncfusion resource dictionary.
+  - Added frontend resource-id remapping (`type + rawId -> unique int`) and used the remapped id consistently for:
+    - `DisplayResources` (`GanttResource.Id`)
+    - task `ResourceIds`
+    - assignment `ResourceId`
+  - Added resource deduping by remapped id as extra guard.
+- Validation:
+  - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...` passed (`0 errors`).

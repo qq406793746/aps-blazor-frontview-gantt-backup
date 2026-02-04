@@ -303,8 +303,9 @@
                 HintMessage = "No tasks in selected window. Auto reloaded with server default window.";
             }
 
-            AllResources = BuildResources(snapshot);
-            AllTasks = BuildTasks(snapshot);
+            var resourceIdMap = BuildResourceIdMap(snapshot);
+            AllResources = BuildResources(snapshot, resourceIdMap);
+            AllTasks = BuildTasks(snapshot, resourceIdMap);
             AllLinks = BuildLinks(snapshot);
 
             if (snapshot.Meta != null)
@@ -345,43 +346,71 @@
     }
 
 
-    private List<GanttResourceVm> BuildResources(ResourceGanttSnapshot snapshot)
+    private static Dictionary<string, int> BuildResourceIdMap(ResourceGanttSnapshot snapshot)
+    {
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var nextId = 1;
+
+        foreach (var resource in snapshot.Resources)
+        {
+            var key = BuildResourceKey(resource.Id, resource.Type);
+            if (!map.ContainsKey(key))
+            {
+                map[key] = nextId++;
+            }
+        }
+
+        foreach (var assignment in snapshot.Assignments)
+        {
+            var key = BuildResourceKey(assignment.ResourceId, assignment.ResourceType);
+            if (!map.ContainsKey(key))
+            {
+                map[key] = nextId++;
+            }
+        }
+
+        return map;
+    }
+
+    private List<GanttResourceVm> BuildResources(ResourceGanttSnapshot snapshot, IReadOnlyDictionary<string, int> resourceIdMap)
     {
         return snapshot.Resources
             .Select(r =>
             {
-                var id = ToIntId(r.Id);
-                if (!id.HasValue)
+                var key = BuildResourceKey(r.Id, r.Type);
+                if (!resourceIdMap.TryGetValue(key, out var mappedId))
                 {
                     return null;
                 }
 
                 return new GanttResourceVm
                 {
-                    Id = id.Value,
+                    Id = mappedId,
                     Code = r.Code,
                     Name = string.IsNullOrWhiteSpace(r.Name) ? r.Code : r.Name,
                     Type = string.IsNullOrWhiteSpace(r.Type) ? "Machine" : r.Type,
                     GroupName = string.IsNullOrWhiteSpace(r.Type) ? "Machine" : r.Type,
-                    SortKey = id.Value,
+                    SortKey = mappedId,
                     MaxUnits = Math.Max(100, r.Capacity * 100)
                 };
             })
             .Where(r => r != null)
             .Cast<GanttResourceVm>()
+            .GroupBy(r => r.Id)
+            .Select(g => g.First())
             .OrderBy(r => r.GroupName)
             .ThenBy(r => r.SortKey)
             .ToList();
     }
 
-    private List<GanttTaskVm> BuildTasks(ResourceGanttSnapshot snapshot)
+    private List<GanttTaskVm> BuildTasks(ResourceGanttSnapshot snapshot, IReadOnlyDictionary<string, int> resourceIdMap)
     {
         return snapshot.Assignments
             .Select(a =>
             {
                 var taskId = ToIntId(a.TaskId);
-                var resourceId = ToIntId(a.ResourceId);
-                if (!taskId.HasValue || !resourceId.HasValue)
+                var key = BuildResourceKey(a.ResourceId, a.ResourceType);
+                if (!taskId.HasValue || !resourceIdMap.TryGetValue(key, out var mappedResourceId))
                 {
                     return null;
                 }
@@ -395,7 +424,7 @@
                     TaskName = $"{a.OrderNo ?? "WO"} | {(string.IsNullOrWhiteSpace(a.OperationName) ? "OP" : a.OperationName)}",
                     StartDate = a.Start,
                     EndDate = a.End,
-                    ResourceIds = new List<int> { resourceId.Value },
+                    ResourceIds = new List<int> { mappedResourceId },
                     IsExpanded = true,
                     OrderNo = a.OrderNo,
                     PartNo = a.ItemHint,
@@ -426,6 +455,12 @@
             .OrderBy(t => t.StartDate)
             .ThenBy(t => t.TaskId)
             .ToList();
+    }
+
+    private static string BuildResourceKey(long rawId, string? resourceType)
+    {
+        var type = string.IsNullOrWhiteSpace(resourceType) ? "machine" : resourceType.Trim().ToLowerInvariant();
+        return $"{type}:{rawId}";
     }
 
     private static List<GanttLinkVm> BuildLinks(ResourceGanttSnapshot snapshot)
