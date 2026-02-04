@@ -1,7 +1,7 @@
 @using System.Globalization
 @using Microsoft.AspNetCore.Components.Web
 
-<div class="@(HighlightOnlySelected && SelectedWorkItemId.HasValue ? "rg-dim" : "")">
+<div class="@RootCssClass">
     @{
         var shiftBands = GetDailyShiftBands();
     }
@@ -48,16 +48,48 @@
                 if (items != null)
                 {
                     var sortedItems = items.OrderBy(a => a.Start).ToList();
+                    var laneEnds = new List<double>();
+                    var placed = new List<(GanttAssignment Assignment, double Left, double Width, int Lane)>(sortedItems.Count);
 
-                    for (var assignmentIndex = 0; assignmentIndex < sortedItems.Count; assignmentIndex++)
+                    foreach (var assignment in sortedItems)
                     {
-                        var assignment = sortedItems[assignmentIndex];
                         var left = GetBarLeft(assignment);
                         var width = GetBarWidth(assignment);
+                        var right = left + width;
+                        var lane = 0;
+                        while (lane < laneEnds.Count && left < laneEnds[lane])
+                        {
+                            lane++;
+                        }
+
+                        if (lane == laneEnds.Count)
+                        {
+                            laneEnds.Add(right);
+                        }
+                        else
+                        {
+                            laneEnds[lane] = right;
+                        }
+
+                        placed.Add((assignment, left, width, lane));
+                    }
+
+                    var laneHeight = BarHeight;
+                    var baseTop = Math.Max(1, (RowHeight - laneHeight) / 2);
+                    var showLabels = !IsMinZoom;
+
+                    for (var assignmentIndex = 0; assignmentIndex < placed.Count; assignmentIndex++)
+                    {
+                        var current = placed[assignmentIndex];
+                        var assignment = current.Assignment;
+                        var left = current.Left;
+                        var width = current.Width;
                         var overlapClass = GetOverlapClass(assignmentIndex);
+                        var top = baseTop;
+                        var z = 4;
 
                         <div class="@BuildBarClass(assignment, width) @overlapClass"
-                             style="@BuildBarStyle(assignment, left, width)"
+                             style="@BuildBarStyle(assignment, left, width, top, laneHeight, z)"
                              data-task-id="@assignment.TaskId"
                              data-row-index="@rowIndex"
                              data-assignment-index="@assignmentIndex"
@@ -70,7 +102,8 @@
                                     @($"{assignment.TaskId} | x={left:F1} w={width:F1} | row={rowIndex} | idx={assignmentIndex}")
                                 </div>
                             }
-                            @{
+                            @if (showLabels)
+                            {
                                 var lines = GetBarLines(assignment);
                                 var maxLines = width < 36 ? 1 : (width < 80 ? 2 : 3);
                                 foreach (var line in lines.Take(maxLines))
@@ -135,6 +168,23 @@
     private string CanvasHeightPxpx => $"{CanvasHeightPx}px";
     private string PlanningLineXpx => $"{PlanningLineX:F1}px";
     private string RowHeightpx => $"{RowHeight}px";
+    private bool IsMinZoom => PxPerMinute <= 0.25;
+    private string RootCssClass
+    {
+        get
+        {
+            var classes = new List<string>();
+            if (HighlightOnlySelected && SelectedWorkItemId.HasValue)
+            {
+                classes.Add("rg-dim");
+            }
+            if (IsMinZoom)
+            {
+                classes.Add("rg-min-zoom");
+            }
+            return string.Join(" ", classes);
+        }
+    }
 
     private string BuildIntervalStyle(DateTime start, DateTime end)
     {
@@ -187,10 +237,12 @@
         return bands;
     }
 
-    private string BuildBarStyle(GanttAssignment assignment, double left, double width)
+    private string BuildBarStyle(GanttAssignment assignment, double left, double width, int top, int height, int zIndex)
     {
         var color = ResolveColor(assignment);
-        return $"position:absolute !important;left:{left:F1}px;top:2px !important;bottom:auto !important;transform:none !important;width:{width:F1}px;height:{BarHeight}px;background:{color};";
+        var capWidth = Math.Max(9, (int)Math.Round(height * 0.56));
+        var midHeight = Math.Max(4, (int)Math.Round(height * 0.38));
+        return $"position:absolute !important;left:{left:F1}px;top:{top}px !important;bottom:auto !important;transform:none !important;width:{width:F1}px;height:{height}px;--rg-bar-color:{color};--rg-cap-width:{capWidth}px;--rg-mid-height:{midHeight}px;z-index:{zIndex};";
     }
 
     private string BuildBarClass(GanttAssignment assignment, double width)
@@ -240,8 +292,8 @@
         var hash = key.Aggregate(0, (current, ch) => current * 31 + ch);
         var palette = new[]
         {
-            "#6C7FF2", "#9BD36E", "#7FD8E6", "#E9A6C7", "#A6B3C8", "#8BC2F0",
-            "#B8E18B", "#F2C27A", "#C3B7F2", "#F2A7A7", "#7FB2A9", "#A1C6FF"
+            "#A9B4F2", "#C6D7FA", "#D6C9F7", "#F7C8CF", "#F5C6B6", "#F0D39A",
+            "#D4E6AE", "#BFDDBE", "#B9DCE8", "#C2D1F0", "#D1CBEA", "#E6BED9"
         };
         var index = Math.Abs(hash) % palette.Length;
         return palette[index];

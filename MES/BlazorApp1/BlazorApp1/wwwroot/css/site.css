@@ -876,15 +876,21 @@ html, body {
   top: 2px !important;
   transform: none !important;
   bottom: auto !important;
-  height: 24px;
-  border-radius: 2px;
+  border-radius: 1px;
   font-size: 10px;
-  color: #111827;
-  border: 1px solid rgba(0, 0, 0, 0.3);
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.28);
-  padding: 2px 6px 2px 8px;
+  color: #1f2937;
+  border: 0;
+  background: rgba(229, 231, 235, 0.95);
+  box-shadow: none;
+  padding: 0 12px 0 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  overflow: visible;
   position: absolute;
   z-index: 4;
+  --rg-cap-width: 12px;
+  --rg-mid-height: 6px;
 }
 
 .classic-gantt-panel .rg-dim .rg-bar {
@@ -894,16 +900,64 @@ html, body {
 .classic-gantt-panel .rg-bar::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: rgba(0, 0, 0, 0.18);
-  border-right: 1px solid rgba(255, 255, 255, 0.35);
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--rg-bar-color), var(--rg-bar-color)) left center / var(--rg-cap-width) 100% no-repeat,
+    linear-gradient(var(--rg-bar-color), var(--rg-bar-color)) right center / var(--rg-cap-width) 100% no-repeat,
+    linear-gradient(var(--rg-bar-color), var(--rg-bar-color)) center center / calc(100% - (var(--rg-cap-width) * 2)) var(--rg-mid-height) no-repeat;
+  border-radius: 1px;
+}
+
+.classic-gantt-panel .rg-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(71, 85, 105, 0.5), rgba(71, 85, 105, 0.5)) left center / var(--rg-cap-width) 1px no-repeat,
+    linear-gradient(rgba(71, 85, 105, 0.5), rgba(71, 85, 105, 0.5)) left calc(50% + (var(--rg-mid-height) / 2) + 1px) / var(--rg-cap-width) 1px no-repeat,
+    linear-gradient(rgba(71, 85, 105, 0.5), rgba(71, 85, 105, 0.5)) right center / var(--rg-cap-width) 1px no-repeat,
+    linear-gradient(rgba(71, 85, 105, 0.5), rgba(71, 85, 105, 0.5)) right calc(50% + (var(--rg-mid-height) / 2) + 1px) / var(--rg-cap-width) 1px no-repeat,
+    linear-gradient(rgba(71, 85, 105, 0.45), rgba(71, 85, 105, 0.45)) center center / calc(100% - (var(--rg-cap-width) * 2)) 1px no-repeat;
+}
+
+.classic-gantt-panel .rg-bar.selected {
+  outline: 1px solid rgba(37, 99, 235, 0.9);
+  outline-offset: 0;
+  z-index: 28 !important;
+}
+
+.classic-gantt-panel .rg-bar.focus {
+  outline: 1px solid rgba(30, 58, 138, 0.9);
+  outline-offset: 0;
+  z-index: 30 !important;
 }
 
 .classic-gantt-panel .rg-bar .rg-bar-line {
   line-height: 1.05;
+  white-space: nowrap;
+}
+
+.classic-gantt-panel .rg-bar .rg-bar-line + .rg-bar-line {
+  display: none;
+}
+
+.classic-gantt-panel .rg-min-zoom .rg-bar {
+  padding: 0;
+}
+
+.classic-gantt-panel .rg-min-zoom .rg-bar .rg-bar-line {
+  display: none;
+}
+
+.classic-gantt-panel .rg-min-zoom .rg-bar::after {
+  background:
+    linear-gradient(rgba(71, 85, 105, 0.45), rgba(71, 85, 105, 0.45)) center center / calc(100% - 14px) 1px no-repeat;
+}
+
+.classic-gantt-panel .rg-links {
+  display: none;
 }
 
 .classic-gantt-panel .rg-planning-line {
@@ -912,13 +966,14 @@ html, body {
 }
 
 .classic-gantt-panel .rg-link {
-  stroke: #475569;
-  stroke-width: 1.4;
+  stroke: rgba(71, 85, 105, 0.28);
+  stroke-width: 0.9;
+  shape-rendering: geometricPrecision;
 }
 
 .classic-gantt-panel .rg-link.selected {
-  stroke: #0f172a;
-  stroke-width: 2.4;
+  stroke: rgba(30, 58, 138, 0.75);
+  stroke-width: 1.6;
 }
 
 .classic-bottom-tabs {

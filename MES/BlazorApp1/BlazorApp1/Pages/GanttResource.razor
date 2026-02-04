@@ -227,9 +227,9 @@
         .OrderBy(t => t)
         .ToList();
 
-    private double PxPerMinute { get; set; } = 1.6;
-    private int RowHeight { get; set; } = 42;
-    private int BarHeight { get; set; } = 28;
+    private double PxPerMinute { get; set; } = 0.2;
+    private int RowHeight { get; set; } = 56;
+    private int BarHeight => Math.Max(18, (int)Math.Round(RowHeight * 0.7));
 
     private long? SelectedTaskId { get; set; }
     private long? SelectedWorkItemId { get; set; }

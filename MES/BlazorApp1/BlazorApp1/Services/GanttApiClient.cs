@@ -20,6 +20,12 @@ public interface IGanttApiClient
         string linksMode,
         string? timezone,
         CancellationToken cancellationToken);
+
+    Task<SyncfusionResourceViewResponseVm> GetSyncfusionResourceViewAsync(
+        long planId,
+        DateTime? start,
+        DateTime? end,
+        CancellationToken cancellationToken);
 }
 
 public class GanttApiClient : IGanttApiClient
@@ -82,6 +88,44 @@ public class GanttApiClient : IGanttApiClient
         }
 
         return JsonSerializer.Deserialize<ResourceGanttSnapshot>(body, _jsonOptions) ?? new ResourceGanttSnapshot();
+    }
+
+
+
+    public async Task<SyncfusionResourceViewResponseVm> GetSyncfusionResourceViewAsync(
+        long planId,
+        DateTime? start,
+        DateTime? end,
+        CancellationToken cancellationToken)
+    {
+        EnsureBaseAddress();
+        var query = new List<string>
+        {
+            $"planId={planId}"
+        };
+        if (start.HasValue)
+        {
+            query.Add($"start={Uri.EscapeDataString(start.Value.ToString("o"))}");
+        }
+        if (end.HasValue)
+        {
+            query.Add($"end={Uri.EscapeDataString(end.Value.ToString("o"))}");
+        }
+
+        var url = $"api/gantt/syncfusion/resource-view?{string.Join("&", query)}";
+        using var response = await _http.GetAsync(url, cancellationToken);
+        var body = response.Content == null ? string.Empty : await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Syncfusion gantt request failed: {(int)response.StatusCode}. {body}");
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return new SyncfusionResourceViewResponseVm();
+        }
+
+        return JsonSerializer.Deserialize<SyncfusionResourceViewResponseVm>(body, _jsonOptions) ?? new SyncfusionResourceViewResponseVm();
     }
 
     private void EnsureBaseAddress()

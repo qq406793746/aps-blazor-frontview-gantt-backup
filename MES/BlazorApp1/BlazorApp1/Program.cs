@@ -5,10 +5,13 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
+using Syncfusion.Blazor;
+using Syncfusion.Licensing;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+builder.Services.AddSyncfusionBlazor();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddSingleton<AuthService>();
@@ -42,6 +45,12 @@ builder.Services.AddScoped<ProjectManagementService>(_ => new ProjectManagementS
 builder.Services.AddScoped<BOMManagementService>(_ => new BOMManagementService(connectionString));
 builder.Services.AddScoped<ProcessManagementService>(_ => new ProcessManagementService(connectionString));
 builder.Services.AddScoped<EquipmentManagementService>(_ => new EquipmentManagementService(connectionString));
+
+var syncfusionLicenseKey = builder.Configuration["Syncfusion:LicenseKey"];
+if (!string.IsNullOrWhiteSpace(syncfusionLicenseKey))
+{
+    SyncfusionLicenseProvider.RegisterLicense(syncfusionLicenseKey);
+}
 
 var app = builder.Build();
 

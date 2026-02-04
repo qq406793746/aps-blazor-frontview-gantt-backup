@@ -1,0 +1,107 @@
+.syncfusion-gantt-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.syncfusion-toolbar {
+  border: 1px solid #d1d5db;
+}
+
+.syncfusion-gantt-wrap {
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.sync-taskbar-inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  overflow: hidden;
+}
+
+/* Force visible built-in taskbars for troubleshooting ResourceView rendering. */
+.syncfusion-gantt-wrap .e-gantt-chart .e-taskbar-main-container,
+.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-child-taskbar,
+.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-parent-taskbar {
+  background-color: #2563eb !important;
+  border: 1px solid #1d4ed8 !important;
+  opacity: 1 !important;
+  min-height: 14px;
+}
+
+.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-milestone {
+  background-color: #dc2626 !important;
+  border-color: #b91c1c !important;
+}
+
+.sync-taskbar-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-overdue .sync-taskbar-label {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.task-anomaly .sync-taskbar-label {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.task-selected {
+  outline: 2px solid #0f172a;
+  outline-offset: -1px;
+  z-index: 10;
+}
+
+.task-chain {
+  opacity: 1;
+  z-index: 9;
+}
+
+.task-muted {
+  opacity: 0.2;
+}
+
+.sync-debug-overlay {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 420px;
+  max-height: 55vh;
+  z-index: 3000;
+  background: rgba(15, 23, 42, 0.95);
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+}
+
+.sync-debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #334155;
+}
+
+.sync-debug-body {
+  max-height: calc(55vh - 44px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.sync-debug-body pre {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
