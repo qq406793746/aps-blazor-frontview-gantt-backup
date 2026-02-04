@@ -220,3 +220,25 @@
 - Observed status:
   - ProjectView can render task bars.
   - ResourceView currently still aggregates to one resource row with no expected multi-resource bar layout; further ResourceView mapping alignment is still needed.
+
+## 2026-02-04 - Asprova-style milestone1 enhancement (Syncfusion Resource View)
+
+- Updated `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`:
+  - Switched frontend data loading to one aggregate API call (`/api/gantt/resource-snapshot`) and removed resource-view + backfill split flow.
+  - Added Asprova-like left resource pane (grouped, collapsible, two-line info, type color strip).
+  - Added `ColorMode` (ByOrder/ByPart/ByOperation/ByResourceGroup) and deterministic color bucketing.
+  - Added `LinkMode` (All/HoverOnly/SelectedPath) + selected-chain BFS highlighting and non-chain dimming.
+  - Added row click selection (`RowSelected`) and bottom property panel (resource/time/order/op/flags/anomaly).
+  - Added DebugOverlay enhancements: Copy JSON + Dump visible rect + chain/viewport metrics.
+  - Added flags computation (`overdue`, `precedenceViolation`, `resourceConflict`) and red/blue text class mapping.
+- Updated `MES/BlazorApp1/BlazorApp1/Models/SyncfusionGanttModels.cs`:
+  - Cleaned JSON attributes causing property-name collision risk (`duration`) and aligned VM fields for local rendering use.
+- Added `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-asprova.css`:
+  - Centralized Asprova-like styles (resource pane, type strips, task color buckets, chain highlight/mute, bottom panel).
+- Added `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`:
+  - Added lightweight viewport metric helper for DebugOverlay (`scrollLeft`, `scrollTop`, `rowHeight`, etc.).
+- Updated `MES/BlazorApp1/BlazorApp1/Pages/_Layout.cshtml`:
+  - Included `css/gantt-asprova.css` and `js/gantt-asprova.js`.
+- Validation:
+  - `dotnet build ... -p:UseAppHost=false` reached compile phase without new C#/Razor errors for these changes.
+  - Build copy step failed due existing running process lock on `bin\\Debug\\net8.0\\BlazorApp1.dll` (runtime process remained active).

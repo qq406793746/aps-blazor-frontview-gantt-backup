@@ -3,6 +3,7 @@
 @using System.Text.Json
 @using System.Text.RegularExpressions
 @using Syncfusion.Blazor.Gantt
+@using Syncfusion.Blazor.Grids
 @inject IGanttApiClient GanttApi
 @inject IApsApiService ApsApi
 @inject IJSRuntime JS
@@ -31,15 +32,32 @@
             </div>
         </div>
         <div class="row g-2 mt-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Resource Keyword</label>
                 <input class="form-control" @bind="ResourceKeyword" @bind:event="oninput" @bind:after="ApplyFiltersAndStyles" placeholder="Machine / Person / Tool" />
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Order Keyword</label>
                 <input class="form-control" @bind="OrderKeyword" @bind:event="oninput" @bind:after="ApplyFiltersAndStyles" placeholder="OrderNo / TaskName" />
             </div>
-            <div class="col-md-4 d-flex gap-3 align-items-center">
+            <div class="col-md-2">
+                <label class="form-label">ColorMode</label>
+                <select class="form-select" @bind="ColorMode" @bind:after="ApplyFiltersAndStyles">
+                    <option value="@TaskColorMode.ByOrder">ByOrder</option>
+                    <option value="@TaskColorMode.ByPart">ByPart</option>
+                    <option value="@TaskColorMode.ByOperation">ByOperation</option>
+                    <option value="@TaskColorMode.ByResourceGroup">ByResourceGroup</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">LinkMode</label>
+                <select class="form-select" @bind="LinkMode" @bind:after="ApplyFiltersAndStyles">
+                    <option value="@TaskLinkMode.All">All</option>
+                    <option value="@TaskLinkMode.HoverOnly">HoverOnly</option>
+                    <option value="@TaskLinkMode.SelectedPath">SelectedPath</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-3 align-items-center flex-wrap">
                 <label class="form-check m-0">
                     <input class="form-check-input" type="checkbox" @bind="HighlightOnlySelected" @bind:after="ApplyFiltersAndStyles" />
                     <span class="form-check-label">Highlight Selected Chain Only</span>
@@ -49,8 +67,8 @@
                     <span class="form-check-label">Show DebugOverlay</span>
                 </label>
                 <label class="form-check m-0">
-                    <input class="form-check-input" type="checkbox" @bind="DebugProjectView" />
-                    <span class="form-check-label">Debug ProjectView</span>
+                    <input class="form-check-input" type="checkbox" @bind="ShowBottomPanel" />
+                    <span class="form-check-label">Show BottomPanel</span>
                 </label>
             </div>
         </div>
@@ -66,69 +84,101 @@
     }
 
     <div class="syncfusion-summary text-muted mt-2">
-        Plan=@PlanId | Resources=@DisplayResources.Count | Tasks=@DisplayTasks.Count | Links=@AllLinks.Count | TaskResMapped=@DisplayTasks.Count(t => t.ResourceIds != null && t.ResourceIds.Count > 0) | Assignments=@DisplayAssignments.Count
+        Plan=@PlanId | Resources=@DisplayResources.Count | Tasks=@DisplayTasks.Count | Links=@DisplayLinks.Count | TaskResMapped=@DisplayTasks.Count(t => t.ResourceIds.Count > 0) | Assignments=@DisplayAssignments.Count
     </div>
 
-    <div class="syncfusion-gantt-wrap mt-2">
-        @if (DebugProjectView)
-        {
-            <SfGantt @ref="GanttRef"
-                     TValue="GanttTaskVm"
-                     DataSource="@DisplayTasks"
-                     ViewType="ViewType.ProjectView"
-                     ProjectStartDate="@ChartStart"
-                     ProjectEndDate="@ChartEnd"
-                     Height="700px"
-                     EnableRowVirtualization="true"
-                     EnableTimelineVirtualization="true"
-                     Toolbar="@ToolbarItems">
-                <GanttTaskFields Id="TaskId"
-                                 Name="TaskName"
-                                 StartDate="StartDate"
-                                 EndDate="EndDate"
-                                 ExpandState="IsExpanded"
-                                 Dependency="Predecessor"
-                                 CssClass="CssClass">
-                </GanttTaskFields>
-            </SfGantt>
-        }
-        else
-        {
-            <SfGantt @ref="GanttRef"
-                     TValue="GanttTaskVm"
-                     DataSource="@DisplayTasks"
-                     ViewType="ViewType.ResourceView"
-                     ProjectStartDate="@ChartStart"
-                     ProjectEndDate="@ChartEnd"
-                     Height="700px"
-                     EnableRowVirtualization="true"
-                     EnableTimelineVirtualization="true"
-                     Toolbar="@ToolbarItems">
-                <GanttTaskFields Id="TaskId"
-                                 Name="TaskName"
-                                 StartDate="StartDate"
-                                 EndDate="EndDate"
-                                 ExpandState="IsExpanded"
-                                 Dependency="Predecessor"
-                                 CssClass="CssClass">
-                </GanttTaskFields>
-                <GanttAssignmentFields TValue="GanttTaskVm" TAssignment="GanttAssignmentVm"
-                                       DataSource="@DisplayAssignments"
-                                       PrimaryKey="Id"
-                                       TaskID="TaskId"
-                                       ResourceID="ResourceId"
-                                       Units="Unit">
-                </GanttAssignmentFields>
-                <Syncfusion.Blazor.Gantt.GanttResource TValue="GanttTaskVm" TResources="GanttResourceVm"
-                               DataSource="@DisplayResources"
-                               Id="Id"
-                               Name="Name"
-                               MaxUnits="MaxUnits">
-                </Syncfusion.Blazor.Gantt.GanttResource>
-                <GanttTaskbarSettings EnableMultiTaskbar="true"></GanttTaskbarSettings>
-            </SfGantt>
-        }
+    <div class="asprova-workbench mt-2">
+        <aside class="asprova-resource-pane">
+            <div class="asprova-pane-title">Resources</div>
+            @foreach (var group in ResourceGroups)
+            {
+                <div class="as-group">
+                    <button type="button" class="as-group-header" @onclick="() => ToggleGroup(group.Name)">
+                        <span>@(CollapsedGroups.Contains(group.Name) ? "+" : "-")</span>
+                        <strong>@group.Name</strong>
+                        <span class="text-muted">(@group.Items.Count)</span>
+                    </button>
+                    @if (!CollapsedGroups.Contains(group.Name))
+                    {
+                        foreach (var res in group.Items)
+                        {
+                            var active = ActiveResourceIds.Contains(res.Id);
+                            <label class="as-resource-row @(active ? "active" : "") type-@Normalize(res.Type)">
+                                <input type="checkbox" checked="@active" @onchange="(e => ToggleResource(res.Id, e.Value))" />
+                                <span class="as-resource-info">
+                                    <span class="as-resource-name">@res.Name</span>
+                                    <span class="as-resource-meta">编码: @res.Code | 类型: @res.Type</span>
+                                </span>
+                            </label>
+                        }
+                    }
+                </div>
+            }
+        </aside>
+        <section class="asprova-gantt-pane">
+            <div class="syncfusion-gantt-wrap">
+                <SfGantt @ref="GanttRef"
+                         TValue="GanttTaskVm"
+                         DataSource="@DisplayTasks"
+                         ViewType="ViewType.ResourceView"
+                         ProjectStartDate="@ChartStart"
+                         ProjectEndDate="@ChartEnd"
+                         Height="700px"
+                         EnableRowVirtualization="true"
+                         EnableTimelineVirtualization="true"
+                         Toolbar="@ToolbarItems">
+                    <GanttTaskFields Id="TaskId"
+                                     Name="TaskName"
+                                     StartDate="StartDate"
+                                     EndDate="EndDate"
+                                     ExpandState="IsExpanded"
+                                     Dependency="Predecessor"
+                                     CssClass="CssClass">
+                    </GanttTaskFields>
+                    <GanttAssignmentFields TValue="GanttTaskVm" TAssignment="GanttAssignmentVm"
+                                           DataSource="@DisplayAssignments"
+                                           PrimaryKey="Id"
+                                           TaskID="TaskId"
+                                           ResourceID="ResourceId"
+                                           Units="Unit">
+                    </GanttAssignmentFields>
+                    <Syncfusion.Blazor.Gantt.GanttResource TValue="GanttTaskVm" TResources="GanttResourceVm"
+                                   DataSource="@DisplayResources"
+                                   Id="Id"
+                                   Name="Name"
+                                   MaxUnits="MaxUnits">
+                    </Syncfusion.Blazor.Gantt.GanttResource>
+                    <GanttTaskbarSettings EnableMultiTaskbar="true"></GanttTaskbarSettings>
+                    <GanttEvents TValue="GanttTaskVm" RowSelected="OnRowSelected"></GanttEvents>
+                </SfGantt>
+            </div>
+        </section>
     </div>
+
+    @if (ShowBottomPanel)
+    {
+        <div class="asprova-bottom-panel mt-2">
+            @if (SelectedTask == null)
+            {
+                <div class="text-muted">Select a task to view properties.</div>
+            }
+            else
+            {
+                <div class="as-prop-grid">
+                    <div><strong>TaskId</strong><span>@SelectedTask.TaskId</span></div>
+                    <div><strong>Order</strong><span>@(SelectedTask.OrderNo ?? "-")</span></div>
+                    <div><strong>Operation</strong><span>@(SelectedTask.OperationName ?? "-") (@(SelectedTask.OpSeq?.ToString() ?? "-"))</span></div>
+                    <div><strong>Resource</strong><span>@GetResourceText(SelectedTask)</span></div>
+                    <div><strong>Start/End</strong><span>@SelectedTask.StartDate.ToString("yyyy-MM-dd HH:mm") ~ @SelectedTask.EndDate.ToString("yyyy-MM-dd HH:mm")</span></div>
+                    <div><strong>Duration</strong><span>@((SelectedTask.EndDate - SelectedTask.StartDate).TotalMinutes.ToString("F0")) min (Setup @SelectedTask.SetupMinutes min)</span></div>
+                    <div><strong>Due</strong><span>@(SelectedTask.DueDate?.ToString("yyyy-MM-dd HH:mm") ?? "-")</span></div>
+                    <div><strong>Status</strong><span>@SelectedTask.Status</span></div>
+                    <div><strong>Flags</strong><span>@GetFlagText(SelectedTask)</span></div>
+                    <div><strong>Anomaly</strong><span>@(SelectedTask.AnomalyReason ?? "-")</span></div>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @if (ShowDebugOverlay)
@@ -136,7 +186,10 @@
     <div class="sync-debug-overlay">
         <div class="sync-debug-header">
             <strong>Debug Overlay</strong>
-            <button class="btn btn-sm btn-outline-light" @onclick="CopyDebugJsonAsync" disabled="@(SelectedTask is null)">Copy JSON</button>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-light" @onclick="CopyDebugJsonAsync">Copy JSON</button>
+                <button class="btn btn-sm btn-outline-light" @onclick="DumpVisibleRectAsync">Dump visible rect</button>
+            </div>
         </div>
         <div class="sync-debug-body">
             <pre>@DebugJsonText</pre>
@@ -159,9 +212,11 @@
 
     private string ResourceKeyword = string.Empty;
     private string OrderKeyword = string.Empty;
-    private bool HighlightOnlySelected;
+    private bool HighlightOnlySelected = true;
     private bool ShowDebugOverlay;
-    private bool DebugProjectView;
+    private bool ShowBottomPanel = true;
+    private TaskColorMode ColorMode = TaskColorMode.ByOrder;
+    private TaskLinkMode LinkMode = TaskLinkMode.SelectedPath;
     private DateTime ChartStart = DateTime.Today.AddDays(-1);
     private DateTime ChartEnd = DateTime.Today.AddDays(1);
 
@@ -172,10 +227,15 @@
     private List<GanttResourceVm> DisplayResources { get; set; } = new();
     private List<GanttTaskVm> DisplayTasks { get; set; } = new();
     private List<GanttAssignmentVm> DisplayAssignments { get; set; } = new();
+    private List<GanttLinkVm> DisplayLinks { get; set; } = new();
+    private List<ResourceGroupVm> ResourceGroups { get; set; } = new();
+    private readonly HashSet<int> ActiveResourceIds = new();
+    private readonly HashSet<string> CollapsedGroups = new(StringComparer.OrdinalIgnoreCase);
 
     private GanttTaskVm? SelectedTask;
     private string DebugJsonText = "{}";
     private string ChainDumpText = "{}";
+    private GanttViewportMetrics? LastViewportMetrics;
 
     protected override async Task OnInitializedAsync()
     {
@@ -217,43 +277,58 @@
 
         try
         {
-            var response = await GanttApi.GetSyncfusionResourceViewAsync(
+            var snapshot = await GanttApi.GetResourceSnapshotAsync(
                 PlanId,
                 StartInput,
                 EndInput,
+                includePersons: true,
+                includeTools: true,
+                includeVendors: true,
+                linksMode: "seq",
+                timezone: null,
                 CancellationToken.None);
 
-            if ((response.Tasks == null || response.Tasks.Count == 0) && (StartInput.HasValue || EndInput.HasValue))
+            if ((snapshot.Assignments == null || snapshot.Assignments.Count == 0) && (StartInput.HasValue || EndInput.HasValue))
             {
-                response = await GanttApi.GetSyncfusionResourceViewAsync(
+                snapshot = await GanttApi.GetResourceSnapshotAsync(
                     PlanId,
                     null,
                     null,
+                    includePersons: true,
+                    includeTools: true,
+                    includeVendors: true,
+                    linksMode: "seq",
+                    timezone: null,
                     CancellationToken.None);
                 HintMessage = "No tasks in selected window. Auto reloaded with server default window.";
             }
 
-            AllResources = response.Resources ?? new List<GanttResourceVm>();
-            AllTasks = response.Tasks ?? new List<GanttTaskVm>();
-            AllLinks = response.Links ?? new List<GanttLinkVm>();
+            AllResources = BuildResources(snapshot);
+            AllTasks = BuildTasks(snapshot);
+            AllLinks = BuildLinks(snapshot);
 
-            if (response.Meta != null)
+            if (snapshot.Meta != null)
             {
-                if (response.Meta.Start != default)
+                if (snapshot.Meta.From != default)
                 {
-                    StartInput = response.Meta.Start;
+                    StartInput = snapshot.Meta.From;
                 }
 
-                if (response.Meta.End != default)
+                if (snapshot.Meta.To != default)
                 {
-                    EndInput = response.Meta.End;
+                    EndInput = snapshot.Meta.To;
                 }
             }
 
             EnsurePredecessors(AllTasks, AllLinks);
-            await BackfillResourcesFromSnapshotAsync();
-            EnsureTaskResourceFallback(AllTasks, AllResources);
-            EnsureTaskDurations(AllTasks);
+            EnsureTaskFlags(AllTasks, AllLinks);
+
+            ActiveResourceIds.Clear();
+            foreach (var resource in AllResources)
+            {
+                ActiveResourceIds.Add(resource.Id);
+            }
+
             ApplyFiltersAndStyles();
         }
         catch (Exception ex)
@@ -270,41 +345,148 @@
     }
 
 
+    private List<GanttResourceVm> BuildResources(ResourceGanttSnapshot snapshot)
+    {
+        return snapshot.Resources
+            .Select(r =>
+            {
+                var id = ToIntId(r.Id);
+                if (!id.HasValue)
+                {
+                    return null;
+                }
+
+                return new GanttResourceVm
+                {
+                    Id = id.Value,
+                    Code = r.Code,
+                    Name = string.IsNullOrWhiteSpace(r.Name) ? r.Code : r.Name,
+                    Type = string.IsNullOrWhiteSpace(r.Type) ? "Machine" : r.Type,
+                    GroupName = string.IsNullOrWhiteSpace(r.Type) ? "Machine" : r.Type,
+                    SortKey = id.Value,
+                    MaxUnits = Math.Max(100, r.Capacity * 100)
+                };
+            })
+            .Where(r => r != null)
+            .Cast<GanttResourceVm>()
+            .OrderBy(r => r.GroupName)
+            .ThenBy(r => r.SortKey)
+            .ToList();
+    }
+
+    private List<GanttTaskVm> BuildTasks(ResourceGanttSnapshot snapshot)
+    {
+        return snapshot.Assignments
+            .Select(a =>
+            {
+                var taskId = ToIntId(a.TaskId);
+                var resourceId = ToIntId(a.ResourceId);
+                if (!taskId.HasValue || !resourceId.HasValue)
+                {
+                    return null;
+                }
+
+                var durationMinutes = Math.Max(1, (int)(a.End - a.Start).TotalMinutes);
+                var setupMinutes = Math.Max(0, a.SetupMinutes);
+
+                return new GanttTaskVm
+                {
+                    TaskId = taskId.Value,
+                    TaskName = $"{a.OrderNo ?? "WO"} | {(string.IsNullOrWhiteSpace(a.OperationName) ? "OP" : a.OperationName)}",
+                    StartDate = a.Start,
+                    EndDate = a.End,
+                    ResourceIds = new List<int> { resourceId.Value },
+                    IsExpanded = true,
+                    OrderNo = a.OrderNo,
+                    PartNo = a.ItemHint,
+                    MoldNo = a.ItemHint,
+                    OperationName = a.OperationName,
+                    OpSeq = a.OpSeq,
+                    DueDate = a.DueDate,
+                    SetupMinutes = setupMinutes,
+                    RunMinutes = Math.Max(1, durationMinutes - setupMinutes),
+                    Priority = a.Priority,
+                    IsUrgent = a.IsUrgent,
+                    IsLocked = a.IsLocked,
+                    IsOutsourced = a.IsOutsourced,
+                    Status = string.IsNullOrWhiteSpace(a.Status) ? "Planned" : a.Status,
+                    ActualStart = a.ActualStart,
+                    ActualEnd = a.ActualEnd,
+                    HasMaterialNotReady = a.Violations
+                        .Any(v => v.Code.Contains("material", StringComparison.OrdinalIgnoreCase)),
+                    AnomalyReason = string.Join("; ",
+                        a.Violations
+                            .Select(v => v.Message)
+                            .Where(m => !string.IsNullOrWhiteSpace(m))
+                            .Distinct())
+                };
+            })
+            .Where(t => t != null)
+            .Cast<GanttTaskVm>()
+            .OrderBy(t => t.StartDate)
+            .ThenBy(t => t.TaskId)
+            .ToList();
+    }
+
+    private static List<GanttLinkVm> BuildLinks(ResourceGanttSnapshot snapshot)
+    {
+        return snapshot.Links
+            .Select(l =>
+            {
+                var fromId = ToIntId(l.FromTaskId);
+                var toId = ToIntId(l.ToTaskId);
+                if (!fromId.HasValue || !toId.HasValue)
+                {
+                    return null;
+                }
+
+                return new GanttLinkVm
+                {
+                    FromTaskId = fromId.Value,
+                    ToTaskId = toId.Value,
+                    Type = string.IsNullOrWhiteSpace(l.Type) ? "FS" : l.Type
+                };
+            })
+            .Where(l => l != null)
+            .Cast<GanttLinkVm>()
+            .DistinctBy(l => (l.FromTaskId, l.ToTaskId, l.Type))
+            .ToList();
+    }
+
     private void ApplyFiltersAndStyles()
     {
         var resourceMatcher = Normalize(ResourceKeyword);
         var orderMatcher = Normalize(OrderKeyword);
 
-        var matchedResourceIds = new HashSet<int>(
-            AllResources
-                .Where(r => string.IsNullOrWhiteSpace(resourceMatcher)
-                    || Normalize(r.Name).Contains(resourceMatcher, StringComparison.Ordinal)
-                    || Normalize(r.Code).Contains(resourceMatcher, StringComparison.Ordinal)
-                    || Normalize(r.Type).Contains(resourceMatcher, StringComparison.Ordinal))
-                .Select(r => r.Id));
+        var filteredResources = AllResources
+            .Where(r => string.IsNullOrWhiteSpace(resourceMatcher)
+                || Normalize(r.Name).Contains(resourceMatcher, StringComparison.Ordinal)
+                || Normalize(r.Code).Contains(resourceMatcher, StringComparison.Ordinal)
+                || Normalize(r.Type).Contains(resourceMatcher, StringComparison.Ordinal))
+            .Where(r => ActiveResourceIds.Contains(r.Id))
+            .ToList();
 
+        var visibleResourceIds = filteredResources.Select(r => r.Id).ToHashSet();
         var filteredTasks = AllTasks
             .Where(t => MatchOrderKeyword(t, orderMatcher))
-            .Where(t => MatchResourceKeyword(t, matchedResourceIds, resourceMatcher))
+            .Where(t => t.ResourceIds.Any(visibleResourceIds.Contains))
             .ToList();
 
-        var selectedChain = BuildChainForSelectedTask(filteredTasks, AllLinks, SelectedTask?.TaskId);
-        var visibleIds = new HashSet<int>(filteredTasks.SelectMany(t => t.ResourceIds ?? new List<int>()));
-
-        DisplayResources = AllResources
-            .Where(r => visibleIds.Contains(r.Id))
-            .OrderBy(r => r.Type)
-            .ThenBy(r => r.Name)
-            .ToList();
+        var selectedChain = BuildChainForSelectedTask(filteredTasks, AllLinks, SelectedTask?.TaskId, LinkMode == TaskLinkMode.HoverOnly);
+        DisplayLinks = BuildVisibleLinks(selectedChain, filteredTasks, AllLinks);
+        DisplayResources = filteredResources;
 
         DisplayTasks = filteredTasks
             .Select(t => CloneWithCss(t, selectedChain))
             .ToList();
+        ApplyVisiblePredecessors(DisplayTasks, DisplayLinks);
         DisplayAssignments = BuildAssignments(DisplayTasks);
+        ResourceGroups = BuildResourceGroups(DisplayResources);
 
         SetChartRange(DisplayTasks);
 
         UpdateDebugOverlay(selectedChain);
+        _ = RefreshDebugMetricsAsync(selectedChain);
     }
 
     private static List<GanttAssignmentVm> BuildAssignments(IEnumerable<GanttTaskVm> tasks)
@@ -368,117 +550,51 @@
         return blob.Contains(orderMatcher, StringComparison.Ordinal);
     }
 
-    private static bool MatchResourceKeyword(GanttTaskVm task, HashSet<int> matchedResourceIds, string resourceMatcher)
+    private static List<ResourceGroupVm> BuildResourceGroups(List<GanttResourceVm> resources)
     {
-        if (string.IsNullOrWhiteSpace(resourceMatcher))
-        {
-            return true;
-        }
-
-        return task.ResourceIds != null && task.ResourceIds.Any(matchedResourceIds.Contains);
+        return resources
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.GroupName) ? r.Type : r.GroupName)
+            .OrderBy(g => g.Key)
+            .Select(g => new ResourceGroupVm(g.Key, g.OrderBy(r => r.Name).ToList()))
+            .ToList();
     }
 
-    private async Task BackfillResourcesFromSnapshotAsync()
+    private static List<GanttLinkVm> BuildVisibleLinks(ChainResult chain, IReadOnlyList<GanttTaskVm> tasks, IReadOnlyList<GanttLinkVm> allLinks)
     {
-        if (AllTasks.Count == 0)
+        var taskIds = tasks.Select(t => t.TaskId).ToHashSet();
+        var linksInView = allLinks
+            .Where(l => taskIds.Contains(l.FromTaskId) && taskIds.Contains(l.ToTaskId))
+            .DistinctBy(l => (l.FromTaskId, l.ToTaskId, l.Type))
+            .ToList();
+
+        if (!chain.HasSelection || chain.Mode == TaskLinkMode.All)
         {
-            return;
+            return linksInView;
         }
 
-        var needBackfill = AllTasks.All(t => t.ResourceIds == null || t.ResourceIds.Count == 0);
-        if (!needBackfill)
+        return linksInView
+            .Where(l => chain.VisibleEdgeSet.Contains((l.FromTaskId, l.ToTaskId)))
+            .ToList();
+    }
+
+    private static void ApplyVisiblePredecessors(List<GanttTaskVm> tasks, List<GanttLinkVm> links)
+    {
+        var map = links
+            .Where(l => l.FromTaskId > 0 && l.ToTaskId > 0)
+            .GroupBy(l => l.ToTaskId)
+            .ToDictionary(
+                g => g.Key,
+                g => string.Join(",", g.Select(x => $"{x.FromTaskId}{(string.IsNullOrWhiteSpace(x.Type) ? "FS" : x.Type)}").Distinct()));
+
+        foreach (var task in tasks)
         {
-            return;
-        }
-
-        try
-        {
-            var snapshot = await GanttApi.GetResourceSnapshotAsync(
-                PlanId,
-                null,
-                null,
-                includePersons: true,
-                includeTools: true,
-                includeVendors: true,
-                linksMode: "seq",
-                timezone: null,
-                cancellationToken: CancellationToken.None);
-
-            if (snapshot.Assignments == null || snapshot.Assignments.Count == 0)
-            {
-                return;
-            }
-
-            var taskMap = AllTasks.ToDictionary(t => t.TaskId);
-            foreach (var assignment in snapshot.Assignments)
-            {
-                var taskId = ToIntId(assignment.TaskId);
-                var resourceId = ToIntId(assignment.ResourceId);
-                if (!taskId.HasValue || !resourceId.HasValue)
-                {
-                    continue;
-                }
-
-                if (!taskMap.TryGetValue(taskId.Value, out var task))
-                {
-                    continue;
-                }
-
-                task.ResourceIds ??= new List<int>();
-                if (!task.ResourceIds.Contains(resourceId.Value))
-                {
-                    task.ResourceIds.Add(resourceId.Value);
-                }
-
-                if (string.IsNullOrWhiteSpace(task.OrderNo))
-                {
-                    task.OrderNo = assignment.OrderNo;
-                }
-                if (string.IsNullOrWhiteSpace(task.OperationName))
-                {
-                    task.OperationName = assignment.OperationName;
-                }
-                if (!task.OpSeq.HasValue)
-                {
-                    task.OpSeq = assignment.OpSeq;
-                }
-                if (!task.DueDate.HasValue)
-                {
-                    task.DueDate = assignment.DueDate;
-                }
-            }
-
-            if (snapshot.Resources != null && snapshot.Resources.Count > 0)
-            {
-                var resourceIds = new HashSet<int>(AllResources.Select(r => r.Id));
-                foreach (var resource in snapshot.Resources)
-                {
-                    var resourceId = ToIntId(resource.Id);
-                    if (!resourceId.HasValue || resourceIds.Contains(resourceId.Value))
-                    {
-                        continue;
-                    }
-
-                    AllResources.Add(new GanttResourceVm
-                    {
-                        Id = resourceId.Value,
-                        Name = resource.Name,
-                        Code = resource.Code,
-                        Type = resource.Type,
-                        MaxUnits = Math.Max(1, resource.Capacity * 100)
-                    });
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Backfill resources from snapshot failed, continue with fallback resource.");
+            task.Predecessor = map.TryGetValue(task.TaskId, out var pred) ? pred : null;
         }
     }
 
     private GanttTaskVm CloneWithCss(GanttTaskVm task, ChainResult chain)
     {
-        var classes = new List<string>();
+        var classes = new List<string> { GetColorClass(task) };
 
         if (!string.IsNullOrWhiteSpace(task.CssClass))
         {
@@ -490,7 +606,7 @@
             classes.Add("task-overdue");
         }
 
-        if (task.IsAnomaly || (!string.IsNullOrWhiteSpace(task.CssClass) && task.CssClass.Contains("pre", StringComparison.OrdinalIgnoreCase)))
+        if (task.HasPrecedenceViolation)
         {
             classes.Add("task-anomaly");
         }
@@ -518,19 +634,125 @@
             TaskName = task.TaskName,
             StartDate = task.StartDate,
             EndDate = task.EndDate,
-            DurationValue = task.DurationValue > 0 ? task.DurationValue : Math.Max(1d, (task.EndDate - task.StartDate).TotalMinutes),
+            DurationValue = Math.Max(1d, (task.EndDate - task.StartDate).TotalMinutes),
             DurationUnit = "minute",
-            ResourceIds = task.ResourceIds?.ToList() ?? new List<int>(),
+            ResourceIds = task.ResourceIds.ToList(),
             IsExpanded = true,
             Predecessor = task.Predecessor,
             CssClass = string.Join(" ", classes.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase)),
             IsOverdue = task.IsOverdue,
             IsAnomaly = task.IsAnomaly,
             OrderNo = task.OrderNo,
+            PartNo = task.PartNo,
+            MoldNo = task.MoldNo,
             OperationName = task.OperationName,
             OpSeq = task.OpSeq,
-            DueDate = task.DueDate
+            DueDate = task.DueDate,
+            SetupMinutes = task.SetupMinutes,
+            RunMinutes = task.RunMinutes,
+            Priority = task.Priority,
+            IsUrgent = task.IsUrgent,
+            IsLocked = task.IsLocked,
+            IsOutsourced = task.IsOutsourced,
+            HasPrecedenceViolation = task.HasPrecedenceViolation,
+            HasResourceConflict = task.HasResourceConflict,
+            HasMaterialNotReady = task.HasMaterialNotReady,
+            AnomalyReason = task.AnomalyReason,
+            Status = task.Status,
+            ActualStart = task.ActualStart,
+            ActualEnd = task.ActualEnd
         };
+    }
+
+    private string GetColorClass(GanttTaskVm task)
+    {
+        var key = ColorMode switch
+        {
+            TaskColorMode.ByPart => task.ColorKeyByPart,
+            TaskColorMode.ByOperation => task.ColorKeyByOperation,
+            TaskColorMode.ByResourceGroup => GetResourceGroupKey(task),
+            _ => task.ColorKeyByOrder
+        };
+
+        var bucket = Math.Abs(StableHash(key)) % 12;
+        return $"task-color-{bucket}";
+    }
+
+    private string GetResourceGroupKey(GanttTaskVm task)
+    {
+        var resourceId = task.ResourceIds.FirstOrDefault();
+        var resource = AllResources.FirstOrDefault(r => r.Id == resourceId);
+        return resource?.GroupName ?? resource?.Type ?? "default";
+    }
+
+    private static int StableHash(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        unchecked
+        {
+            var hash = 23;
+            foreach (var ch in value)
+            {
+                hash = hash * 31 + ch;
+            }
+
+            return hash;
+        }
+    }
+
+    private async Task OnModeChanged(ChangeEventArgs _)
+    {
+        ApplyFiltersAndStyles();
+        await Task.CompletedTask;
+    }
+
+    private void ToggleGroup(string groupName)
+    {
+        if (CollapsedGroups.Contains(groupName))
+        {
+            CollapsedGroups.Remove(groupName);
+        }
+        else
+        {
+            CollapsedGroups.Add(groupName);
+        }
+    }
+
+    private void ToggleResource(int resourceId, object? rawValue)
+    {
+        var isChecked = rawValue switch
+        {
+            bool b => b,
+            string s when bool.TryParse(s, out var parsed) => parsed,
+            _ => false
+        };
+
+        if (isChecked)
+        {
+            ActiveResourceIds.Add(resourceId);
+        }
+        else
+        {
+            ActiveResourceIds.Remove(resourceId);
+        }
+
+        ApplyFiltersAndStyles();
+    }
+
+    private void OnRowSelected(RowSelectEventArgs<GanttTaskVm> args)
+    {
+        if (args?.Data == null)
+        {
+            return;
+        }
+
+        var taskId = args.Data.TaskId;
+        SelectedTask = AllTasks.FirstOrDefault(t => t.TaskId == taskId) ?? args.Data;
+        ApplyFiltersAndStyles();
     }
 
     private async Task ZoomInAsync()
@@ -538,6 +760,7 @@
         if (GanttRef != null)
         {
             await GanttRef.ZoomInAsync();
+            await RefreshDebugMetricsAsync(BuildChainForSelectedTask(DisplayTasks, DisplayLinks, SelectedTask?.TaskId, LinkMode == TaskLinkMode.HoverOnly));
         }
     }
 
@@ -546,17 +769,32 @@
         if (GanttRef != null)
         {
             await GanttRef.ZoomOutAsync();
+            await RefreshDebugMetricsAsync(BuildChainForSelectedTask(DisplayTasks, DisplayLinks, SelectedTask?.TaskId, LinkMode == TaskLinkMode.HoverOnly));
         }
     }
 
     private async Task CopyDebugJsonAsync()
     {
-        if (SelectedTask == null)
-        {
-            return;
-        }
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", $"{DebugJsonText}{Environment.NewLine}{ChainDumpText}");
+    }
 
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", DebugJsonText);
+    private async Task DumpVisibleRectAsync()
+    {
+        await RefreshDebugMetricsAsync(BuildChainForSelectedTask(DisplayTasks, DisplayLinks, SelectedTask?.TaskId, LinkMode == TaskLinkMode.HoverOnly));
+    }
+
+    private async Task RefreshDebugMetricsAsync(ChainResult chain)
+    {
+        try
+        {
+            LastViewportMetrics = await JS.InvokeAsync<GanttViewportMetrics>("ganttAsprova.getMetrics");
+            UpdateDebugOverlay(chain);
+            StateHasChanged();
+        }
+        catch
+        {
+            // Ignore JS metrics errors before DOM is ready.
+        }
     }
 
     private void UpdateDebugOverlay(ChainResult chain)
@@ -576,20 +814,52 @@
             SelectedTask.OpSeq,
             SelectedTask.StartDate,
             SelectedTask.EndDate,
+            SelectedTask.SetupMinutes,
+            SelectedTask.RunMinutes,
             SelectedTask.ResourceIds,
             SelectedTask.Predecessor,
-            SelectedTask.CssClass
+            SelectedTask.CssClass,
+            SelectedTask.IsOverdue,
+            SelectedTask.HasPrecedenceViolation,
+            SelectedTask.HasResourceConflict,
+            SelectedTask.HasMaterialNotReady
         };
 
-        DebugJsonText = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+        DebugJsonText = JsonSerializer.Serialize(new
+        {
+            PlanId,
+            ColorMode = ColorMode.ToString(),
+            LinkMode = LinkMode.ToString(),
+            Task = payload,
+            Metrics = LastViewportMetrics
+        }, new JsonSerializerOptions { WriteIndented = true });
         ChainDumpText = JsonSerializer.Serialize(new
         {
             SelectedTaskId = SelectedTask.TaskId,
             PredecessorChain = chain.PredecessorTaskIds.OrderBy(x => x),
             SuccessorChain = chain.SuccessorTaskIds.OrderBy(x => x),
             ChainTasks = chain.ChainTaskIds.OrderBy(x => x),
-            ChainEdges = chain.ChainEdges.OrderBy(x => x.From).ThenBy(x => x.To)
+            ChainEdges = chain.VisibleEdges.OrderBy(x => x.From).ThenBy(x => x.To)
         }, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private string GetResourceText(GanttTaskVm task)
+    {
+        var resourceId = task.ResourceIds.FirstOrDefault();
+        var resource = AllResources.FirstOrDefault(r => r.Id == resourceId);
+        return resource == null ? "-" : $"{resource.Name} ({resource.Code}|{resource.Type})";
+    }
+
+    private static string GetFlagText(GanttTaskVm task)
+    {
+        var flags = new List<string>();
+        if (task.IsOverdue) flags.Add("Overdue");
+        if (task.HasPrecedenceViolation) flags.Add("PrecedenceViolation");
+        if (task.HasResourceConflict) flags.Add("ResourceConflict");
+        if (task.HasMaterialNotReady) flags.Add("MaterialNotReady");
+        if (task.IsLocked) flags.Add("Locked");
+        if (task.IsOutsourced) flags.Add("Outsourced");
+        return flags.Count == 0 ? "-" : string.Join(", ", flags);
     }
 
     private static void EnsurePredecessors(IEnumerable<GanttTaskVm> tasks, IEnumerable<GanttLinkVm> links)
@@ -610,64 +880,55 @@
         }
     }
 
-    private static void EnsureTaskResourceFallback(List<GanttTaskVm> tasks, List<GanttResourceVm> resources)
+    private static void EnsureTaskFlags(List<GanttTaskVm> tasks, List<GanttLinkVm> links)
     {
-        if (tasks.Count == 0)
+        var taskMap = tasks.ToDictionary(t => t.TaskId, t => t);
+
+        foreach (var task in tasks)
         {
-            return;
+            task.IsOverdue = task.DueDate.HasValue && task.EndDate > task.DueDate.Value;
+            task.HasPrecedenceViolation = false;
+            task.HasResourceConflict = false;
         }
 
-        var hasEmptyResources = tasks.Any(t => t.ResourceIds == null || t.ResourceIds.Count == 0);
-        if (!hasEmptyResources)
+        foreach (var link in links)
         {
-            return;
-        }
-
-        var fallbackId = resources.FirstOrDefault()?.Id ?? 999999;
-        if (!resources.Any(r => r.Id == fallbackId))
-        {
-            resources.Add(new GanttResourceVm
+            if (taskMap.TryGetValue(link.FromTaskId, out var from)
+                && taskMap.TryGetValue(link.ToTaskId, out var to)
+                && to.StartDate < from.EndDate)
             {
-                Id = fallbackId,
-                Name = "Unassigned",
-                Code = "UNASSIGNED",
-                Type = "Virtual",
-                MaxUnits = 100
-            });
+                to.HasPrecedenceViolation = true;
+            }
+        }
+
+        foreach (var group in tasks.Where(t => t.ResourceIds.Count > 0).GroupBy(t => t.ResourceIds[0]))
+        {
+            var sorted = group.OrderBy(t => t.StartDate).ToList();
+            for (var i = 1; i < sorted.Count; i++)
+            {
+                var prev = sorted[i - 1];
+                var current = sorted[i];
+                if (current.StartDate < prev.EndDate)
+                {
+                    prev.HasResourceConflict = true;
+                    current.HasResourceConflict = true;
+                }
+            }
         }
 
         foreach (var task in tasks)
         {
-            if (task.ResourceIds == null || task.ResourceIds.Count == 0)
-            {
-                task.ResourceIds = new List<int> { fallbackId };
-            }
+            task.IsAnomaly = task.HasPrecedenceViolation || task.HasResourceConflict || task.HasMaterialNotReady;
         }
     }
 
-    private static void EnsureTaskDurations(List<GanttTaskVm> tasks)
-    {
-        foreach (var task in tasks)
-        {
-            if (task.RawDurationMinutes.HasValue && task.RawDurationMinutes.Value > 0)
-            {
-                task.DurationValue = Math.Max(1d, task.RawDurationMinutes.Value);
-                task.DurationUnit = "minute";
-                continue;
-            }
-
-            var spanMinutes = (task.EndDate - task.StartDate).TotalMinutes;
-            task.DurationValue = Math.Max(1d, spanMinutes);
-            task.DurationUnit = "minute";
-        }
-    }
-
-    private static ChainResult BuildChainForSelectedTask(
+    private ChainResult BuildChainForSelectedTask(
         IReadOnlyList<GanttTaskVm> tasks,
         IReadOnlyList<GanttLinkVm> links,
-        int? selectedTaskId)
+        int? selectedTaskId,
+        bool directOnly)
     {
-        var result = new ChainResult();
+        var result = new ChainResult { Mode = LinkMode };
         if (!selectedTaskId.HasValue || selectedTaskId.Value <= 0)
         {
             return result;
@@ -716,15 +977,22 @@
         }
 
         var selected = selectedTaskId.Value;
-        result.SuccessorTaskIds = Traverse(selected, outgoing);
-        result.PredecessorTaskIds = Traverse(selected, incoming);
+        result.HasSelection = true;
+        result.SuccessorTaskIds = directOnly
+            ? outgoing.TryGetValue(selected, out var successorList) ? successorList.ToHashSet() : new HashSet<int>()
+            : Traverse(selected, outgoing);
+        result.PredecessorTaskIds = directOnly
+            ? incoming.TryGetValue(selected, out var predecessorList) ? predecessorList.ToHashSet() : new HashSet<int>()
+            : Traverse(selected, incoming);
 
         result.ChainTaskIds = new HashSet<int>(result.SuccessorTaskIds);
         result.ChainTaskIds.UnionWith(result.PredecessorTaskIds);
         result.ChainTaskIds.Add(selected);
 
-        result.ChainEdges = edges
+        result.VisibleEdgeSet = edges
             .Where(e => result.ChainTaskIds.Contains(e.From) && result.ChainTaskIds.Contains(e.To))
+            .ToHashSet();
+        result.VisibleEdges = result.VisibleEdgeSet
             .Select(e => new ChainEdge(e.From, e.To))
             .ToList();
 
@@ -785,13 +1053,43 @@
         return (int)value;
     }
 
+    private enum TaskColorMode
+    {
+        ByOrder,
+        ByPart,
+        ByOperation,
+        ByResourceGroup
+    }
+
+    private enum TaskLinkMode
+    {
+        All,
+        HoverOnly,
+        SelectedPath
+    }
+
+    private sealed record ResourceGroupVm(string Name, List<GanttResourceVm> Items);
+
     private sealed class ChainResult
     {
+        public bool HasSelection { get; set; }
+        public TaskLinkMode Mode { get; set; } = TaskLinkMode.SelectedPath;
         public HashSet<int> PredecessorTaskIds { get; set; } = new();
         public HashSet<int> SuccessorTaskIds { get; set; } = new();
         public HashSet<int> ChainTaskIds { get; set; } = new();
-        public List<ChainEdge> ChainEdges { get; set; } = new();
+        public HashSet<(int From, int To)> VisibleEdgeSet { get; set; } = new();
+        public List<ChainEdge> VisibleEdges { get; set; } = new();
     }
 
     private sealed record ChainEdge(int From, int To);
+
+    private sealed class GanttViewportMetrics
+    {
+        public double ScrollLeft { get; set; }
+        public double ScrollTop { get; set; }
+        public double TimelineWidth { get; set; }
+        public double ChartHeight { get; set; }
+        public double RowHeight { get; set; }
+        public double PxPerHour { get; set; }
+    }
 }

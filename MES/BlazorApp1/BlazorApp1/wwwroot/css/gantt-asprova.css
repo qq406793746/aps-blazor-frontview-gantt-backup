@@ -1,0 +1,155 @@
+.asprova-workbench {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 12px;
+}
+
+.asprova-resource-pane {
+    border: 1px solid #d9dee8;
+    border-radius: 8px;
+    background: #fff;
+    max-height: 700px;
+    overflow: auto;
+}
+
+.asprova-pane-title {
+    position: sticky;
+    top: 0;
+    background: #f3f5fa;
+    border-bottom: 1px solid #d9dee8;
+    padding: 10px 12px;
+    font-weight: 700;
+    z-index: 2;
+}
+
+.as-group {
+    border-bottom: 1px solid #edf0f5;
+}
+
+.as-group-header {
+    width: 100%;
+    border: 0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.as-resource-row {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px 8px 16px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.as-resource-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #7f8da8;
+}
+
+.as-resource-row.type-machine::before { background: #2e8b57; }
+.as-resource-row.type-person::before { background: #2d73da; }
+.as-resource-row.type-tool::before { background: #d97706; }
+
+.as-resource-row.active {
+    background: #eef4ff;
+}
+
+.as-resource-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.as-resource-name {
+    font-weight: 700;
+}
+
+.as-resource-meta {
+    font-size: 12px;
+    color: #627087;
+}
+
+.asprova-gantt-pane {
+    min-width: 0;
+}
+
+.asprova-bottom-panel {
+    border: 1px solid #d9dee8;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px 12px;
+}
+
+.as-prop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: 8px 16px;
+}
+
+.as-prop-grid > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px dashed #e5e9f2;
+    padding-bottom: 3px;
+}
+
+.e-gantt-chart .task-overdue,
+.e-gantt-chart .task-overdue * {
+    color: #c62828 !important;
+    font-weight: 700;
+}
+
+.e-gantt-chart .task-anomaly,
+.e-gantt-chart .task-anomaly * {
+    color: #1565c0 !important;
+    font-weight: 700;
+}
+
+.e-gantt-chart .task-selected .e-gantt-child-taskbar,
+.e-gantt-chart .e-gantt-child-taskbar.task-selected {
+    box-shadow: 0 0 0 2px #111 inset !important;
+}
+
+.e-gantt-chart .task-muted {
+    opacity: 0.2 !important;
+}
+
+.e-gantt-chart .task-chain {
+    opacity: 1 !important;
+    z-index: 2;
+}
+
+.e-gantt-chart .task-color-0 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-0 { background: #1976d2 !important; border-color: #1976d2 !important; }
+.e-gantt-chart .task-color-1 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-1 { background: #00897b !important; border-color: #00897b !important; }
+.e-gantt-chart .task-color-2 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-2 { background: #43a047 !important; border-color: #43a047 !important; }
+.e-gantt-chart .task-color-3 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-3 { background: #f4511e !important; border-color: #f4511e !important; }
+.e-gantt-chart .task-color-4 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-4 { background: #5e35b1 !important; border-color: #5e35b1 !important; }
+.e-gantt-chart .task-color-5 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-5 { background: #6d4c41 !important; border-color: #6d4c41 !important; }
+.e-gantt-chart .task-color-6 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-6 { background: #ef6c00 !important; border-color: #ef6c00 !important; }
+.e-gantt-chart .task-color-7 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-7 { background: #7b1fa2 !important; border-color: #7b1fa2 !important; }
+.e-gantt-chart .task-color-8 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-8 { background: #00838f !important; border-color: #00838f !important; }
+.e-gantt-chart .task-color-9 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-9 { background: #c2185b !important; border-color: #c2185b !important; }
+.e-gantt-chart .task-color-10 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-10 { background: #455a64 !important; border-color: #455a64 !important; }
+.e-gantt-chart .task-color-11 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-11 { background: #7cb342 !important; border-color: #7cb342 !important; }
+
+@media (max-width: 1200px) {
+    .asprova-workbench {
+        grid-template-columns: 1fr;
+    }
+
+    .asprova-resource-pane {
+        max-height: 220px;
+    }
+}
