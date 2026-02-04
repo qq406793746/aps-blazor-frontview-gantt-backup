@@ -509,14 +509,17 @@
 
         var selectedChain = BuildChainForSelectedTask(filteredTasks, AllLinks, SelectedTask?.TaskId, LinkMode == TaskLinkMode.HoverOnly);
         DisplayLinks = BuildVisibleLinks(selectedChain, filteredTasks, AllLinks);
-        DisplayResources = filteredResources;
+        var taskResourceIds = filteredTasks.SelectMany(t => t.ResourceIds).ToHashSet();
+        DisplayResources = filteredResources
+            .Where(r => taskResourceIds.Contains(r.Id))
+            .ToList();
 
         DisplayTasks = filteredTasks
             .Select(t => CloneWithCss(t, selectedChain))
             .ToList();
         ApplyVisiblePredecessors(DisplayTasks, DisplayLinks);
         DisplayAssignments = BuildAssignments(DisplayTasks);
-        ResourceGroups = BuildResourceGroups(DisplayResources);
+        ResourceGroups = BuildResourceGroups(filteredResources);
 
         SetChartRange(DisplayTasks);
 
