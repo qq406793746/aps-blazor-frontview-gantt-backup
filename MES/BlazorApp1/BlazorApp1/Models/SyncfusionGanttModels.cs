@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 namespace BlazorApp1.Models;
 
 public class SyncfusionResourceViewResponseVm
@@ -22,12 +23,16 @@ public class SyncfusionMetaVm
 
 public class GanttResourceVm
 {
+    [JsonPropertyName("resourceId")]
     public int Id { get; set; }
 
+    [JsonPropertyName("resourceName")]
     public string Name { get; set; } = string.Empty;
 
+    [JsonPropertyName("resourceCode")]
     public string Code { get; set; } = string.Empty;
 
+    [JsonPropertyName("resourceType")]
     public string Type { get; set; } = string.Empty;
 
     public int MaxUnits { get; set; } = 100;
@@ -41,16 +46,24 @@ public class GanttResourceVm
 
 public class GanttTaskVm
 {
+    [JsonPropertyName("taskId")]
     public int TaskId { get; set; }
+    [JsonPropertyName("taskName")]
     public string TaskName { get; set; } = string.Empty;
+    [JsonPropertyName("startDate")]
     public DateTime StartDate { get; set; }
+    [JsonPropertyName("endDate")]
     public DateTime EndDate { get; set; }
+    [JsonPropertyName("duration")]
     public double DurationValue { get; set; }
     public string DurationUnit { get; set; } = "minute";
     public double? RawDurationMinutes { get; set; }
+    [JsonPropertyName("resourceIds")]
     public List<int> ResourceIds { get; set; } = new();
     public bool IsExpanded { get; set; } = true;
+    [JsonPropertyName("predecessor")]
     public string? Predecessor { get; set; }
+    [JsonPropertyName("cssClass")]
     public string CssClass { get; set; } = string.Empty;
     public bool IsOverdue { get; set; }
     public bool IsAnomaly { get; set; }
@@ -66,6 +79,7 @@ public class GanttTaskVm
     public bool IsUrgent { get; set; }
     public bool IsLocked { get; set; }
     public bool IsOutsourced { get; set; }
+    public bool IsSimulated { get; set; }
     public bool HasPrecedenceViolation { get; set; }
     public bool HasResourceConflict { get; set; }
     public bool HasMaterialNotReady { get; set; }

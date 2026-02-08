@@ -1,18 +1,19 @@
 ﻿## 2026-01-26 17:00
 
-- ?????????????????????????????????????????
-- ?????2026-01-26 17:00
-- ???????
-  - MES\BlazorApp1\BlazorApp1\Pages\DynamicScheduling.razor
-  - MES\BlazorApp1\BlazorApp1\wwwroot\js\aps-gantt.js
-  - MES\BlazorApp1\BlazorApp1\wwwroot\aps-gantt\aps-resource-gantt.js
-- ?????
-  - ?? BlazorApp1????????????
-  - ?????????????????????????
-  - ????/?????????????
-- ??????
-  - ?????????????
-  - ???????????????
+- Goal: complete first-pass integration between Dynamic Scheduling page and gantt scripts.
+- Update time: 2026-01-26 17:00
+- Files changed:
+  - MES/BlazorApp1/BlazorApp1/Pages/DynamicScheduling.razor
+  - MES/BlazorApp1/BlazorApp1/wwwroot/js/aps-gantt.js
+  - MES/BlazorApp1/BlazorApp1/wwwroot/aps-gantt/aps-resource-gantt.js
+- Verification:
+  - Dynamic Scheduling page opens in BlazorApp1.
+  - Gantt scripts load and basic rendering works.
+  - Reload/re-enter does not throw front-end errors.
+- Open items:
+  - Project dropdown init was still unstable at this point (fixed at 2026-01-26 20:10).
+  - Empty-state and error prompt handling still needed.
+
 
 ## 2026-01-26 20:10
 
@@ -113,7 +114,7 @@
 - 目标：资源栏内容被截断时可由用户拖拽调整显示宽度。
 - 改动：
   - MES/BlazorApp1/BlazorApp1/Components/Gantt/ResourceGantt.razor
-    - 为资源栏觉得新增拖拽把手，初始化 JS resizer。
+    - 为资源栏区域新增拖拽把手，初始化 JS resizer。
   - MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css
     - 引入 CSS 变量 --rg-resource-width 控制资源栏宽度；拖拽条样式与 hover 视觉。
   - MES/BlazorApp1/BlazorApp1/wwwroot/js/resource-gantt.js
@@ -142,34 +143,34 @@
   - 执行 `dotnet build BlazorApp1.sln` 失败，原因是 `BlazorApp1.exe` 被运行中进程锁定（PID 38944），属于进程占用问题，不是本次代码编译错误。
 
 
-## 2026-02-03 ?????????????classic + ?? + ???
+## 2026-02-03 Resource Gantt classic style + timeline + assignment fixes
 
-- ????? `/gantt/resource` ? classic ???????????????????????????
-- ?????
-  1. ?? classic ???????????????/???????`site.css` + `ResourceGantt.razor`??
-  2. ????????+?????? 2 ?????????????????`TimelineHeader.razor`??
-  3. ?????/??/??????`TimelineHeader.razor` + `site.css`??
-  4. ????? `position/top/z-index`??? dim/????????????`GanttCanvas.razor` + `site.css`??
-  5. ?? assignment ????????????? + ResourceId???? UNASSIGNED ???`GanttCanvas.razor`?`ResourceGantt.razor`??
-  6. ???? Person/Tool/Outsource?????? Unassigned ????? includeVendors?`GanttResource.razor`??
-  7. ????????????????? Unassigned?????/?????`ResourceGantt.razor`??
-  8. ????? assignment ?? Start/End ?????????????????`GanttResource.razor`??
-  9. ???? CSS ?????hour/day/shift/frozen zone????????`ResourceGantt.razor` + `site.css`??
-  10. ????????adjustedLeft?????????????????`GanttCanvas.razor`??
-- ???
-  - ?????????
-  - ???/??/???????
-  - ???????Unassigned ??????
-  - classic ????????
-- ?????
+- Goal: improve `/gantt/resource` classic UI and fix timeline, assignment mapping, and visibility issues.
+- Key changes:
+  1. Unified classic visual details and container boundary styles (`site.css` + `ResourceGantt.razor`).
+  2. Timeline switched to dual layer (date + hour) for readability (`TimelineHeader.razor`).
+  3. Tuned timeline labels/grid/spacing to avoid overlap and jumping (`TimelineHeader.razor` + `site.css`).
+  4. Fixed `position/top/z-index` layering so bars are not covered by dim/mask overlays (`GanttCanvas.razor` + `site.css`).
+  5. Added assignment fallback: empty `resourceType + ResourceId` goes to `UNASSIGNED` (`GanttCanvas.razor`, `ResourceGantt.razor`).
+  6. Relaxed Person/Tool/Outsource assignment filtering to reduce false `Unassigned` cases (`GanttResource.razor`).
+  7. Improved `Unassigned` bucketing/sorting to reduce duplicates and row drift (`ResourceGantt.razor`).
+  8. Clamped assignment `Start/End` at window bounds to avoid losing bars outside range (`GanttResource.razor`).
+  9. Completed classic style mapping for hour/day/shift/frozen zones (`ResourceGantt.razor` + `site.css`).
+  10. Corrected `adjustedLeft` calculation to remove horizontal offset (`GanttCanvas.razor`).
+- Result:
+  - Timeline display is more stable.
+  - Bar positioning and masking issues improved.
+  - `Unassigned` grouping is more predictable, with better classic UI consistency.
+- Files changed:
   - `MES/BlazorApp1/BlazorApp1/Components/Gantt/GanttCanvas.razor`
   - `MES/BlazorApp1/BlazorApp1/Components/Gantt/ResourceGantt.razor`
   - `MES/BlazorApp1/BlazorApp1/Components/Gantt/TimelineHeader.razor`
   - `MES/BlazorApp1/BlazorApp1/Pages/GanttResource.razor`
   - `MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css`
   - `docs/codex_log.md`
-- ?????
-  - `dotnet build BlazorApp1.sln` ?????? `BlazorApp1.exe` ??????????????????????????
+- Build validation:
+  - `dotnet build BlazorApp1.sln` was still blocked by running process lock on `BlazorApp1.exe` (not a compile error).
+
 
 ## 2026-02-04 - Blazor Syncfusion Gantt Resource View page (/gantt/syncfusion)
 
@@ -255,3 +256,232 @@
   - Added resource deduping by remapped id as extra guard.
 - Validation:
   - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...` passed (`0 errors`).
+
+## 2026-02-04 - Hotfix: bars not visible due to non-task resource rows dominating chart
+
+- Updated `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`:
+  - Kept left resource panel showing filtered resources.
+  - Changed right Syncfusion Gantt `DisplayResources` to only include resources referenced by current filtered tasks.
+  - Result: task rows and chart rows align; bars are visible immediately instead of being pushed into non-visible lower rows.
+- Diagnosis notes:
+  - Snapshot check showed `Resources=119`, `Assignments=56`, and these assignments were all `resourceType=Vendor`.
+  - Large number of non-task rows caused the visible viewport to initially land on empty rows.
+- Validation:
+  - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...` passed (`0 errors`).
+
+## Next steps (planned)
+
+- Milestone 2 (next priority):
+  - Add worktime background overlay (`ShowWorktimeBg`), window mask, freeze mask, and downtime blocks.
+  - Make overlay react to scroll/zoom and keep `pointer-events:none`.
+  - Improve `LinkMode=HoverOnly` behavior and reduce full refresh flicker.
+- Milestone 3 (after milestone 2 stable):
+  - Add taskbar setup-segment rendering (setup/run visual split).
+  - Add context menu actions (highlight chain / clear / copy JSON / scroll to task start).
+  - Add keyboard shortcuts (`F`, `+`, `-`, `Esc`) and optional drilldown interactions.
+- Backend alignment suggestions:
+  - Expose a dedicated `/api/gantt/syncfusion/snapshot` payload with stable resource tree/group fields and expanded calendars.
+  - Return explicit `freezeEndTime`, richer task flags, and optional pre-built predecessor string for large datasets.
+
+## 2026-02-04 - Gantt vendor split/fallback overlay stabilization (ongoing)
+
+- Updated `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`:
+  - Added `SplitVendorRowByOrder` workflow and virtual vendor row mapping to avoid all vendor tasks stacking into one row when backend only returns a single vendor resource key.
+  - Removed `ExpandAllAsync` call path that triggered Syncfusion `NullReferenceException` during deselect/virtual expand; switched to JS-side safe expand helper.
+  - Added fallback task overlay click selection and guarded selection logic (`TaskId <= 0` clears selection) to prevent accidental full dimming when group/empty rows are selected.
+  - Changed group collapse behavior to re-apply filters immediately and synchronize visible resources with chart-side rows.
+  - Added DOM row metric support (`ResourceRows`) and switched overlay Y-layout to real resource row positions from JS (`data-resource-id`) instead of index-based assumptions.
+  - Added timeline-axis aware overlay math (`TimelineStart/TimelineEnd`) for interval/task rect X-position computation.
+  - Refined fallback visibility gate to only show fallback when native taskbars are not detected.
+- Updated `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`:
+  - Added scroll synchronization between left resource pane and right chart content.
+  - Added row metric collection from left resource pane (`resourceRows: [{resourceId, top, height}]`).
+  - Added timeline range capture from Syncfusion instance (`timelineStart`, `timelineEnd`).
+  - Added `MutationObserver` hook on timeline area to emit viewport updates after zoom/timeline DOM changes.
+  - Expanded native taskbar detection selector to `.e-taskbar-main-container, .e-gantt-child-taskbar`.
+- Updated `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-asprova.css`:
+  - Enabled pointer interaction on fallback bars for direct selection (`pointer-events:auto`).
+- Updated `MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj`:
+  - Strengthened exclusions for transient codex output/object folders (`_obj_codex*`, `_out_codex*`, nested `MES/BlazorApp1/...`) to avoid duplicate assembly attribute compile errors.
+- Housekeeping:
+  - Repeatedly cleaned accidental nested artifact folder `MES/BlazorApp1/BlazorApp1/MES` created by custom `OutDir` test builds.
+- Current status:
+  - Duplicate assembly attribute errors resolved after cleanup + csproj exclusions.
+  - Syncfusion deselect/expand NRE no longer reproduced on the previous code path.
+  - Vendor row split and overlay alignment improved, but user still reports zoom behavior mismatch in current session; further verification/fix is still in progress.
+
+## 2026-02-06 - Syncfusion Gantt official-zoom route + stress UI + fit clipping fixes
+
+- 09:00~10:00 时间轴与显示修复（官方样式回归）
+  - 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 调整：
+    - 统一按任务范围计算 `ProjectStartDate/ProjectEndDate`，并自动扩展到最早任务时间，避免左侧任务被裁切。
+    - 底层时间刻度改为 24 小时格式（`HH:mm`）。
+    - 增加加载后时间轴回到起点的滚动重置调用。
+  - 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+    - 新增 `scrollTimelineToStart()`，确保每次刷新后 `scrollLeft=0`。
+
+- 10:00~11:30 官方缩放方案落地（CustomZoomingLevels）
+  - 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 调整：
+    - 引入 `CustomZoomingLevels`（Month/Week/Day/Hour 分级），低倍不显示小时，高倍显示小时。
+    - `ZoomIn/ZoomOut/ZoomToFit` 切回官方 API 调用（`SfGantt.ZoomInAsync/ZoomOutAsync/ZoomToFitAsync`）。
+  - 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+    - 移除临时“小时文本强制隐藏”样式，避免和官方分级缩放冲突。
+
+- 11:30~13:00 StressTest 前端开关与参数输入
+  - 文件：`MES/BlazorApp1/BlazorApp1/Services/GanttApiClient.cs`
+    - `GetSyncfusionResourceViewAsync` 增加 stress 参数透传：
+      - `stressTest`
+      - `stressResourceCount`
+      - `stressTasksPerResource`
+      - `stressSeed`
+  - 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+    - 新增页面控件：
+      - `StressTest` 开关
+      - `Stress Resources`
+      - `Tasks / Resource`
+      - `Stress Seed`
+    - `Refresh` 时将 stress 参数传给后端 resource-view 接口。
+    - 页面统计 `Source` 增加 `resource-view+stress` 标识，便于运行态识别数据来源。
+
+- 13:00~14:30 ZoomToFit 右边缘裁切专项修复
+  - 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+    - 引入动态右侧缓冲：按可视宽度将像素缓冲换算为时间，动态修正 `ChartEnd`。
+    - `ZoomToFit` 执行前先更新视口宽度，避免静态估算误差。
+    - 增加“安全 Fit”逻辑：`ZoomToFit` 后若无横向余量则自动 `ZoomOut`，最多连续 3 次，减少最右任务圆角/箭头被裁切。
+  - 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+    - 新增 `hasHorizontalScroll()`，用于判定是否存在横向余量。
+
+- 验证
+  - 多次执行：
+    - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...`
+  - 结果：均通过（0 errors，存在既有 warnings）。
+
+## 2026-02-07 - Syncfusion Gantt viewport/layout/task-detail interaction hardening
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 启用并保留虚拟化优化：
+    - `EnableTimelineVirtualization="true"`
+    - `EnableRowVirtualization="true"`
+    - Stress 默认值调整为 `Resources=100`、`Tasks/Resource=20`，降低压力场景下连续加载等待。
+  - 视口自适应高度：
+    - 甘特高度改为 `Height="@GanttViewportHeight"`，首屏和刷新后根据可视区动态计算，避免底部滚动条悬空在页面中部。
+  - 时间轴稳定显示策略（官方分级为主）：
+    - `CustomZoomingLevels` 中将关键级别调整为 `Day/Day`，减少顶层日期与底层刻度错位感。
+  - 任务条标签：
+    - 增加 `GanttLabelSettings TaskLabel="TaskName"`，在色块上显示任务文本。
+  - 右侧详情面板交互：
+    - 详情面板改为按点击任务条触发显示；点击空白区隐藏。
+    - 仅在有选中任务时渲染右侧详情卡片。
+  - 布局空白修复：
+    - 左侧甘特列改为动态宽度：无详情时 `col-12`，有详情时 `col-lg-9`。
+    - 右侧 `col-lg-3` 仅在显示详情面板时渲染，消除“右侧大块空白”。
+
+- 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+  - 增强宿主选择器，兼容 `.asprova-gantt-host` / `.syncfusion-gantt-wrap` / `.e-gantt`，避免事件未绑定。
+  - 保留滚动与视口度量能力（`getMetrics`、滚动同步、MutationObserver）。
+  - 详情面板触发改为更稳方案：
+    - 绑定 EJ2 Gantt 原生 `taskbarClick`，从事件参数解析任务 `taskId` 回传 .NET。
+    - 点击非任务条区域时回传 `taskId=0` 以隐藏详情面板。
+
+- 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - 配合视口高度与右侧面板样式，维持详情卡片可读性与页面整体对齐。
+
+- 验证
+  - 多轮执行：
+    - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...`
+  - 结果：通过（`0 errors`，存在既有 warnings）。
+
+## 2026-02-07 - Syncfusion Gantt taskbar drag hardening (server-authoritative)
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 启用官方任务条拖拽编辑：
+    - `GanttEditSettings AllowEditing="true" AllowTaskbarEditing="true"`
+    - `GanttEvents TaskbarEdited="OnTaskbarEdited"`
+  - 拖拽保存策略增强：
+    - 纯平移优先提交 `DeltaMinutes`，非对称调整回退为 `NewStart/NewEnd`。
+    - 新增 `AllowPush` 前端开关并透传后端，便于在约束冲突场景下提升成功率。
+  - 用户反馈与容错：
+    - 新增 `DragWarningMessage`，当后端返回“未产生有效移动”时给出警告，不再仅表现为“回原位”。
+    - 对 `ApsApiException` 做规则化映射（锁定、最早/最晚窗口、资源冲突等），提供可读错误信息。
+    - 保持“后端权威”模型：拖拽后始终重新拉取服务端结果，避免前端假状态。
+
+- 说明
+  - “拖完回原位”在当前 APS 约束体系下通常表示：后端拒绝变更或判定为 no-op；并非前端渲染丢失。
+
+- 验证
+  - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...`
+  - 结果：通过（`0 errors`，存在既有 warnings）。
+
+## 2026-02-08 - Drag reject popup + global auto-reschedule (ortools) for Syncfusion Gantt
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 拖拽预拦截增强（`TaskbarEditing` / `TaskbarEdited`）：
+    - 外协任务（`IsOutsourced`）禁止拖拽。
+    - 锁定任务（`IsLocked`）禁止拖拽。
+    - 压测模拟任务（`IsSimulated` 或 `SIM-WO-*`）禁止拖拽。
+  - 失败反馈改进：
+    - 拖拽被拒绝时，除页面 `ErrorMessage` 外，新增浏览器 `alert` 弹框，明确提示原因。
+  - 成功后自动全局重排：
+    - 单任务 `move` 成功且产生有效变化后，立即调用
+      `POST /api/plans/{planId}/auto-schedule?engine=ortools&force=true`
+      （通过 `ApsApi.AutoScheduleAsync(...)`）。
+    - 状态栏展示重排结果（engine/scheduled/unscheduled）。
+  - 保持后端权威刷新：拖拽后继续 `LoadDataAsync(clearMessages: false)`。
+
+- 文件：`MES/BlazorApp1/BlazorApp1/Models/SyncfusionGanttModels.cs`
+  - 新增任务字段：`IsSimulated`，用于前端识别并拦截压测模拟条。
+
+## 2026-02-08 - Global reschedule confirmation dialog (estimated affected count)
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 在单任务 `move` 成功后、全局 `ortools` 重排前新增 `confirm` 弹窗：
+    - 文案包含“预计影响任务数”（估算值：`max(1, pushedCount + 1)`）。
+    - 用户确认后才执行全局自动重排。
+    - 用户取消时保留本次单任务移动结果，并给出 `DragWarningMessage`。
+
+## 2026-02-08 - Reschedule impact preview (taskId list) in confirm dialog
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 全局重排确认弹窗新增“预计影响任务 ID 预览”：
+    - 基于 `move` 返回的 `TaskId + PushedTaskIds` 生成预览列表。
+    - 超过 12 条时截断显示并追加 `(+N)` 提示。
+  - 目的：用户确认前可直观看到可能受影响任务范围，降低误操作概率。
+
+## 2026-02-08 - 左侧 TaskId 升序显示
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 任务数据在进入甘特前统一按 `TaskId` 升序排序（主数据分支 + fallback 分支）。
+  - 目的：左侧任务编号展示更稳定，便于按 ID 定位与核对。
+
+## 2026-02-07 - 今日补充汇总（Gantt 交互与稳定性）
+
+- 作用域：`frontend`
+- 文件：`MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 视口与布局：甘特高度改为视口自适应；右侧详情面板隐藏时主视图自动占满（`col-12`），避免右侧空白。
+  - 时间轴显示：采用更稳定的官方时间轴层级配置，减少顶部日期与底部刻度错位。
+  - 任务标签：任务色块启用文本展示（`TaskLabel`），支持直接识别任务。
+  - 详情面板交互：默认不显示；仅点击任务色块后显示；点击空白可关闭。
+  - 拖拽编辑（官方）：启用 `AllowTaskbarEditing` + `TaskbarEdited` 事件。
+  - 拖拽容错：
+    - 纯平移优先 `DeltaMinutes`，否则回退 `NewStart/NewEnd`。
+    - 新增 `AllowPush` 开关并透传后端。
+    - 新增拖拽无效警告与后端约束错误映射，降低“拖完回原位但无提示”的排障成本。
+
+- 文件：`MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+  - 任务点击识别增强：优先接入 Syncfusion 原生任务条点击事件；补充宿主选择器兼容，避免事件绑定遗漏。
+  - 保留滚动同步与视口度量逻辑，配合页面自适应与刷新后行为稳定。
+
+- 稳定性说明
+  - 当前采用“后端权威”模式：前端拖拽提交后以服务端结果为准再刷新，避免前端与排程引擎状态不一致。
+
+- 验证
+  - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...`
+  - 结果：通过（`0 errors`，存在既有 warnings）。
