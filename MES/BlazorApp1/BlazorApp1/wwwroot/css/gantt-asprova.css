@@ -84,6 +84,10 @@
     min-width: 0;
 }
 
+.asprova-gantt-host {
+    position: relative;
+}
+
 .asprova-bottom-panel {
     border: 1px solid #d9dee8;
     border-radius: 8px;
@@ -131,6 +135,45 @@
     z-index: 2;
 }
 
+.e-gantt-chart .task-locked .e-gantt-child-taskbar::after,
+.e-gantt-chart .e-gantt-child-taskbar.task-locked::after {
+    content: "L";
+    position: absolute;
+    right: 2px;
+    top: 1px;
+    font-size: 9px;
+    line-height: 1;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.75);
+    border-radius: 3px;
+    padding: 1px 2px;
+}
+
+.e-gantt-chart .task-outsourced .e-gantt-child-taskbar::before,
+.e-gantt-chart .e-gantt-child-taskbar.task-outsourced::before {
+    content: "OS";
+    position: absolute;
+    left: 2px;
+    top: 1px;
+    font-size: 9px;
+    line-height: 1;
+    color: #ffffff;
+    background: rgba(2, 132, 199, 0.8);
+    border-radius: 3px;
+    padding: 1px 2px;
+}
+
+.e-gantt-chart .task-setup-1 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-1 { box-shadow: inset 4px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-2 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-2 { box-shadow: inset 8px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-3 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-3 { box-shadow: inset 12px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-4 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-4 { box-shadow: inset 16px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-5 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-5 { box-shadow: inset 20px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-6 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-6 { box-shadow: inset 24px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-7 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-7 { box-shadow: inset 28px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-8 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-8 { box-shadow: inset 32px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-9 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-9 { box-shadow: inset 36px 0 rgba(255,255,255,.35); }
+.e-gantt-chart .task-setup-10 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-setup-10 { box-shadow: inset 40px 0 rgba(255,255,255,.35); }
+
 .e-gantt-chart .task-color-0 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-0 { background: #1976d2 !important; border-color: #1976d2 !important; }
 .e-gantt-chart .task-color-1 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-1 { background: #00897b !important; border-color: #00897b !important; }
 .e-gantt-chart .task-color-2 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-2 { background: #43a047 !important; border-color: #43a047 !important; }
@@ -143,6 +186,77 @@
 .e-gantt-chart .task-color-9 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-9 { background: #c2185b !important; border-color: #c2185b !important; }
 .e-gantt-chart .task-color-10 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-10 { background: #455a64 !important; border-color: #455a64 !important; }
 .e-gantt-chart .task-color-11 .e-gantt-child-taskbar, .e-gantt-chart .e-gantt-child-taskbar.task-color-11 { background: #7cb342 !important; border-color: #7cb342 !important; }
+
+.asprova-bg-overlay {
+    position: absolute;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.asprova-bg-overlay > div {
+    position: absolute;
+    border-radius: 1px;
+}
+
+.asprova-task-overlay {
+    position: absolute;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 3;
+}
+
+.as-task-fallback {
+    position: absolute;
+    pointer-events: auto;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+    opacity: 0.95;
+    color: #ffffff;
+    font-size: 10px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.as-task-fallback.task-muted {
+    opacity: 0.25;
+}
+
+.as-task-fallback.task-anomaly {
+    color: #60a5fa;
+}
+
+.as-task-fallback.task-overdue {
+    color: #fecaca;
+}
+
+.as-bg-work {
+    background: rgba(148, 163, 184, 0.18);
+}
+
+.as-bg-downtime {
+    background:
+        repeating-linear-gradient(
+            135deg,
+            rgba(51, 65, 85, 0.30) 0,
+            rgba(51, 65, 85, 0.30) 6px,
+            rgba(71, 85, 105, 0.20) 6px,
+            rgba(71, 85, 105, 0.20) 12px
+        );
+}
+
+.as-bg-mask-window {
+    background: rgba(148, 163, 184, 0.16);
+}
+
+.as-bg-mask-freeze {
+    background: rgba(96, 165, 250, 0.15);
+}
 
 @media (max-width: 1200px) {
     .asprova-workbench {

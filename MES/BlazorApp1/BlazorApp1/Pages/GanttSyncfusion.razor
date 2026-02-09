@@ -1,5 +1,6 @@
-@page "/gantt/syncfusion"
+﻿@page "/gantt/syncfusion"
 @using Syncfusion.Blazor.Gantt
+@using Syncfusion.Blazor.Grids
 @using Microsoft.JSInterop
 @inject IGanttApiClient GanttApi
 @inject IApsApiService ApsApi
@@ -21,12 +22,12 @@
             <label class="form-label">End</label>
             <input class="form-control" type="datetime-local" @bind="EndInput" />
         </div>
-        <div class="col-md-4 d-flex gap-2">
-            <button class="btn btn-primary" @onclick="() => LoadDataAsync()" disabled="@Loading">Refresh</button>
-            <button class="btn btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@Loading">Latest Plan</button>
-            <button class="btn btn-outline-secondary" @onclick="ZoomInAsync" disabled="@Loading">ZoomIn</button>
-            <button class="btn btn-outline-secondary" @onclick="ZoomOutAsync" disabled="@Loading">ZoomOut</button>
-            <button class="btn btn-outline-secondary" @onclick="ZoomToFitAsync" disabled="@Loading">ZoomToFit</button>
+        <div class="col-md-4 d-flex flex-wrap gap-2">
+            <button class="btn btn-sm btn-primary" @onclick="() => LoadDataAsync()" disabled="@Loading">Refresh</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@Loading">Latest Plan</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomInAsync" disabled="@Loading">ZoomIn</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomOutAsync" disabled="@Loading">ZoomOut</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomToFitAsync" disabled="@Loading">ZoomToFit</button>
         </div>
     </div>
     <div class="row g-2 align-items-end mt-2">
@@ -77,14 +78,15 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     Plan=@PlanId | Resources=@DisplayResources.Count | Tasks=@DisplayTasks.Count | Links=@DisplayLinks.Count | Assignments=@DisplayAssignments.Count | Source=@DataSourceMode
 </div>
 
-<div class="row g-2 mt-2">
-    <div class="@(ShowTaskDetailPanel ? "col-lg-9" : "col-12")">
+<div class="row g-2 mt-2 position-relative">
+    <div class="col-12">
         <div class="syncfusion-gantt-wrap" @ref="GanttContainerRef">
             <SfGantt @ref="GanttRef"
                      TValue="GanttTaskVm"
                      DataSource="@DisplayTasks"
                      ViewType="@CurrentViewType"
                      CustomZoomingLevels="@CustomZoomLevels"
+                     ScrollToTaskbarOnClick="true"
                      ProjectStartDate="@ChartStart"
                      ProjectEndDate="@ChartEnd"
                      Height="@GanttViewportHeight"
@@ -92,6 +94,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                      EnableTimelineVirtualization="true"
                      Toolbar="@ToolbarItems">
         <GanttEditSettings AllowEditing="true" AllowTaskbarEditing="true"></GanttEditSettings>
+        <GanttSelectionSettings Mode="SelectionMode.Row" Type="SelectionType.Single"></GanttSelectionSettings>
         <GanttTimelineSettings TimelineViewMode="TimelineViewMode.Day"
                                TimelineUnitSize="95"
                                UpdateTimescaleView="false"
@@ -124,6 +127,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         </Syncfusion.Blazor.Gantt.GanttResource>
                 <GanttTaskbarSettings EnableMultiTaskbar="true"></GanttTaskbarSettings>
                 <GanttEvents TValue="GanttTaskVm"
+                             RowSelected="OnRowSelected"
                              TaskbarEditing="OnTaskbarEditing"
                              TaskbarEdited="OnTaskbarEdited"></GanttEvents>
             </SfGantt>
@@ -131,9 +135,12 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     </div>
     @if (ShowTaskDetailPanel && SelectedTask != null)
     {
-        <div class="col-lg-3">
-            <div class="card p-3 h-100 syncfusion-task-detail">
-                <h6 class="mb-3">Task Detail</h6>
+        <div class="syncfusion-task-detail-overlay">
+            <div class="card p-3 syncfusion-task-detail">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Task Detail</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseTaskDetailPanel">关闭</button>
+                </div>
                 <div><span class="syncfusion-task-detail-key">Task</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskName</span></div>
                 <div><span class="syncfusion-task-detail-key">TaskId</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskId</span></div>
                 <div><span class="syncfusion-task-detail-key">Order</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.OrderNo) ? SelectedTask.OrderNo : "-")</span></div>
@@ -160,8 +167,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private string? ErrorMessage;
 
     private long PlanId;
-    private DateTime? StartInput = DateTime.Today.AddDays(-7);
-    private DateTime? EndInput = DateTime.Today.AddDays(7);
+    private DateTime? StartInput = null;
+    private DateTime? EndInput = null;
 
     private DateTime ChartStart = DateTime.Today.AddDays(-1);
     private DateTime ChartEnd = DateTime.Today.AddDays(1);
@@ -179,10 +186,18 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private ViewType CurrentViewType = ViewType.ProjectView;
     private string CurrentViewTypeText { get; set; } = "ProjectView";
     private bool PendingScrollReset;
+    private bool PendingScrollRestore;
+    private double PendingScrollLeft;
+    private double PendingScrollTop;
     private bool PendingHeightRefresh = true;
     private string GanttViewportHeight = "700px";
     private GanttTaskVm? SelectedTask;
     private bool ShowTaskDetailPanel;
+    private bool IsTaskDetailPanelManuallyClosed;
+    private bool HasViewportMetrics;
+    private double LastViewportClientWidth;
+    private double LastViewportPxPerDay;
+    private DateTime LastViewportRefocusAt = DateTime.MinValue;
     private DotNetObjectReference<GanttSyncfusion>? DotNetRef;
 
     private List<GanttResourceVm> DisplayResources { get; set; } = new();
@@ -276,7 +291,10 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
     }
 
-    private async Task LoadDataAsync(bool clearMessages = true)
+    private async Task LoadDataAsync(
+        bool clearMessages = true,
+        bool preserveViewport = false,
+        int? focusTaskId = null)
     {
         if (PlanId <= 0)
         {
@@ -284,8 +302,11 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             return;
         }
 
-        SelectedTask = null;
-        ShowTaskDetailPanel = false;
+        if (!focusTaskId.HasValue && SelectedTask != null)
+        {
+            focusTaskId = SelectedTask.TaskId;
+        }
+
         Loading = true;
         if (clearMessages)
         {
@@ -295,6 +316,27 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
         try
         {
+            if (preserveViewport)
+            {
+                try
+                {
+                    var metrics = await JS.InvokeAsync<System.Text.Json.JsonElement>("ganttAsprova.getMetrics");
+                    if (metrics.TryGetProperty("scrollLeft", out var leftElement))
+                    {
+                        PendingScrollLeft = leftElement.GetDouble();
+                    }
+                    if (metrics.TryGetProperty("scrollTop", out var topElement))
+                    {
+                        PendingScrollTop = topElement.GetDouble();
+                    }
+                    PendingScrollRestore = true;
+                }
+                catch
+                {
+                    PendingScrollRestore = false;
+                }
+            }
+
             DataSourceMode = StressTestEnabled ? "resource-view+stress" : "resource-view";
             var vm = await GanttApi.GetSyncfusionResourceViewAsync(
                 PlanId,
@@ -384,11 +426,24 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
             EnsurePredecessors(DisplayTasks, DisplayLinks);
             DisplayAssignments = BuildAssignments(DisplayTasks);
+            ApplyDefaultTimeRangeFromMeta(vm);
+
+            if (focusTaskId.HasValue)
+            {
+                SelectedTask = DisplayTasks.FirstOrDefault(t => t.TaskId == focusTaskId.Value);
+                ShowTaskDetailPanel = SelectedTask != null && !IsTaskDetailPanelManuallyClosed;
+            }
+            else
+            {
+                SelectedTask = null;
+                ShowTaskDetailPanel = false;
+                IsTaskDetailPanelManuallyClosed = false;
+            }
 
             await TryUpdateViewportWidthAsync();
             SetChartRange(DisplayTasks);
 
-            PendingScrollReset = true;
+            PendingScrollReset = !preserveViewport;
             PendingHeightRefresh = true;
         }
         catch (Exception ex)
@@ -406,11 +461,29 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
     }
 
+    private void ApplyDefaultTimeRangeFromMeta(SyncfusionResourceViewResponseVm vm)
+    {
+        if (StartInput.HasValue || EndInput.HasValue)
+        {
+            return;
+        }
+
+        var metaStart = vm?.Meta?.Start ?? DateTime.MinValue;
+        var metaEnd = vm?.Meta?.End ?? DateTime.MinValue;
+        if (metaStart <= DateTime.MinValue || metaEnd <= DateTime.MinValue || metaEnd <= metaStart)
+        {
+            return;
+        }
+
+        StartInput = metaStart;
+        EndInput = metaEnd;
+    }
     private async Task ZoomInAsync()
     {
         if (GanttRef != null)
         {
             await GanttRef.ZoomInAsync();
+            await RefocusSelectedTaskAsync();
         }
     }
 
@@ -419,6 +492,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         if (GanttRef != null)
         {
             await GanttRef.ZoomOutAsync();
+            await RefocusSelectedTaskAsync();
         }
     }
 
@@ -452,7 +526,79 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
                 await GanttRef.ZoomOutAsync();
             }
+
+            await RefocusSelectedTaskAsync();
         }
+    }
+
+    private async Task RefocusSelectedTaskAsync()
+    {
+        var task = SelectedTask;
+        if (task == null || task.TaskId <= 0)
+        {
+            DragWarningMessage = "未选中任务：请先点击一个任务色块。";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var focused = false;
+        try
+        {
+            focused = await RefocusSelectedTaskByGanttApiAsync(task.TaskId);
+        }
+        catch
+        {
+            focused = false;
+        }
+
+        if (!focused)
+        {
+            try
+            {
+                focused = await JS.InvokeAsync<bool>("ganttAsprova.refocusTask", task.TaskId, task.StartDate, task.EndDate);
+            }
+            catch
+            {
+                focused = false;
+            }
+        }
+
+        if (!focused)
+        {
+            DragWarningMessage = $"定位失败：Task {task.TaskId} 当前未能滚动到可视区。";
+        }
+        else
+        {
+            DragWarningMessage = $"已定位到 Task {task.TaskId}";
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task CloseTaskDetailPanel()
+    {
+        ShowTaskDetailPanel = false;
+        IsTaskDetailPanelManuallyClosed = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task<bool> RefocusSelectedTaskByGanttApiAsync(int taskId)
+    {
+        if (taskId <= 0 || GanttRef == null)
+        {
+            return false;
+        }
+
+        // Official Syncfusion APIs are more reliable than DOM scroll hacking under virtualization.
+        var rowIndex = DisplayTasks.FindIndex(t => t.TaskId == taskId);
+        if (rowIndex >= 0)
+        {
+            await GanttRef.SelectRowAsync(rowIndex);
+            await GanttRef.ScrollIntoViewAsync(-1, rowIndex);
+        }
+
+        await GanttRef.ScrollToTaskbarAsync(taskId);
+        return true;
     }
 
     private static Dictionary<string, int> BuildResourceIdMap(ResourceGanttSnapshot snapshot)
@@ -741,8 +887,13 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         if (firstRender)
         {
             DotNetRef = DotNetObjectReference.Create(this);
+        }
+
+        if (DotNetRef != null)
+        {
             try
             {
+                // Re-bind after each render because Syncfusion may recreate inner DOM/instance.
                 await JS.InvokeVoidAsync("ganttAsprova.bindSync", DotNetRef);
             }
             catch
@@ -769,6 +920,19 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 // no-op
             }
         }
+
+        if (PendingScrollRestore)
+        {
+            PendingScrollRestore = false;
+            try
+            {
+                await JS.InvokeVoidAsync("ganttAsprova.restoreScroll", PendingScrollLeft, PendingScrollTop);
+            }
+            catch
+            {
+                // no-op
+            }
+        }
     }
 
     private Task OnViewTypeChanged()
@@ -784,14 +948,123 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     {
         if (taskId <= 0)
         {
-            SelectedTask = null;
-            ShowTaskDetailPanel = false;
-            return InvokeAsync(StateHasChanged);
+            // Keep current selection when clicking non-taskbar area (toolbar/blank region).
+            // This avoids losing focus target after zoom interactions.
+            return Task.CompletedTask;
         }
 
         SelectedTask = DisplayTasks.FirstOrDefault(t => t.TaskId == taskId);
+        IsTaskDetailPanelManuallyClosed = false;
         ShowTaskDetailPanel = SelectedTask != null;
+        if (SelectedTask != null)
+        {
+            DragWarningMessage = $"已选中 Task {SelectedTask.TaskId}";
+        }
         return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnRowSelected(RowSelectEventArgs<GanttTaskVm> args)
+    {
+        var taskId = args?.Data?.TaskId ?? 0;
+        if (taskId <= 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var previousTaskId = SelectedTask?.TaskId;
+        SelectedTask = DisplayTasks.FirstOrDefault(t => t.TaskId == taskId);
+        if (SelectedTask != null)
+        {
+            var isSameTask = previousTaskId.HasValue && previousTaskId.Value == SelectedTask.TaskId;
+            if (IsTaskDetailPanelManuallyClosed && isSameTask)
+            {
+                ShowTaskDetailPanel = false;
+            }
+            else
+            {
+                IsTaskDetailPanelManuallyClosed = false;
+                ShowTaskDetailPanel = true;
+            }
+            DragWarningMessage = $"已选中 Task {SelectedTask.TaskId}";
+        }
+        else
+        {
+            ShowTaskDetailPanel = false;
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnGanttZoomCommand(string? command)
+    {
+        // Toolbar zoom actions are async inside Syncfusion; wait for layout settle and refocus selected task.
+        await Task.Delay(90);
+        await RefocusSelectedTaskAsync();
+        await Task.Delay(220);
+        await RefocusSelectedTaskAsync();
+    }
+
+    [JSInvokable]
+    public async Task OnGanttViewportChanged(System.Text.Json.JsonElement metrics)
+    {
+        double width = 0;
+        double pxPerDay = 0;
+        if (metrics.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            if (metrics.TryGetProperty("contentClientWidth", out var widthElement) &&
+                widthElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+            {
+                width = widthElement.GetDouble();
+            }
+
+            if (metrics.TryGetProperty("pxPerDay", out var dayElement) &&
+                dayElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+            {
+                pxPerDay = dayElement.GetDouble();
+            }
+        }
+
+        var scaleChanged = false;
+        if (HasViewportMetrics)
+        {
+            if (width > 0 && LastViewportClientWidth > 0 && Math.Abs(width - LastViewportClientWidth) > 24)
+            {
+                scaleChanged = true;
+            }
+
+            if (pxPerDay > 0 && LastViewportPxPerDay > 0 && Math.Abs(pxPerDay - LastViewportPxPerDay) > 0.2)
+            {
+                scaleChanged = true;
+            }
+        }
+
+        if (width > 0)
+        {
+            LastViewportClientWidth = width;
+        }
+
+        if (pxPerDay > 0)
+        {
+            LastViewportPxPerDay = pxPerDay;
+        }
+
+        HasViewportMetrics = true;
+
+        if (!scaleChanged || SelectedTask == null || SelectedTask.TaskId <= 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if ((now - LastViewportRefocusAt).TotalMilliseconds < 300)
+        {
+            return;
+        }
+
+        LastViewportRefocusAt = now;
+        await Task.Delay(80);
+        await RefocusSelectedTaskAsync();
     }
 
     private void OnTaskbarEditing(TaskbarEditingEventArgs<GanttTaskVm> args)
@@ -889,7 +1162,10 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 if (!confirmed)
                 {
                     DragWarningMessage = $"Task {result.TaskId} moved. Global auto-reschedule canceled by user.";
-                    await LoadDataAsync(clearMessages: false);
+                    await LoadDataAsync(
+                        clearMessages: false,
+                        preserveViewport: true,
+                        focusTaskId: args.Data.TaskId);
                     return;
                 }
 
@@ -913,21 +1189,30 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             }
 
             // Reload from server to keep chart and backend state consistent.
-            await LoadDataAsync(clearMessages: false);
+            await LoadDataAsync(
+                clearMessages: false,
+                preserveViewport: true,
+                focusTaskId: args.Data.TaskId);
         }
         catch (ApsApiException ex)
         {
             ErrorMessage = $"Taskbar drag rejected: {MapMoveError(ex)}";
             await ShowDragDialogAsync(ErrorMessage);
             // Roll back to server truth when save fails.
-            await LoadDataAsync(clearMessages: false);
+            await LoadDataAsync(
+                clearMessages: false,
+                preserveViewport: true,
+                focusTaskId: args.Data.TaskId);
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Taskbar drag save failed: {ex.Message}";
             await ShowDragDialogAsync(ErrorMessage);
             // Roll back to server truth when save fails.
-            await LoadDataAsync(clearMessages: false);
+            await LoadDataAsync(
+                clearMessages: false,
+                preserveViewport: true,
+                focusTaskId: args.Data.TaskId);
         }
         finally
         {
@@ -1065,3 +1350,5 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
     }
 }
+
+

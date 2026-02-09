@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-height: calc(100vh - 86px);
 }
 
 .syncfusion-toolbar {
@@ -9,8 +10,15 @@
 }
 
 .syncfusion-gantt-wrap {
+  flex: 1 1 auto;
+  min-height: 360px;
   border: 1px solid #d1d5db;
   background: #fff;
+  overflow: hidden;
+}
+
+.syncfusion-gantt-wrap .e-gantt {
+  height: 100%;
 }
 
 .sync-taskbar-inner {
@@ -24,50 +32,10 @@
   overflow: hidden;
 }
 
-/* Force visible built-in taskbars for troubleshooting ResourceView rendering. */
-.syncfusion-gantt-wrap .e-gantt-chart .e-taskbar-main-container,
-.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-child-taskbar,
-.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-parent-taskbar {
-  background-color: #2563eb !important;
-  border: 1px solid #1d4ed8 !important;
-  opacity: 1 !important;
-  min-height: 14px;
-}
-
-.syncfusion-gantt-wrap .e-gantt-chart .e-gantt-milestone {
-  background-color: #dc2626 !important;
-  border-color: #b91c1c !important;
-}
-
 .sync-taskbar-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.task-overdue .sync-taskbar-label {
-  color: #b91c1c;
-  font-weight: 700;
-}
-
-.task-anomaly .sync-taskbar-label {
-  color: #1d4ed8;
-  font-weight: 700;
-}
-
-.task-selected {
-  outline: 2px solid #0f172a;
-  outline-offset: -1px;
-  z-index: 10;
-}
-
-.task-chain {
-  opacity: 1;
-  z-index: 9;
-}
-
-.task-muted {
-  opacity: 0.2;
 }
 
 .sync-debug-overlay {
@@ -104,4 +72,40 @@
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.syncfusion-task-detail {
+  font-size: 13px;
+}
+
+.syncfusion-task-detail > div {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.syncfusion-task-detail-key {
+  width: 92px;
+  color: #6b7280;
+  flex: 0 0 auto;
+}
+
+.syncfusion-task-detail-value {
+  color: #111827;
+  word-break: break-word;
+}
+
+.syncfusion-task-detail-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(360px, 95vw);
+  z-index: 20;
+}
+
+@media (max-width: 991.98px) {
+  .syncfusion-task-detail-overlay {
+    position: static;
+    width: 100%;
+  }
 }

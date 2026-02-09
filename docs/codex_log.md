@@ -485,3 +485,37 @@
 - 验证
   - `dotnet build MES/BlazorApp1/BlazorApp1/BlazorApp1.csproj -p:UseAppHost=false -p:OutDir=... -p:IntermediateOutputPath=...`
   - 结果：通过（`0 errors`，存在既有 warnings）。
+
+## 2026-02-09 GanttSyncfusion 详情栏与工具条交互修复
+
+- 目标：解决任务详情栏关闭体验问题（需多次点击、关闭后空白/变窄、缩放状态被重置）并修复顶部工具条溢出。
+- 改动时间：2026-02-09
+- 改了哪些文件：
+  - MES\BlazorApp1\BlazorApp1\Pages\GanttSyncfusion.razor
+  - MES\BlazorApp1\BlazorApp1\wwwroot\css\gantt-syncfusion.css
+  - MES\BlazorApp1\BlazorApp1\wwwroot\js\gantt-asprova.js
+  - C:\Users\123\.codex\skills\safe-minimal-change-research\references\变更前必查清单.md
+- 关键改动：
+  - 详情栏增加“关闭”按钮；关闭后保持手动关闭状态，避免被同一选中事件立即重开。
+  - 将任务详情改为右上角浮层（overlay），不再占据主栅格宽度；主甘特图区保持全宽，避免关闭后右侧留白。
+  - 移除临时调试文案 SelectedTaskId=...。
+  - 顶部按钮组改为 btn-sm + flex-wrap，修复侧边栏弹出时 ZoomToFit 溢出到白板外的问题。
+- 如何验证：
+  - 访问 /gantt/syncfusion，点击任务条，确认详情栏出现并可单击关闭。
+  - 关闭详情后，确认甘特图不变窄、无右侧空白，当前 zoom/滚动状态保持。
+  - 展开左侧导航，确认 Refresh/Latest Plan/ZoomIn/ZoomOut/ZoomToFit 不溢出。
+- 说明：
+  - 中途尝试过 RefreshChartElement，当前包版本不可直接调用，已移除，最终采用“浮层不占布局宽度”的稳定方案。
+
+## 2026-02-09 - 待办清单：Gantt 体验对齐 Asprova（前端）
+
+- 作用域：`frontend`
+- 背景：当前已完成选中任务自动定位、详情栏可关闭、关闭后不重置初始状态；仍有可用性提升空间。
+- 待完成功能（前端可独立推进）：
+  - 工具栏自适应优化：侧边导航展开时，按钮不换行错位、不溢出容器。
+  - 缩放与焦点一致性：`ZoomIn/ZoomOut/ZoomToFit` 后持续保持“当前选中任务可见且高亮”。
+  - 详情栏交互一致性：关闭后保持关闭，只有用户明确重新选中任务时才再次打开。
+  - 时间轴可读性：按缩放级别优化刻度密度与标签显示，减少空白和拥挤切换感。
+  - 任务状态可视化：对锁定/外协/模拟任务增加统一图例与样式说明。
+- 验证建议：
+  - 连续执行：选中任务 -> 缩放 -> 拖动 -> 关闭详情栏 -> 再缩放，确认焦点与布局稳定。

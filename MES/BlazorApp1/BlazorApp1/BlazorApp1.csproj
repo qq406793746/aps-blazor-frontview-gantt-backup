@@ -14,4 +14,20 @@
     <PackageReference Include="Syncfusion.Blazor.Themes" Version="32.1.25" />
   </ItemGroup>
 
+  <!-- Guard against accidentally generated source under custom temp/output folders -->
+  <ItemGroup>
+    <Compile Remove="**\_obj_codex*\**\*.cs" />
+    <Compile Remove="**\_out_codex*\**\*.cs" />
+    <Compile Remove="MES\BlazorApp1\_obj_codex*\**\*.cs" />
+    <Compile Remove="MES\BlazorApp1\_out_codex*\**\*.cs" />
+    <None Remove="**\_obj_codex*\**\*" />
+    <None Remove="**\_out_codex*\**\*" />
+    <None Remove="MES\BlazorApp1\_obj_codex*\**\*" />
+    <None Remove="MES\BlazorApp1\_out_codex*\**\*" />
+    <Content Remove="**\_obj_codex*\**\*" />
+    <Content Remove="**\_out_codex*\**\*" />
+    <Content Remove="MES\BlazorApp1\_obj_codex*\**\*" />
+    <Content Remove="MES\BlazorApp1\_out_codex*\**\*" />
+  </ItemGroup>
+
 </Project>

@@ -19,10 +19,25 @@ public class GanttMeta
     public string PlanNo { get; set; } = "";
     public DateTime PlanDueDate { get; set; }
     public DateTime? PlanningStartTime { get; set; }
+    public DateTime? FreezeEndTime { get; set; }
     public DateTime From { get; set; }
     public DateTime To { get; set; }
     public string LinksMode { get; set; } = "seq";
     public string? Timezone { get; set; }
+
+    [JsonPropertyName("windowStart")]
+    public DateTime WindowStart
+    {
+        get => From;
+        set => From = value;
+    }
+
+    [JsonPropertyName("windowEnd")]
+    public DateTime WindowEnd
+    {
+        get => To;
+        set => To = value;
+    }
 }
 
 public class GanttResource
@@ -62,10 +77,38 @@ public class GanttDowntime
 
 public class GanttAssignment
 {
+    private long _resourceId;
+    private string _resourceType = "Machine";
+
     public long TaskId { get; set; }
     public long PlanId { get; set; }
-    public string ResourceType { get; set; } = "Machine";
-    public long ResourceId { get; set; }
+    public string ResourceType
+    {
+        get => _resourceType;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _resourceType = value;
+            }
+            else if (string.IsNullOrWhiteSpace(_resourceType))
+            {
+                _resourceType = "Machine";
+            }
+        }
+    }
+    public long ResourceId
+    {
+        get => _resourceId;
+        set
+        {
+            // Keep alias-derived resource id when payload later writes 0.
+            if (value > 0 || _resourceId == 0)
+            {
+                _resourceId = value;
+            }
+        }
+    }
     public long? WorkItemId { get; set; }
     public string? OrderNo { get; set; }
     public string? ItemHint { get; set; }
@@ -126,14 +169,11 @@ public class GanttAssignment
         get => null;
         set
         {
-            if (value.HasValue && ResourceId == 0)
+            if (value.HasValue && value.Value > 0)
             {
                 ResourceId = value.Value;
             }
-            if (string.IsNullOrWhiteSpace(ResourceType))
-            {
-                ResourceType = "Machine";
-            }
+            ResourceType = "Machine";
         }
     }
 
@@ -143,14 +183,11 @@ public class GanttAssignment
         get => null;
         set
         {
-            if (value.HasValue && ResourceId == 0)
+            if (value.HasValue && value.Value > 0)
             {
                 ResourceId = value.Value;
             }
-            if (string.IsNullOrWhiteSpace(ResourceType))
-            {
-                ResourceType = "Person";
-            }
+            ResourceType = "Person";
         }
     }
 
@@ -160,14 +197,11 @@ public class GanttAssignment
         get => null;
         set
         {
-            if (value.HasValue && ResourceId == 0)
+            if (value.HasValue && value.Value > 0)
             {
                 ResourceId = value.Value;
             }
-            if (string.IsNullOrWhiteSpace(ResourceType))
-            {
-                ResourceType = "Person";
-            }
+            ResourceType = "Person";
         }
     }
 
@@ -177,14 +211,11 @@ public class GanttAssignment
         get => null;
         set
         {
-            if (value.HasValue && ResourceId == 0)
+            if (value.HasValue && value.Value > 0)
             {
                 ResourceId = value.Value;
             }
-            if (string.IsNullOrWhiteSpace(ResourceType))
-            {
-                ResourceType = "Tool";
-            }
+            ResourceType = "Tool";
         }
     }
 
@@ -194,14 +225,11 @@ public class GanttAssignment
         get => null;
         set
         {
-            if (value.HasValue && ResourceId == 0)
+            if (value.HasValue && value.Value > 0)
             {
                 ResourceId = value.Value;
             }
-            if (string.IsNullOrWhiteSpace(ResourceType))
-            {
-                ResourceType = "Vendor";
-            }
+            ResourceType = "Vendor";
         }
     }
 }

@@ -25,6 +25,10 @@ public interface IGanttApiClient
         long planId,
         DateTime? start,
         DateTime? end,
+        bool stressTest,
+        int stressResourceCount,
+        int stressTasksPerResource,
+        int stressSeed,
         CancellationToken cancellationToken);
 }
 
@@ -96,13 +100,24 @@ public class GanttApiClient : IGanttApiClient
         long planId,
         DateTime? start,
         DateTime? end,
+        bool stressTest,
+        int stressResourceCount,
+        int stressTasksPerResource,
+        int stressSeed,
         CancellationToken cancellationToken)
     {
         EnsureBaseAddress();
         var query = new List<string>
         {
-            $"planId={planId}"
+            $"planId={planId}",
+            $"stressTest={stressTest.ToString().ToLowerInvariant()}"
         };
+        if (stressTest)
+        {
+            query.Add($"stressResourceCount={stressResourceCount}");
+            query.Add($"stressTasksPerResource={stressTasksPerResource}");
+            query.Add($"stressSeed={stressSeed}");
+        }
         if (start.HasValue)
         {
             query.Add($"start={Uri.EscapeDataString(start.Value.ToString("o"))}");
