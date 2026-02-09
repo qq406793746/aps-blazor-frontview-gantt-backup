@@ -15,3 +15,7 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# Codex local snapshot artifacts
+**/_obj_codex_*/
+**/_out_codex_*/
