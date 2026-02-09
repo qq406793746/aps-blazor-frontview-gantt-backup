@@ -1,0 +1,10 @@
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.csproj.AssemblyReference.cache
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\rpswa.dswa.cache.json
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.GeneratedMSBuildEditorConfig.editorconfig
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.AssemblyInfoInputs.cache
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.AssemblyInfo.cs
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.csproj.CoreCompileInputs.cache
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.MvcApplicationPartsAssemblyInfo.cache
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.RazorAssemblyInfo.cache
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.RazorAssemblyInfo.cs
+D:\GF+\APS_related\gf-master\gf-master\MES\BlazorApp1\BlazorApp1\_obj_codex_tasklabel\BlazorApp1.sourcelink.json

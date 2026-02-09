@@ -1,0 +1,20 @@
+{
+  "name": "aps-resource-gantt",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@visactor/vtable": "^1.15.0",
+    "@visactor/vtable-gantt": "^1.15.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "vite": "^5.4.8"
+  },
+  "overrides": {
+    "minimist": "^1.2.8"
+  }
+}

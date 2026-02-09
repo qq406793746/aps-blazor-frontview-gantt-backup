@@ -1,0 +1,115 @@
+.navbar-toggler[b-b5wscdn8ts] {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.top-row[b-b5wscdn8ts] {
+    height: 4.5rem;
+    background-color: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand[b-b5wscdn8ts] {
+    font-size: 1.1rem;
+}
+
+.oi[b-b5wscdn8ts] {
+    width: 2rem;
+    font-size: 1.1rem;
+    vertical-align: text-top;
+    top: -2px;
+}
+
+.nav-item[b-b5wscdn8ts] {
+    font-size: 0.9rem;
+    padding-bottom: 0.5rem;
+}
+
+    .nav-item:first-of-type[b-b5wscdn8ts] {
+        padding-top: 1rem;
+    }
+
+    .nav-item:last-of-type[b-b5wscdn8ts] {
+        padding-bottom: 1rem;
+    }
+
+    .nav-item[b-b5wscdn8ts]  a {
+        color: #d7d7d7;
+        border-radius: 4px;
+        height: 3rem;
+        display: flex;
+        align-items: center;
+        line-height: 3rem;
+    }
+
+.nav-item[b-b5wscdn8ts]  a.active {
+    background-color: #0d1832;
+    color: white;
+}
+
+.nav-item[b-b5wscdn8ts]  a:hover {
+    background-color: #1e3a68;
+    color: white;
+}
+
+/* 下拉菜单样式 */
+.nav-item[b-b5wscdn8ts]  .dropdown-toggle {
+    text-decoration: none;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.nav-item[b-b5wscdn8ts]  .dropdown-toggle::after {
+    margin-left: auto;
+    margin-right: 0;
+    vertical-align: 0.255em;
+    content: "";
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+}
+
+.nav-item[b-b5wscdn8ts]  .dropdown-toggle:hover {
+    background-color: #1e3a68;
+    color: white;
+}
+
+.nav-item[b-b5wscdn8ts]  .dropdown-menu {
+    background-color: #16285a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 0.5rem 0;
+    margin-top: 0;
+    position: static;
+    float: none;
+    width: 100%;
+}
+
+.nav-item[b-b5wscdn8ts]  .dropdown-item {
+    color: #d7d7d7;
+    padding: 0.5rem 1rem;
+    border-radius: 0;
+    height: auto;
+    display: flex;
+    align-items: center;
+    line-height: normal;
+}
+
+.nav-item[b-b5wscdn8ts]  .dropdown-item:hover {
+    background-color: #1e3a68;
+    color: white;
+}
+
+@media (min-width: 641px) {
+    .navbar-toggler[b-b5wscdn8ts] {
+        display: none;
+    }
+
+    .collapse[b-b5wscdn8ts] {
+        /* Never collapse the sidebar for wide screens */
+        display: block;
+    }
+}
