@@ -1,4 +1,23 @@
-﻿## 2026-01-26 17:00
+﻿## 2026-03-06 - 免费资源甘特 Demo（Frappe Gantt）
+
+- 作用域：`frontend`
+- 目标：按免费路线新增一个独立资源甘特演示页，覆盖“资源视图 + 依赖线 + 编辑 + 分页模拟虚拟滚动”基础能力，不影响现有 Syncfusion 页面。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttFreeResourceDemo.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/js/free-resource-gantt-demo.js`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css`
+  - `MES/BlazorApp1/BlazorApp1/Pages/_Layout.cshtml`
+  - `MES/BlazorApp1/BlazorApp1/Shared/NavMenu.razor`
+  - `docs/codex_log.md`
+- 页面入口：
+  - 路由：`/gantt/free-resource-demo`
+  - 左侧菜单：`免费资源甘特Demo`
+- 如何验证：
+  - 启动 BlazorApp1 后访问 `/gantt/free-resource-demo`
+  - 切换 Day/Week/Month 视图，确认图表更新
+  - 切换“允许拖拽编辑”，拖拽任务条后确认页面提示更新
+  - 切换页码（上一页/下一页）确认资源分页与滚动正常
+## 2026-01-26 17:00
 
 - Goal: complete first-pass integration between Dynamic Scheduling page and gantt scripts.
 - Update time: 2026-01-26 17:00
@@ -519,3 +538,806 @@
   - 任务状态可视化：对锁定/外协/模拟任务增加统一图例与样式说明。
 - 验证建议：
   - 连续执行：选中任务 -> 缩放 -> 拖动 -> 关闭详情栏 -> 再缩放，确认焦点与布局稳定。
+
+## 2026-03-04 - Syncfusion 资源甘特汉化与交互稳健性补强（前端）
+
+- 目标：
+  - 完成 Syncfusion 资源甘特页面中文化与任务名可读化；
+  - 增加拖拽前预判与业务化冲突提示；
+  - 替换原生 alert/confirm，降低交互生硬感；
+  - 将压测入口与生产操作分离；
+  - 缩放命令识别去文案依赖，避免多语言后失效。
+
+- 修改时间：2026-03-04 17:01
+
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+    - 顶部与表格文案汉化（含 `ID/Name/Start Date/End Date/Duration/Dependency`）。
+    - 新增“高级模式”开关，`StressTest` 仅在高级模式展示。
+    - 任务拖拽前新增本地可行性预判（时间窗/资源重叠），不通过则直接阻止拖拽。
+    - `MapMoveError` 改为业务化提示语。
+    - 新增页面内统一弹窗 `UiDialog`，替代浏览器原生 `alert/confirm`。
+    - 前端任务名规则调整：优先使用后端 `DisplayName` 原样展示；兜底规则保留工单号，避免“只显示第10道工序”。
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+    - 缩放命令识别改为优先 `data-zoom-cmd` 与类名（`e-zoomin/e-zoomout/e-zoomtofit`），文本匹配仅作降级兜底。
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+    - 新增页面内弹窗样式（含明暗主题兼容）。
+  - `MES/BlazorApp1/BlazorApp1/Models/SyncfusionGanttModels.cs`
+    - `GanttTaskVm` 新增 `DisplayName` 字段映射（`[JsonPropertyName("displayName")]`）。
+
+- 如何验证：
+  - 访问 `/gantt/syncfusion`，确认页面控件与列头为中文。
+  - 默认模式下确认不展示 `StressTest`；开启“高级模式”后出现压测参数。
+  - 拖拽任务到明显冲突时，确认拖拽被提前拦截并提示“预判不可行”。
+  - 触发拖拽失败/全局重排确认时，确认使用页面弹窗而非浏览器原生弹窗。
+  - 点击放大/缩小/适应窗口，确认缩放正常（不依赖按钮文案）。
+  - 刷新数据后抽查任务名称，确认优先显示后端 `displayName`，不再退化为纯“第10道工序”。
+
+- 未解决事项：
+  - `BlazorApp1` 本地构建仍可能被运行中进程锁定（`BlazorApp1.exe/.dll`），需先停止占用进程再完整构建。
+  - 拖拽前预判当前为前端本地规则，尚非后端权威预检接口；复杂约束仍以后端 `move` 校验为准。
+
+
+## 2026-03-06 - 免费资源甘特页（/gantt/free-resource-demo）修复记录（防乱码）
+
+### 背景
+- 目标：去掉商业组件试用限制后，提供免费路线的资源甘特展示，并尽量贴近 `/gantt/syncfusion` 页面体验。
+- 问题：前期 Frappe 路线出现“时间轴可见但任务条挤在一起/不可见”，且多次出现中文显示异常。
+
+### 今日实际改动
+1. 许可证提示处理（后端）
+- 在 `Program.cs` 完成 Syncfusion License 注册接入（用于消除试用弹窗）。
+
+2. 免费 Demo 页面与路由接入（前端）
+- 新增页面：`Pages/GanttFreeResourceDemo.razor`（路由：`/gantt/free-resource-demo`）。
+- 新增菜单入口：`Shared/NavMenu.razor`（“免费资源甘特Demo”）。
+- 在布局注入脚本：`Pages/_Layout.cshtml` 引入 `/js/free-resource-gantt-demo.js`。
+
+3. Frappe 路线调试（已实践但效果不稳定）
+- 新增脚本：`wwwroot/js/free-resource-gantt-demo.js`。
+- 新增样式：`wwwroot/css/site.css` 中 `.free-rg-*` 及可见性兜底样式。
+- 针对“任务条丢失”做过日期对象转换、容器高度、强制可见等修复。
+
+4. 最终切换方案（当前生效）
+- `/gantt/free-resource-demo` 改为复用项目内稳定的 `Components/Gantt/ResourceGantt.razor` 渲染内核。
+- 保留 Syncfusion 风格工具栏交互（刷新、最新计划、缩放、分页、编辑开关）。
+- 将容器从 `classic-gantt-panel` 切换为 `syncfusion-gantt-wrap free-rg-sync-panel`，避免经典绿底风格覆盖。
+- 在 `site.css` 新增 `free-rg-sync-panel` 专属皮肤：
+  - 隐藏顶部调试统计行；
+  - 时间轴改浅灰风格；
+  - 资源区白底；
+  - 任务条改为蓝色风格；
+  - 依赖线、规划线颜色调整为接近 Syncfusion 视觉。
+
+### 关键文件
+- `MES/BlazorApp1/BlazorApp1/Pages/GanttFreeResourceDemo.razor`
+- `MES/BlazorApp1/BlazorApp1/wwwroot/js/free-resource-gantt-demo.js`
+- `MES/BlazorApp1/BlazorApp1/wwwroot/css/site.css`
+- `MES/BlazorApp1/BlazorApp1/Pages/_Layout.cshtml`
+- `MES/BlazorApp1/BlazorApp1/Shared/NavMenu.razor`
+
+### 构建与运行
+- 多次 `dotnet build` 期间出现 `BlazorApp1.exe` 被占用（常见 PID：8400、17836、21484）。
+- 处理方式：结束占用进程后重建，最终构建成功（0 error）。
+
+### 防乱码约定（新增）
+- 本仓库涉及中文文案的文件统一使用 `UTF-8`（建议 `UTF-8 without BOM`）保存。
+- 通过 PowerShell 写文件时显式指定编码：`-Encoding UTF8`。
+- 若页面出现中文异常，优先检查：
+  - 文件编码是否被工具改写；
+  - 浏览器是否命中旧缓存（强制刷新 `Ctrl+F5`）；
+  - 是否混入历史乱码文本片段。
+
+## 2026-03-12 - Syncfusion 甘特拖拽重排差异高亮与结果可视化（前端）
+
+- 作用域：`frontend`
+- 目标：
+  - 解决“拖动任务后已触发全局自动重排，但甘特图前后变化不明显、用户难以判断哪些任务真的变了”的问题；
+  - 在不改后端接口协议的前提下，用最小改动增强前端的重排结果可视化。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+- 实施思路：
+  - 在前端执行全局自动重排前，先缓存当前任务快照（`TaskId -> StartDate / EndDate / ResourceIds`）；
+  - 自动重排完成并重新加载数据后，对比前后任务快照；
+  - 将“手工移动的任务”和“自动重排后发生变化的任务”写入不同的前端高亮集合；
+  - 通过 Syncfusion 官方支持的 `QueryChartRowInfo` 事件给对应任务行追加 CSS class，再由样式控制任务条颜色；
+  - 同时在页面消息区直接输出：
+    - `手工移动任务ID`
+    - `自动重排变化任务ID`
+  - 在甘特图区右上角增加小图例，说明颜色含义。
+- 当前可视化规则：
+  - 橙色：手工移动任务
+  - 绿色：自动重排后发生变化的任务
+  - 虚线边框：锁定任务
+- 预期效果：
+  - 用户执行拖拽并确认全局自动重排后，不再只能看“已排/未排统计”；
+  - 可以直接从甘特图颜色和变化任务 ID 文本中判断：
+    - 哪条任务是人工调整的；
+    - 哪些任务是系统自动重排联动变化的；
+    - 如果只有橙色、没有绿色，则说明本次自动重排对其他任务影响较小，不是前端未刷新。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`，加载一个可编辑计划（如 `PlanId=10096`）；
+  - 拖动一个可成功移动的任务并确认执行全局自动重排；
+  - 观察：
+    - 甘特图区右上角图例是否出现；
+    - 手工移动任务是否变为橙色；
+    - 自动重排后发生变化的其他任务是否变为绿色；
+    - 页面消息区是否列出本次变化任务 ID；
+  - 手动点击“刷新”后，差异高亮与变化提示会清空，便于进入下一轮演示。
+- 备注：
+  - 当前方案完全基于前端快照比对，不改后端 `PlanAutoScheduleResult` 返回结构；
+  - 本地 `dotnet build` 仍可能因运行中的 `BlazorApp1.exe/.dll` 或 Visual Studio 锁文件失败，若需完整构建验证需先停止占用进程。
+
+## 2026-03-12 - React 替代评估与 Syncfusion 许可讨论记录
+
+- 作用域：`frontend`
+- 背景：
+  - 讨论是否将当前 Blazor + Syncfusion 甘特页改为 React 技术栈；
+  - 同时评估 React 免费开源甘特方案是否能覆盖现有 APS 页面能力；
+  - 进一步确认 Syncfusion 在企业内部自用场景下的许可路径与风险。
+
+### 1. React 替代当前甘特页的可行性判断
+
+- 当前前端并非 React，而是 Blazor：
+  - 现有核心页面为 `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - 项目类型为 `Microsoft.NET.Sdk.Web`
+- 结论：
+  - 技术上可以改用 React；
+  - 但这不是“平滑切换框架”，而是前端甘特页的重做；
+  - 后端 API 可以复用，前端页面层、组件层和交互逻辑需要重写。
+
+### 2. React 免费开源甘特方案调研结论
+
+- 调研过的候选：
+  - `SVAR React Gantt`
+  - `@jaeungkim/gantt-chart`
+  - `DHTMLX Gantt` 开源版
+  - `Frappe Gantt` React wrapper
+- 结论：
+  - 如果只看“普通项目甘特图能力”，`SVAR React Gantt` 是相对更合适的 React 开源候选；
+  - 但如果对标当前 `/gantt/syncfusion` 的 APS 资源甘特页面，尤其是：
+    - 资源视图
+    - 多资源分配
+    - 拖拽前后业务校验
+    - 自动重排联动
+    - 差异高亮与结果解释
+    则无法 1:1 替代。
+- 评估结论：
+  - 仅从甘特主体能力看，`SVAR React Gantt` 约可达到现页面 `50%-65%`
+  - 若要求保住当前 APS 资源排产交互，现实覆盖度更接近 `35%-50%`
+- 因此：
+  - 不建议为了当前这页直接切 React；
+  - 如确需验证 React 路线，应先做独立 PoC 页面，而不是直接替换现有页面。
+
+### 3. Syncfusion 商业许可与 Community License 判断
+
+- 商业许可：
+  - 官方当前主推 `Team License`
+  - 公开价格参考：
+    - `up to 5 developers`: `$395/月`
+    - 约 `$4740/年`
+  - 许可是按可接触 Syncfusion assemblies 的开发者计，不是只算单个页面开发者。
+- Community License 资格要求（官方口径）：
+  - 年营收 `< 100 万美元`
+  - 开发者 `<= 5`
+  - 总员工 `<= 10`
+  - 外部融资累计 `<= 300 万美元`
+  - 不能是政府或政府相关组织
+- 对 `UM / UNITED MACHINING SOLUTIONS` 的判断：
+  - 若以公司主体申请或实际为公司内部系统正式使用，基本不符合 Community License；
+  - 即便只有 `2` 个开发者，营收与员工规模也远超社区许可门槛。
+
+### 4. 中国大陆个人申请 Community License 讨论结论
+
+- 官方能确认的审核要点：
+  - 需填写 `Community License validation form`
+  - 官方会创建验证 ticket
+  - 明确要求 `LinkedIn or Xing profile`
+- 公开经验层面：
+  - 中国大陆个人申请存在成功案例；
+  - 但没有可信的“通过率”统计数据；
+  - 个别经验提到在无法方便提供 `LinkedIn/Xing` 时，可在 ticket 中补充说明并提供其他个人主页辅助审核。
+- 关键合规判断：
+  - 若项目实际归属于不符合社区许可资格的大公司或客户，个人名义申请并不能稳妥覆盖正式企业内部使用场景；
+  - 因此不建议将个人 Community License 作为 UM 内部正式项目的长期许可方案。
+
+### 5. 成本与路线结论
+
+- 在当前项目阶段，对比：
+  - 方案 A：继续沿用 Syncfusion
+  - 方案 B：重做 React 甘特页
+- 结论：
+  - 对现有 APS 项目，继续用 Syncfusion 更划算；
+  - 原因不是单看 license 价格，而是当前前端已经沉淀了较多 APS 特有交互：
+    - 资源视图
+    - 拖拽校验
+    - 自动重排触发
+    - 差异高亮
+    - 变化任务 ID 提示
+  - 若改 React，需要重写的并不是“甘特图皮肤”，而是整套排产交互层。
+
+### 6. 当前建议
+
+- 正式企业内部使用：
+  - 优先按商业 `Team License` 路线评估
+- React 技术路线：
+  - 如要探索，只建议先做独立 PoC
+  - 不建议直接替换现有 `/gantt/syncfusion`
+
+## 2026-03-12 - 今日前端实际工作与技术路线结论补充
+
+- 作用域：`frontend`
+
+### 1. 今日实际完成的页面改动
+
+- 本次实际修改文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - `docs/codex_log.md`
+- 在 `GanttSyncfusion.razor` 中补了以下具体逻辑：
+  - 给 `SfGantt` 增加 `QueryChartRowInfo="OnQueryChartRowInfo"`，通过 Syncfusion 官方事件把前端计算出的 CSS class 挂到图表行；
+  - 新增快照与高亮状态字段：
+    - `LastScheduleSnapshot`
+    - `RecentlyMovedTaskIds`
+    - `RecentlyRescheduledTaskIds`
+  - 新增前后快照比对方法：
+    - `CaptureTaskSnapshot(...)`
+    - `ApplyRescheduleDiffMarkers(...)`
+    - `BuildRescheduleDiffMessage(...)`
+    - `BuildTaskCssClass(...)`
+    - `ApplyTaskVisualMarkers(...)`
+  - 在 `OnTaskbarEdited(...)` 中调整执行顺序：
+    - 先记录自动重排前任务快照；
+    - 拖拽成功后若用户确认全局自动重排，则调用 `AutoScheduleAsync(...)`；
+    - 自动重排完成后重新 `LoadDataAsync(...)`；
+    - 再用前后快照比对出发生变化的任务；
+    - 最后把差异任务高亮并输出任务 ID 提示。
+  - 在 `TryApplyLocalMoveResult(...)` 中补了本地回写后的视觉反馈：
+    - 当前任务本地回写成功后立即标记为橙色；
+    - 同时写入 `RescheduleDiffMessage = 手工移动任务ID...；尚未执行全局自动重排。`
+  - 在消息区新增一个专门的文本输出区：
+    - `RescheduleDiffMessage`
+    - 用来直接展示：
+      - `手工移动任务ID`
+      - `自动重排变化任务ID`
+- 在 `gantt-syncfusion.css` 中补了以下具体样式：
+  - 新增右上角悬浮图例：
+    - `.syncfusion-legend`
+    - `.syncfusion-legend-chip-moved`
+    - `.syncfusion-legend-chip-rescheduled`
+  - 新增任务条差异高亮样式：
+    - `.sync-taskbar-moved`
+    - `.sync-taskbar-rescheduled`
+    - `.sync-taskbar-moved.sync-taskbar-rescheduled`
+    - `.sync-taskbar-locked`
+- 本次页面上的最终可见效果为：
+  - 橙色：用户手工拖动的任务
+  - 绿色：自动重排后开始/结束时间或资源发生变化的任务
+  - 虚线边框：已锁定任务
+  - 右上角固定图例说明颜色含义
+  - 页面消息区直接打印变化任务 ID 列表
+- 本次改动延续并配套了此前已做的拖拽增强：
+  - 英文错误消息业务化中文提示；
+  - 拖拽失败后重新加载并尝试重新定位原任务；
+  - 单任务局部移动时本地回写并锁定，避免整页刷新导致用户丢失当前任务位置。
+
+### 2. 今日验证与使用反馈
+
+- 今日用于实际页面验证的主样例：
+  - `PlanId = 10096`
+  - `TaskId = 11899`
+- 选择该任务的原因：
+  - 先前尝试的 `11922`、`11939-11942` 等路线存在明显“同一人员冲突”问题，白天拖动时容易先被 `Person conflict` 拦截；
+  - `11899` 属于 `WorkItemId = 10135` 的首道工序，且对应后续链路 `11900 / 11901`，更适合观察手工干预后自动重排是否真的联动。
+- 实际观察到的页面行为：
+  - 手工拖动 `11899` 成功后，页面先提示：
+    - `任务 11899 已移动。全局重排引擎=ortools，已排=152，未排=0`
+  - 页面随后直接输出：
+    - `手工移动任务ID：[11899]`
+    - `自动重排变化任务ID：[11803, 11804, ... 11954]`
+  - 甘特图区中：
+    - `11899` 对应任务条显示为橙色；
+    - 自动重排后受影响的任务条显示为绿色；
+    - 右上角图例同步标明颜色含义。
+- 这次验证带来的结论比之前更明确：
+  - 之前“自动重排看起来变化不明显”，并不一定是接口没执行；
+  - 很大一部分原因是旧页面没有把“哪些任务变了”可视化出来；
+  - 现在补上颜色和任务 ID 提示后，能够直接判断：
+    - 是系统真的没怎么动；
+    - 还是系统动了很多条，只是过去不容易肉眼识别。
+- 当前保留策略：
+  - 差异高亮不会自动消失；
+  - 会一直保留到用户下一次手动点击“刷新”为止；
+  - 这样更适合演示、截图和现场汇报。
+
+### 3. 关于 Element Plus / React / 桌面端替代路线的今日讨论结论
+
+- 用户提出是否可改为 `React`、`Element Plus`、`WinForms + SunnyUI`、或 `WPF`。
+- 今日结论：
+  - 当前 `/gantt/syncfusion` 页面已不仅仅是“甘特图展示”，而是一页包含 APS 资源视图、拖拽校验、后端 `move`、自动重排、差异高亮与结果解释的复杂页面；
+  - 因此无论改 `React` 还是 `Element Plus + 第三方甘特`，都不是简单替换 UI，而是重写整页交互逻辑；
+  - `Element Plus` 本身不是甘特图库，只能作为外围 UI 壳子；
+  - `SunnyUI` 适合 WinForms 美化，但不适合当前 Web 路线，也不能替代甘特核心能力；
+  - `WPF` 技术上可行，但对当前项目阶段不划算。
+- 综合判断：
+  - 现阶段最合理的是继续沿用 `Blazor + Syncfusion`；
+  - 若担心 Syncfusion 许可无法落地，可将：
+    - `React + 开源甘特`
+    - 或 `Vue + Element Plus + 开源甘特`
+    作为备份 PoC 路线，而不是立刻替换正式页面。
+
+### 4. 关于“现有 Blazor 逻辑能否照着重写到 Element Plus / React”的结论
+
+- 今日明确过一个重要判断：
+  - 当前 Blazor 页面已经沉淀了比较完整的业务逻辑与交互流程；
+  - 这能显著降低新技术栈下的需求梳理成本；
+  - 但并不能直接降低组件级重写成本。
+- 换言之：
+  - 可以“照着再写一遍”
+  - 但这不等于“迁移成本很低”
+  - 当前代码更像是“完整施工图”，不是“能直接搬过去的预制件”。
+- 今日明确提到的“能照着写，但不能直接搬”的具体逻辑包括：
+  - 任务拖拽前预判：`OnTaskbarEditing(...)`
+  - 任务拖拽后保存与自动重排：`OnTaskbarEdited(...)`
+  - 任务行高亮挂载：`OnQueryChartRowInfo(...)`
+  - 失败后重新定位：`ReloadAndRefocusTaskAsync(...)`
+  - 手工移动后本地回写与锁定：`TryApplyLocalMoveResult(...)`
+  - 这些逻辑的业务判断可以复用，但在 `Element Plus` 或 `React` 甘特库里需要按照新事件模型重写。
+
+### 5. 当前推荐策略（截至今日）
+
+- 主线：
+  - 继续推进当前 `Blazor + Syncfusion` 甘特页，优先把现有 APS 页面做强做稳
+- 备线：
+  - 如需防范 Syncfusion 许可风险，可单独准备一个最小 PoC
+  - 优先级建议：
+    - `React + 开源甘特` 作为首选备份路线
+    - `Vue + Element Plus + 开源甘特` 作为次选
+- 不建议作为当前备份路线的方向：
+  - `WinForms + SunnyUI`
+  - `WPF`
+
+## 2026-03-12 - Syncfusion 甘特手动“自动排程”入口改造（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 当前 `/gantt/syncfusion` 的全局自动重排主要绑定在“任务拖拽成功后”的确认流程上；
+  - 这会让“系统导入了新订单/加急订单后，用户希望直接看重排结果”的主流程不够自然，容易误导成“必须先拖一下任务才能触发重排”。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 实施内容：
+  - 在 `/gantt/syncfusion` 顶部工具栏新增手动按钮：`自动排程`。
+  - 新增前端方法 `RunAutoScheduleAsync()`：
+    - 直接调用既有 `POST /api/plans/{planId}/auto-schedule?engine=ortools&force=true`
+    - 复用当前页面时间窗 `StartInput / EndInput`
+    - 调度完成后自动重新加载甘特数据
+    - 继续复用前端现有的“前后快照比对 + 差异高亮 + 变化任务ID提示”机制
+  - 调整 `OnTaskbarEdited(...)`：
+    - 拖拽成功后不再弹“是否立即执行全局自动重排”确认框
+    - 改为仅保存当前任务移动结果，并提示用户如需系统整体重排，请手动点击上方 `自动排程`
+- 新的推荐使用逻辑：
+  - 正常手工微调：拖拽任务，仅保存局部移动
+  - 新订单/加急订单导入后：用户手动点击 `自动排程`
+  - 自动排程完成后：前端直接展示重排后的甘特结果，并高亮发生变化的任务
+- 验证建议：
+  - 访问 `/gantt/syncfusion`，确认顶部出现 `自动排程` 按钮
+  - 导入新订单或切换到含急单的 `PlanId` 后，直接点击 `自动排程`
+  - 确认页面无需先拖拽任务，也能刷新为新的排程结果
+  - 若本次重排引起任务时间/资源变化，确认页面仍会显示变化任务 ID 与绿色差异高亮
+
+## 2026-03-12 - 自动排程按钮点击无感知修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 手动新增的 `自动排程` 按钮虽然已绑定后端调用，但点击后在请求完成前缺少明确的前端反馈；
+  - 用户容易感知为“按钮没反应”。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 实施内容：
+  - 问题现象：
+    - 页面上已经出现 `自动排程` 按钮，但点击后在接口返回前没有即时提示；
+    - 当后端执行时间稍长时，用户主观感受接近“点击无反应”。
+  - 前端处理：
+    - `RunAutoScheduleAsync()` 在请求发起前立即写入状态提示：
+      - `正在执行自动排程，请稍候...`
+    - 若页面当前仍在加载，改为明确提示：
+      - `当前仍在加载或执行其他操作，请稍后再试自动排程。`
+    - 若自动排程接口失败，除页面错误文本外，同时弹出统一页面内提示框，避免失败被忽略。
+  - 目的：
+    - 让“按钮已触发”“系统正在排程”“排程失败”三个状态在页面上可区分，不再只靠最终结果判断。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`，点击 `自动排程`
+  - 确认点击后会立即出现“正在执行自动排程，请稍候...”
+  - 若后端失败，确认页面会弹出错误提示，而不是静默无反馈
+
+## 2026-03-12 - 自动排程按钮禁用表达式修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 页面实际输出中，自动排程按钮被渲染为 `disabled="False || PlanId <= 0"`；
+  - 浏览器只要看到 `disabled` 属性，就会把按钮当成禁用状态，导致点击完全无反应。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 问题根因：
+    - 组件里原先写成 `disabled="@Loading || PlanId <= 0"`；
+    - 该写法没有把整个表达式包成一个 Razor 求值单元，最终输出到了 HTML 字面量；
+    - 页面实际被渲染成了类似 `disabled="False || PlanId <= 0"` 的结果。
+  - 为什么会导致“完全没反应”：
+    - 对浏览器来说，只要按钮存在 `disabled` 属性，不管属性值写成什么字符串，按钮都会被当成禁用态；
+    - 所以前端事件根本不会触发，表现就是点击完全无效。
+  - 修复方式：
+    - 将按钮属性从 `disabled="@Loading || PlanId <= 0"` 改为 `disabled="@(Loading || PlanId <= 0)"`；
+    - 明确让 Razor 先计算布尔表达式，再按最终 `true/false` 输出属性。
+  - 修复后的预期：
+    - 仅当页面正在加载，或 `PlanId <= 0` 时按钮禁用；
+    - 正常计划场景下按钮应恢复为可点击状态。
+- 验证建议：
+  - 强刷 `/gantt/syncfusion`
+  - 确认 `PlanId > 0` 且页面未加载时，按钮可点击
+  - 点击后应立即出现“正在执行自动排程，请稍候...”
+
+## 2026-03-12 - 自动排程后右侧白板区域修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 在手动点击 `自动排程` 后，Syncfusion 甘特右侧偶发出现“白色空白区域”，原有网格背景没有覆盖到整个可视滚动区；
+  - 该现象更像图表重绘/尺寸刷新不完整，而不是数据缺失。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - `docs/codex_log.md`
+- 处理：
+  - 现象说明：
+    - 自动排程完成后，左侧任务和已有任务条能正常刷新；
+    - 但时间轴右侧靠近后续日期的位置，偶发出现一整块白色区域；
+    - 原本应存在的行网格背景没有铺满该区域，视觉上像“图表断了一截”。
+  - 判断依据：
+    - 该区域并非数据缺失，因为任务列表和时间轴本身仍然存在；
+    - 更接近自动排程后图表宽度、滚动区或重绘节奏没有完全同步。
+  - 前端修复：
+    - 在 `RunAutoScheduleAsync()` 完成数据重载与差异高亮后，额外调用：
+      - `RefitChartRangeToViewportAsync()`
+      - `NotifyResizeStableAsync()`
+    - 第一项用于重新贴合当前视口和时间轴范围；
+    - 第二项用于补发稳定的尺寸刷新通知，促使 Syncfusion 图表完成一次完整重排。
+  - 样式兜底：
+    - 给 `.e-chart-root-container` 与 `.e-chart-scroll-container` 补基础横向网格底纹；
+    - 即使某次组件内部没有及时把背景重新绘满，右侧空白区也会保持网格视觉，不再直接显示纯白底。
+  - 预期效果：
+    - 自动排程后，右侧即使没有任务条，也仍然维持连续的网格背景；
+    - 视觉上与左侧任务区保持一致，不再出现明显断层。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 点击 `自动排程`
+- 观察右侧空白区是否仍出现纯白板
+- 确认即使右侧没有任务条，背景仍保持网格感而不是整块白底
+
+## 2026-03-16 - Syncfusion 任务时间诊断与首次进入对齐修复
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 在 `PlanId=10096` 下，首次进入页面时，任务详情面板中的 `开始/结束` 与后端真实任务时间不一致；
+  - 手动点击页面右上角 `刷新` 后，详情时间又会恢复正确；
+  - 说明问题不在后端排程结果，而在前端首次加载后的页面状态/展示链路。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/playbook/progress.txt`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 在任务详情面板中新增：
+    - `后端开始`
+    - `后端结束`
+    - `时间一致性`
+    - `真值诊断`
+  - 选中任务时，页面会调用现有 `api/plans/{planId}/tasks` 拉取该任务的后端真值；
+  - 读取到真值后，直接覆盖当前 `SelectedTask.StartDate / EndDate / DurationValue`，并同步修正 `DisplayTasks` 中对应任务；
+  - 额外在 `LoadDataAsync()` 完成后，引入一次按 `TaskId` 的后端真值校正，尽量缩小首次进入与手动刷新的差异。
+- 验证计划：
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 不手动点刷新，直接点击任务 `12115`
+  - 确认：
+    - `开始/结束` 与 `后端开始/后端结束` 一致
+    - `时间一致性` 显示 `一致`
+
+## 2026-03-16 - Syncfusion 自定义任务条模板拖拽命中修复
+
+- 作用域：`frontend`
+- 背景：
+  - 页面改为使用 `TaskbarTemplate` 做任务条差异高亮后，资源视图下部分任务出现“完全拖不动”的现象；
+  - 在 `PlanId=10096` 下，`12122 / 12155` 已确认不是锁定任务，也不是外协任务；
+  - 打开 `允许连带推移` 后仍然完全不能拖动，更像组件原生拖拽命中被模板 DOM 覆盖，而不是业务约束拦截。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - `docs/playbook/progress.txt`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 给 `.sync-taskbar-inner` 增加：
+    - `pointer-events: none`
+    - `user-select: none`
+  - 给 `.sync-taskbar-label` 增加：
+    - `pointer-events: none`
+  - 目的：
+    - 让鼠标拖拽命中回到 Syncfusion 原生 taskbar 层，而不是落在自定义模板内部 DOM 上；
+    - 保留模板视觉高亮，不再阻断拖拽手势。
+- 验证计划：
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 在资源视图下勾选 `允许连带推移`
+  - 回归拖拽：
+    - `12122`
+    - `12155`
+  - 确认任务条至少可以被拖动进入编辑/保存流程，而不是完全无响应
+
+## 2026-03-16 - Syncfusion 拖拽起手与详情刷新解耦
+
+- 作用域：`frontend`
+- 背景：
+  - 在完成首次进入时间对齐和模板命中修复后，`PlanId=10096` 下 `12122 / 12155` 仍反馈“完全拖不动”；
+  - 继续审查页面事件链后发现，`RowSelected` 和自定义 `OnGanttTaskbarClicked` 会在任务条点击/选中时立即触发后端真值读取，并调用 `StateHasChanged`；
+  - 这类刷新发生在拖拽起手阶段时，可能直接打断 Syncfusion 的拖拽手势，即使任务本身并未被锁定。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/playbook/progress.txt`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 保留任务选中和详情面板展示；
+  - 把 `RowSelected` / `OnGanttTaskbarClicked` 中原本同步执行的后端真值刷新改成延迟后台执行；
+  - 新增 `RefreshSelectedTaskServerTruthSafeAsync(...)`：
+    - 先等待短暂延迟，避开拖拽起手；
+    - 若页面仍在 `Loading` 或已进入 `IsApplyingTaskbarMove`，则跳过此次诊断刷新；
+    - 仅在后台补充详情诊断，不再把拖拽体验绑死在选中刷新上。
+- 预期：
+  - 任务条拖拽起手不再被详情诊断刷新打断；
+  - 点击任务后，详情真值仍会在短延迟后补齐。
+- 验证计划：
+  - 重启 `BlazorApp1`
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 在资源视图下勾选 `允许连带推移`
+  - 直接回归拖拽：
+    - `12122`
+    - `12155`
+  - 确认：
+    - 任务条至少可以进入拖拽编辑态；
+    - 详情面板仍能在稍后显示后端真值
+
+## 2026-03-16 - Syncfusion TaskbarTemplate 恢复原生任务条外壳类
+
+- 作用域：`frontend`
+- 背景：
+  - 即使已经处理模板命中层和详情刷新打断问题，`PlanId=10096` 下 `12122 / 12155` 仍反馈“完全拖不动”；
+  - 进一步对照 Syncfusion 官方文档和论坛说明，发现 `TaskbarTemplate` 如果完全用自定义 DOM 替代默认任务条外壳，而没有保留组件识别拖拽所需的默认 taskbar 类，任务条会显示出来，但拖拽/缩放能力会丢失。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 调整 `TaskbarTemplate` 结构：
+    - 模板根节点恢复为带官方任务条类的外壳；
+    - 我们自己的彩色高亮样式只放到内层 `sync-taskbar-inner`；
+    - 标签补上 `e-task-label`；
+  - 目的：
+    - 保留自定义颜色和文字；
+    - 同时把拖拽命中、缩放和编辑控制权交还给 Syncfusion 原生 taskbar 容器。
+- 验证计划：
+  - 重启 `BlazorApp1`
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 勾选 `允许连带推移`
+  - 回归拖拽：
+    - `12122`
+    - `12155`
+  - 确认至少能进入拖拽编辑态，而不是完全无响应
+
+## 2026-03-16 - 修复手工拖拽一次后任务被前端误锁定
+
+- 作用域：`frontend`
+- 背景：
+  - 任务条恢复可拖拽后，又出现了“第一次能拖，第二次立刻不能再拖”的现象；
+  - 继续检查本地回写逻辑后发现，拖拽成功进入 `TryApplyLocalMoveResult(...)` 时，前端会把当前任务直接改成 `IsLocked = true`；
+  - 页面拖拽预检查 `TryGetDragRejectReason(...)` 又会把 `IsLocked` 任务直接拦掉，于是形成“手工拖一次后，被前端自己锁死”的错误行为。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 删除 `TryApplyLocalMoveResult(...)` 里的 `task.IsLocked = true` 本地回写；
+  - 保留“手工移动高亮”和“变化任务提示”，但不再把“已手工移动”混同为“业务锁定”。
+- 错误原因：
+  - `IsLocked` 是业务锁定语义；
+  - “刚刚手工移动过”只是前端展示语义；
+  - 两者被错误混用，导致第二次拖拽被前端自己拒绝，而不是被真实排程规则拒绝。
+- 验证计划：
+  - 重启 `BlazorApp1`
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 勾选 `允许连带推移`
+  - 连续对 `12122` 或 `12155` 执行两次拖拽
+  - 确认：
+    - 第一次拖拽成功后，第二次仍可继续进入拖拽编辑态；
+    - 只有真正的锁定任务才会被前端拒绝
+## 2026-03-19 - Syncfusion 时间轴缩小时过密修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 在连续点击“缩小”后，顶部时间轴仍保留过细的底层日刻度；
+  - 当时间范围扩展到多月时，月份标题下方会出现密集数字，导致时间轴难以辨认。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 调整 `CustomZoomLevels` 的远距离缩放层级：
+    - `Level 0` 从 `Month + Day(2天)` 改为 `Month + Week`
+    - `Level 1` 从 `Day + Day` 改为 `Week + Day(2天)`
+  - 同步把远距离缩放的时间标签改为更适合中文阅读的格式：
+    - 月份显示为 `yyyy年M月`
+    - 周起点显示为 `M月d日`
+- 目的：
+  - 在多月视图下保留时间结构感，但避免月份下方继续堆满按天数字；
+  - 提高缩小时的时间轴可读性，不影响近距离的日/小时视图。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 选择跨度 3 个月以上的计划
+  - 连续点击“缩小”
+  - 确认多月视图下顶部时间轴显示为“月份 + 周起点”，不再出现密集日数字
+
+## 2026-03-19 - Syncfusion 适应窗口异常兜底修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 点击顶部 `适应窗口` 按钮后，页面抛出未处理异常并提示刷新；
+  - 异常路径集中在 `SfGantt.ZoomToFitAsync()`，而页面当前又启用了自定义时间轴缩放层级。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 停止直接调用组件内部 `ZoomToFitAsync()`；
+  - 改为页面自己的安全 fit 流程：
+    - 先重算 `ChartStart / ChartEnd`
+    - 再按需循环调用 `ZoomOutAsync()`
+    - 配合 `hasHorizontalScroll()` 与 `notifyResize` 做稳定收口
+  - 整个按钮事件外层加异常兜底，避免再次把页面打成未处理异常。
+- 目的：
+  - 优先恢复 `适应窗口` 按钮可用性；
+  - 保留“尽量缩到刚好可看”的效果，同时避开组件内部不稳定入口。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 点击 `适应窗口`
+  - 确认页面不再出现未处理异常
+  - 确认时间轴会回到合适范围，且仍能正常继续放大/缩小
+
+## 2026-03-19 - 益模 MES v6.5 手册借鉴分析（前端/联动）
+
+- 作用域：`both`
+- 背景：
+  - 读取参考文档 `D:\GF+\ASP_related\文档\益模制造执行系统v6 5操作通用.pdf`，评估其中哪些流程和能力对当前 APS/MES 项目有借鉴意义。
+- 新增文档：
+  - `docs/research/yimo-mes-v6_5-benchmark.md`
+- 同步更新：
+  - `docs/requirements/PRD.md`
+- 结论摘要：
+  - 当前系统最值得吸收的是“主计划 -> 工艺 -> 车间排程 -> 现场执行 -> 异常/外协/统计”的闭环思路，而不是旧式 UI。
+  - 前端后续优先关注：
+    - 异常单驱动返工 / 报废 / 重排
+    - 任务执行闭环：开始 / 暂停 / 继续 / 完工
+    - 资源负载与延期风险视图
+    - 主计划与车间计划联动视图
+- 说明：
+  - 本次为参考分析与需求沉淀，不涉及代码逻辑变更。
+
+## 2026-03-19 - Syncfusion 缩放链收敛、调试按钮与紧凑布局（前端/联调）
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 在连续处理“放大 / 缩小 / 适应窗口”后出现明显卡顿；
+  - `PlanId=10096` 在 `ProjectView` 下一度显示空图，需区分“前端渲染失败”还是“计划尚未排程”；
+  - 页面联调时需要可复制的运行态诊断信息，且顶部工具区纵向占用偏大，甘特图主体下压明显。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+  - `MES/BlazorApp1/BlazorApp1/Services/GanttApiClient.cs`
+  - `MES/BlazorApp1/BlazorApp1/Services/ApsApiService.cs`
+  - `docs/codex_log.md`
+- 处理：
+  - 缩放链路收敛：
+    - `ZoomIn / ZoomOut / ZoomToFit` 恢复为 Syncfusion 原生缩放主链；
+    - 去掉缩放过程中的高频 `JS <-> .NET` 回调链；
+    - 缩放完成后只保留一次前端轻量 `centerSelectedTaskIfNeeded(...)`，用于保持选中任务可见/近似居中。
+  - 调试诊断：
+    - 新增“调试信息”按钮与弹窗，支持复制当前 `PlanId / 视图 / 时间窗 / RV计数 / APS计数 / 渲染计数 / RV元数据 / APS任务样本`；
+    - 删除页面常驻调试摘要行，避免正式界面长期占位。
+  - 数据判定：
+    - 用 `PlanId=10096` 联调确认：首次空图不是前端丢条，而是计划未排程；
+    - 诊断值显示 `APS任务>0` 但 `APS已排=0` 时，甘特图无任务条属于数据状态正常表现；
+    - 点击“自动排程”后，`APS已排 / RV任务 / 渲染任务` 同步转为非零，项目视图恢复出条。
+  - 布局收紧：
+    - 顶部卡片由 `p-3` 收紧为 `p-2`；
+    - 输入区、状态提示、统计摘要和甘特图区之间的垂直间距统一下调；
+    - 表单标签和输入控件做轻量紧凑化，甘特图主体整体上移。
+- 目的：
+  - 恢复缩放与适应窗口的流畅度，同时保留缩放后选中任务不易丢失的体验；
+  - 把“空图”与“未排程”快速区分，避免继续误判前端渲染错误；
+  - 在不破坏美观的前提下，减少顶部工具区对甘特主体的挤压。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 先不自动排程，点击“调试信息”，确认可复制诊断文本且页面主体不出现常驻调试行；
+  - 点击“自动排程”，确认 `ProjectView` 下任务条出现；
+  - 选中任一任务后连续点击“放大 / 缩小 / 适应窗口”，确认缩放流畅且选中任务仍留在视口附近；
+  - 观察顶部工具区与甘特图之间的距离，确认主体上移且界面未显得拥挤。
+- 待实现：
+  - 当前页面缩放共 5 档，分别为：
+    - `Level 0`: `Month + Week`
+    - `Level 1`: `Week + Day(Count=2)`
+    - `Level 2`: `Day + Hour(Count=6)`
+    - `Level 3`: `Day + Hour(Count=2)`
+    - `Level 4`: `Day + Hour(Count=1)`
+  - 后续需按 APS 使用场景重新评审这些档位是否足够均匀，尤其是远景可读性、中景节奏感和近景拖拽操作密度。
+## 2026-03-20 - Syncfusion 适应窗口安全收口（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 当前启用了自定义时间轴缩放层级与页面自管时间窗；
+  - 代码里又重新直接调用了 `SfGantt.ZoomToFitAsync()`，这和仓库此前已经记录过的不稳定入口相冲突，存在再次触发异常或白板重绘问题的风险。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/playbook/lessons.md`
+  - `docs/codex_log.md`
+- 处理：
+  - 停止在页面按钮中直接调用组件 `ZoomToFitAsync()`；
+  - 改为安全 fit 流程：
+    - 先按当前任务重算 `ChartStart / ChartEnd`
+    - 再补一次 `notifyResize`
+    - 若图表仍有横向滚动，则最多循环执行几次 `ZoomOutAsync()`
+    - 最后继续保留“选中任务轻量保持可见”的前端收口
+- 目的：
+  - 保持 `适应窗口` 可用；
+  - 同时尽量避开 Syncfusion 内部 `ZoomToFitAsync()` 在当前页面组合配置下的异常路径。
+
+## 2026-03-20 - Syncfusion 保守版 5 档缩放方案落地（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - `/gantt/syncfusion` 之前的 5 档缩放仍偏向通用甘特视图：
+    - `Level 1` 还是 `Week + Day(Count=2)`
+    - `Level 3` 还是 `Day + Hour(Count=2)`
+    - 最细档只有 `Day + Hour(Count=1)`
+  - 结合当前 APS 场景，工序时长短则不足 1 小时，长则 4~5 小时；
+  - 需要把“多个工序观察时精确到小时”和“最大放大时精确到分钟”同时纳入，但仍保持较稳妥的可读性与渲染密度。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 将默认时间轴配置调整为与主工作档一致：
+    - 默认视图改为 `Day + Hour(Count=6)`
+    - 顶层标签改为更贴近中文阅读的 `M月d日`
+  - 将页面自定义缩放 5 档改为保守版 APS 方案：
+    - `Level 0`: `Month + Week`
+    - `Level 1`: `Week + Day(Count=1)`
+    - `Level 2`: `Day + Hour(Count=6)`
+    - `Level 3`: `Day + Hour(Count=1)`
+    - `Level 4`: `Hour + Minutes(Count=15)`
+  - 其中最细档改为 Syncfusion 官方支持的 `Hour` 视图下分钟级底层刻度，用于短工序精查；
+  - 没有继续激进到 `5 分钟 / 1 分钟`，先以 `15 分钟` 作为更稳妥的上限，避免时间轴过密和缩放跨度突变。
+- 目的：
+  - 让 `Level 2` 成为真正可长期停留的默认工作视图；
+  - 让 `Level 3` 更适合同时观察多个短工序；
+  - 让 `Level 4` 在不明显牺牲可读性的前提下，支持分钟级边界观察与拖拽微调。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 选择同时包含短工序和 4~5 小时工序的 `PlanId`
+  - 依次点击“放大 / 缩小”回归 5 档：
+    - 确认 `Level 2` 下适合看多个工序的排程关系
+    - 确认 `Level 3` 下可按小时精查多个短工序
+    - 确认 `Level 4` 下底层时间轴变为 `15 分钟` 粒度，而不是仅到整点小时
+  - 回归“适应窗口”，确认仍走页面既有安全收口，不因分钟级最细档重新触发异常路径

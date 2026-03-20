@@ -1,86 +1,152 @@
 ﻿@page "/gantt/syncfusion"
+@implements IAsyncDisposable
 @using Syncfusion.Blazor.Gantt
 @using Syncfusion.Blazor.Grids
 @using Microsoft.JSInterop
+@using System.Globalization
 @inject IGanttApiClient GanttApi
 @inject IApsApiService ApsApi
 @inject ILogger<GanttSyncfusion> Logger
 @inject IJSRuntime JS
 
-<div class="syncfusion-gantt-page">
-<div class="card p-3">
-    <div class="row g-2 align-items-end">
+<div class="@($"syncfusion-gantt-page {CurrentThemeClass}")">
+<div class="card p-2 syncfusion-topbar-card">
+    <div class="row g-2 gx-2 gy-1 align-items-end">
         <div class="col-md-2">
-            <label class="form-label">PlanId</label>
+            <label class="form-label syncfusion-top-label">计划ID</label>
             <input class="form-control" type="number" @bind="PlanId" />
         </div>
         <div class="col-md-3">
-            <label class="form-label">Start</label>
-            <input class="form-control" type="datetime-local" @bind="StartInput" />
+            <label class="form-label syncfusion-top-label">开始时间</label>
+            <input class="form-control" type="datetime-local" @bind="StartInput" @bind:after="OnTimeWindowInputChangedAsync" />
         </div>
         <div class="col-md-3">
-            <label class="form-label">End</label>
-            <input class="form-control" type="datetime-local" @bind="EndInput" />
+            <label class="form-label syncfusion-top-label">结束时间</label>
+            <input class="form-control" type="datetime-local" @bind="EndInput" @bind:after="OnTimeWindowInputChangedAsync" />
         </div>
         <div class="col-md-4 d-flex flex-wrap gap-2">
-            <button class="btn btn-sm btn-primary" @onclick="() => LoadDataAsync()" disabled="@Loading">Refresh</button>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@Loading">Latest Plan</button>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomInAsync" disabled="@Loading">ZoomIn</button>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomOutAsync" disabled="@Loading">ZoomOut</button>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="ZoomToFitAsync" disabled="@Loading">ZoomToFit</button>
+            <button class="btn btn-sm btn-primary" @onclick="() => LoadDataAsync()" disabled="@Loading">刷新</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@Loading">最新计划</button>
+            <button class="btn btn-sm btn-outline-info" @onclick="OpenDebugInfoAsync" disabled="@Loading">调试信息</button>
+            <button class="btn btn-sm btn-success" @onclick="RunAutoScheduleAsync" disabled="@(Loading || PlanId <= 0)">自动排程</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="in" @onclick="ZoomInAsync" disabled="@Loading">放大</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="out" @onclick="ZoomOutAsync" disabled="@Loading">缩小</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="fit" @onclick="ZoomToFitAsync" disabled="@Loading">适应窗口</button>
+            <button class="btn btn-sm @(UseDarkTheme ? "btn-outline-secondary" : "btn-primary")" @onclick="() => SetThemeAsync(false)" disabled="@Loading">工业浅色</button>
+            <button class="btn btn-sm @(UseDarkTheme ? "btn-primary" : "btn-outline-secondary")" @onclick="() => SetThemeAsync(true)" disabled="@Loading">工业深色</button>
         </div>
     </div>
-    <div class="row g-2 align-items-end mt-2">
-        <div class="col-md-3">
-            <label class="form-label">ViewType</label>
+    <div class="row g-2 gx-2 gy-1 align-items-end mt-1">
+        <div class="col-md-4">
+            <label class="form-label syncfusion-top-label">视图类型</label>
             <select class="form-select" @bind="CurrentViewTypeText" @bind:after="OnViewTypeChanged">
-                <option value="ProjectView">ProjectView</option>
-                <option value="ResourceView">ResourceView</option>
+                <option value="ProjectView">项目视图</option>
+                <option value="ResourceView">资源视图</option>
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label d-block">StressTest</label>
-            <input class="form-check-input" type="checkbox" @bind="StressTestEnabled" />
+            <label class="form-label d-block syncfusion-top-label">高级模式</label>
+            <input class="form-check-input" type="checkbox" @bind="ShowAdvancedOptions" />
         </div>
         <div class="col-md-2">
-            <label class="form-label">Stress Resources</label>
-            <input class="form-control" type="number" min="1" max="5000" @bind="StressResourceCount" disabled="@(!StressTestEnabled)" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Tasks / Resource</label>
-            <input class="form-control" type="number" min="1" max="200" @bind="StressTasksPerResource" disabled="@(!StressTestEnabled)" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Stress Seed</label>
-            <input class="form-control" type="number" @bind="StressSeed" disabled="@(!StressTestEnabled)" />
-        </div>
-        <div class="col-md-1">
-            <label class="form-label d-block">AllowPush</label>
+            <label class="form-label d-block syncfusion-top-label">允许连带推移</label>
             <input class="form-check-input" type="checkbox" @bind="DragAllowPush" />
         </div>
     </div>
+    @if (ShowAdvancedOptions)
+    {
+        <div class="row g-2 gx-2 gy-1 align-items-end mt-1">
+            <div class="col-md-2">
+                <label class="form-label d-block syncfusion-top-label">压测模式</label>
+                <input class="form-check-input" type="checkbox" @bind="StressTestEnabled" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label syncfusion-top-label">压测资源数</label>
+                <input class="form-control" type="number" min="1" max="5000" @bind="StressResourceCount" disabled="@(!StressTestEnabled)" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label syncfusion-top-label">每资源任务数</label>
+                <input class="form-control" type="number" min="1" max="200" @bind="StressTasksPerResource" disabled="@(!StressTestEnabled)" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label syncfusion-top-label">压测随机种子</label>
+                <input class="form-control" type="number" @bind="StressSeed" disabled="@(!StressTestEnabled)" />
+            </div>
+        </div>
+    }
 </div>
 
 @if (!string.IsNullOrWhiteSpace(ErrorMessage))
 {
-    <div class="alert alert-danger mt-2">@ErrorMessage</div>
+    <div class="alert alert-danger mt-1 mb-1 syncfusion-status-alert">@ErrorMessage</div>
 }
 else if (!string.IsNullOrWhiteSpace(DragStatusMessage))
 {
-    <div class="alert alert-info mt-2">@DragStatusMessage</div>
+    <div class="alert alert-info mt-1 mb-1 syncfusion-status-alert">@DragStatusMessage</div>
 }
 else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 {
-    <div class="alert alert-warning mt-2">@DragWarningMessage</div>
+    <div class="alert alert-warning mt-1 mb-1 syncfusion-status-alert">@DragWarningMessage</div>
 }
 
-<div class="text-muted mt-2">
-    Plan=@PlanId | Resources=@DisplayResources.Count | Tasks=@DisplayTasks.Count | Links=@DisplayLinks.Count | Assignments=@DisplayAssignments.Count | Source=@DataSourceMode
+@if (!string.IsNullOrWhiteSpace(RescheduleDiffMessage))
+{
+    <div class="alert alert-info mt-1 mb-1 syncfusion-status-alert">@RescheduleDiffMessage</div>
+}
+
+@if (UiDialog.Visible)
+{
+    <div class="syncfusion-modal-backdrop">
+        <div class="syncfusion-modal">
+            <h6 class="mb-2">@UiDialog.Title</h6>
+            <div class="syncfusion-modal-message">@UiDialog.Message</div>
+            <div class="syncfusion-modal-actions">
+                @if (UiDialog.Type == UiDialogType.Confirm)
+                {
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ResolveDialog(false)">取消</button>
+                    <button class="btn btn-sm btn-primary" @onclick="() => ResolveDialog(true)">确认</button>
+                }
+                else
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="() => ResolveDialog(true)">知道了</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (ShowDebugInfoDialog)
+{
+    <div class="syncfusion-modal-backdrop">
+        <div class="syncfusion-modal" style="max-width: 960px;">
+            <h6 class="mb-2">调试信息</h6>
+            <textarea class="form-control" rows="14" readonly>@DebugInfoText</textarea>
+            <div class="syncfusion-modal-actions mt-2">
+                <button class="btn btn-sm btn-outline-secondary" @onclick="CopyDebugInfoAsync">复制</button>
+                <button class="btn btn-sm btn-primary" @onclick="CloseDebugInfoDialog">关闭</button>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="text-muted mt-1 small syncfusion-summary-line">
+    计划=@PlanId | 资源=@DisplayResources.Count | 任务=@DisplayTasks.Count | 依赖=@DisplayLinks.Count | 分配=@DisplayAssignments.Count | 数据源=@DataSourceModeDisplay
 </div>
 
-<div class="row g-2 mt-2 position-relative">
+<div class="row g-2 mt-1 position-relative">
     <div class="col-12">
         <div class="syncfusion-gantt-wrap" @ref="GanttContainerRef">
+            <div class="syncfusion-legend">
+                <span class="syncfusion-legend-title">图例</span>
+                <span class="syncfusion-legend-item">
+                    <span class="syncfusion-legend-chip syncfusion-legend-chip-moved"></span>
+                    手工移动
+                </span>
+                <span class="syncfusion-legend-item">
+                    <span class="syncfusion-legend-chip syncfusion-legend-chip-rescheduled"></span>
+                    自动重排变化
+                </span>
+            </div>
             <SfGantt @ref="GanttRef"
                      TValue="GanttTaskVm"
                      DataSource="@DisplayTasks"
@@ -90,17 +156,17 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                      ProjectStartDate="@ChartStart"
                      ProjectEndDate="@ChartEnd"
                      Height="@GanttViewportHeight"
-                     EnableRowVirtualization="true"
-                     EnableTimelineVirtualization="true"
+                     EnableRowVirtualization="@EnableVirtualization"
+                     EnableTimelineVirtualization="@EnableVirtualization"
                      Toolbar="@ToolbarItems">
         <GanttEditSettings AllowEditing="true" AllowTaskbarEditing="true"></GanttEditSettings>
         <GanttSelectionSettings Mode="SelectionMode.Row" Type="SelectionType.Single"></GanttSelectionSettings>
         <GanttTimelineSettings TimelineViewMode="TimelineViewMode.Day"
-                               TimelineUnitSize="95"
+                               TimelineUnitSize="70"
                                UpdateTimescaleView="false"
                                WeekStartDay="1">
-            <GanttTopTierSettings Unit="TimelineViewMode.Day" Count="1" Format="MMM dd yyyy"></GanttTopTierSettings>
-            <GanttBottomTierSettings Unit="TimelineViewMode.Hour" Count="2" Format="HH:mm"></GanttBottomTierSettings>
+            <GanttTopTierSettings Unit="TimelineViewMode.Day" Count="1" Format="M月d日"></GanttTopTierSettings>
+            <GanttBottomTierSettings Unit="TimelineViewMode.Hour" Count="6" Format="HH:mm"></GanttBottomTierSettings>
         </GanttTimelineSettings>
         <GanttTaskFields Id="TaskId"
                          Name="TaskName"
@@ -111,7 +177,33 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                          ExpandState="IsExpanded"
                          Dependency="Predecessor">
         </GanttTaskFields>
-        <GanttLabelSettings TValue="GanttTaskVm" TaskLabel="TaskName"></GanttLabelSettings>
+        <GanttColumns>
+            <GanttColumn Field="TaskId" HeaderText="任务ID" Width="110"></GanttColumn>
+            <GanttColumn Field="TaskName" HeaderText="任务名称" Width="240"></GanttColumn>
+            <GanttColumn Field="OrderNo" HeaderText="订单" Width="180"></GanttColumn>
+            <GanttColumn Field="OperationName" HeaderText="工序" Width="160"></GanttColumn>
+            <GanttColumn Field="OpSeq" HeaderText="工序序号" Width="110"></GanttColumn>
+            <GanttColumn Field="StartDate" HeaderText="开始时间" Width="180" Format="yyyy-MM-dd HH:mm"></GanttColumn>
+            <GanttColumn Field="EndDate" HeaderText="结束时间" Width="180" Format="yyyy-MM-dd HH:mm"></GanttColumn>
+            <GanttColumn Field="DueDate" HeaderText="交期" Width="180" Format="yyyy-MM-dd HH:mm"></GanttColumn>
+            <GanttColumn Field="Priority" HeaderText="优先级" Width="100"></GanttColumn>
+            <GanttColumn Field="Status" HeaderText="任务状态" Width="120"></GanttColumn>
+            <GanttColumn Field="ResourceDisplay" HeaderText="资源" Width="220"></GanttColumn>
+            <GanttColumn Field="DurationValue" HeaderText="时长(分钟)" Width="120"></GanttColumn>
+            <GanttColumn Field="Predecessor" HeaderText="前置依赖" Width="160"></GanttColumn>
+        </GanttColumns>
+        <GanttTemplates TValue="GanttTaskVm">
+            <TaskbarTemplate>
+                @if (context is GanttTaskVm task)
+                {
+                    <div class="e-gantt-child-taskbar e-gantt-child-taskbar-inner-div sync-taskbar-shell" tabindex="-1">
+                        <div class="@BuildTaskbarTemplateClass(task)">
+                            <span class="e-task-label sync-taskbar-label">@BuildTaskbarLabel(task)</span>
+                        </div>
+                    </div>
+                }
+            </TaskbarTemplate>
+        </GanttTemplates>
         <GanttAssignmentFields TValue="GanttTaskVm" TAssignment="GanttAssignmentVm"
                                DataSource="@DisplayAssignments"
                                PrimaryKey="Id"
@@ -138,19 +230,30 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         <div class="syncfusion-task-detail-overlay">
             <div class="card p-3 syncfusion-task-detail">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">Task Detail</h6>
+                    <h6 class="mb-0">任务详情</h6>
                     <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CloseTaskDetailPanel">关闭</button>
                 </div>
-                <div><span class="syncfusion-task-detail-key">Task</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskName</span></div>
-                <div><span class="syncfusion-task-detail-key">TaskId</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskId</span></div>
-                <div><span class="syncfusion-task-detail-key">Order</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.OrderNo) ? SelectedTask.OrderNo : "-")</span></div>
-                <div><span class="syncfusion-task-detail-key">Operation</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.OperationName) ? SelectedTask.OperationName : "-")</span></div>
-                <div><span class="syncfusion-task-detail-key">OpSeq</span><span class="syncfusion-task-detail-value">@((SelectedTask.OpSeq ?? 0) > 0 ? SelectedTask.OpSeq : "-")</span></div>
-                <div><span class="syncfusion-task-detail-key">Start</span><span class="syncfusion-task-detail-value">@SelectedTask.StartDate.ToString("yyyy-MM-dd HH:mm")</span></div>
-                <div><span class="syncfusion-task-detail-key">End</span><span class="syncfusion-task-detail-value">@SelectedTask.EndDate.ToString("yyyy-MM-dd HH:mm")</span></div>
-                <div><span class="syncfusion-task-detail-key">Due</span><span class="syncfusion-task-detail-value">@(SelectedTask.DueDate.HasValue ? SelectedTask.DueDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")</span></div>
-                <div><span class="syncfusion-task-detail-key">ResourceIds</span><span class="syncfusion-task-detail-value">@(SelectedTask.ResourceIds.Count > 0 ? string.Join(", ", SelectedTask.ResourceIds) : "-")</span></div>
-                <div><span class="syncfusion-task-detail-key">Flags</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.CssClass) ? SelectedTask.CssClass : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">任务</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskName</span></div>
+                <div><span class="syncfusion-task-detail-key">任务ID</span><span class="syncfusion-task-detail-value">@SelectedTask.TaskId</span></div>
+                <div><span class="syncfusion-task-detail-key">订单</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.OrderNo) ? NormalizeOrderNoForDisplay(SelectedTask.OrderNo) : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">工序</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.OperationName) ? SelectedTask.OperationName : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">工序序号</span><span class="syncfusion-task-detail-value">@((SelectedTask.OpSeq ?? 0) > 0 ? SelectedTask.OpSeq : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">开始</span><span class="syncfusion-task-detail-value">@SelectedTask.StartDate.ToString("yyyy-MM-dd HH:mm")</span></div>
+                <div><span class="syncfusion-task-detail-key">结束</span><span class="syncfusion-task-detail-value">@SelectedTask.EndDate.ToString("yyyy-MM-dd HH:mm")</span></div>
+                <div><span class="syncfusion-task-detail-key">后端开始</span><span class="syncfusion-task-detail-value">@FormatBackendTaskTime(SelectedTaskServerTruth?.PlannedStart)</span></div>
+                <div><span class="syncfusion-task-detail-key">后端结束</span><span class="syncfusion-task-detail-value">@FormatBackendTaskTime(SelectedTaskServerTruth?.PlannedEnd)</span></div>
+                <div><span class="syncfusion-task-detail-key">时间一致性</span><span class="syncfusion-task-detail-value">@BuildTimeConsistencyText()</span></div>
+                <div><span class="syncfusion-task-detail-key">交期</span><span class="syncfusion-task-detail-value">@(SelectedTask.DueDate.HasValue ? SelectedTask.DueDate.Value.ToString("yyyy-MM-dd HH:mm") : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">优先级</span><span class="syncfusion-task-detail-value">@((SelectedTask.Priority > 0) ? SelectedTask.Priority : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">急单</span><span class="syncfusion-task-detail-value">@FormatUrgentFlag(SelectedTask.IsUrgent)</span></div>
+                <div><span class="syncfusion-task-detail-key">资源ID</span><span class="syncfusion-task-detail-value">@(SelectedTask.ResourceIds.Count > 0 ? string.Join(", ", SelectedTask.ResourceIds) : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">资源</span><span class="syncfusion-task-detail-value">@BuildResourceDisplayText(SelectedTask)</span></div>
+                <div><span class="syncfusion-task-detail-key">状态标记</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.CssClass) ? SelectedTask.CssClass : "-")</span></div>
+                <div><span class="syncfusion-task-detail-key">任务状态</span><span class="syncfusion-task-detail-value">@(!string.IsNullOrWhiteSpace(SelectedTask.Status) ? SelectedTask.Status : "-")</span></div>
+                @if (!string.IsNullOrWhiteSpace(SelectedTaskServerTruthError))
+                {
+                    <div><span class="syncfusion-task-detail-key">真值诊断</span><span class="syncfusion-task-detail-value">@SelectedTaskServerTruthError</span></div>
+                }
             </div>
         </div>
     }
@@ -161,7 +264,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private SfGantt<GanttTaskVm>? GanttRef;
     private ElementReference GanttContainerRef;
     private readonly List<string> ToolbarItems = new();
-    private const double RightPaddingPixels = 36d;
+    private const double RightPaddingPixels = 128d;
 
     private bool Loading;
     private string? ErrorMessage;
@@ -169,13 +272,24 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private long PlanId;
     private DateTime? StartInput = null;
     private DateTime? EndInput = null;
+    private bool HasUserDefinedTimeWindow;
 
     private DateTime ChartStart = DateTime.Today.AddDays(-1);
     private DateTime ChartEnd = DateTime.Today.AddDays(1);
     private double LastViewportWidthPx;
     private string DataSourceMode = "resource-view";
+    private string DataSourceModeDisplay => DataSourceMode switch
+    {
+        "project-view" => "项目视图",
+        "resource-view" => "资源视图",
+        "resource-view+stress" => "资源视图+压测",
+        "snapshot-fallback" => "快照回退",
+        _ => DataSourceMode
+    };
     private string? DragStatusMessage;
     private string? DragWarningMessage;
+    private string? RescheduleDiffMessage;
+    private bool ShowAdvancedOptions;
     private bool IsApplyingTaskbarMove;
     private bool DragAllowPush = true;
     private bool StressTestEnabled;
@@ -190,28 +304,67 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private double PendingScrollLeft;
     private double PendingScrollTop;
     private bool PendingHeightRefresh = true;
+    private bool InitialLoadRefreshPending = true;
     private string GanttViewportHeight = "700px";
     private GanttTaskVm? SelectedTask;
+    private GanttTaskDto? SelectedTaskServerTruth;
+    private string? SelectedTaskServerTruthError;
     private bool ShowTaskDetailPanel;
     private bool IsTaskDetailPanelManuallyClosed;
-    private bool HasViewportMetrics;
     private double LastViewportClientWidth;
     private double LastViewportPxPerDay;
-    private DateTime LastViewportRefocusAt = DateTime.MinValue;
     private DotNetObjectReference<GanttSyncfusion>? DotNetRef;
+    private bool UseDarkTheme;
+    private string CurrentThemeClass => UseDarkTheme ? "theme-industrial-dark" : "theme-industrial-light";
+    private readonly UiDialogState UiDialog = new();
+    private TaskCompletionSource<bool>? UiDialogTcs;
+    private Dictionary<int, TaskVisualSnapshot> LastScheduleSnapshot = new();
+    private HashSet<int> RecentlyMovedTaskIds = new();
+    private HashSet<int> RecentlyRescheduledTaskIds = new();
+    private int? LastAutoScheduleAffectedTaskCount;
+    // Project logs previously confirmed zoom performance depends on keeping
+    // Syncfusion row/timeline virtualization enabled on this page.
+    private bool EnableVirtualization => true;
 
     private List<GanttResourceVm> DisplayResources { get; set; } = new();
     private List<GanttTaskVm> DisplayTasks { get; set; } = new();
     private List<GanttAssignmentVm> DisplayAssignments { get; set; } = new();
     private List<GanttLinkVm> DisplayLinks { get; set; } = new();
+    private int DebugResourceViewTaskCount;
+    private int DebugResourceViewResourceCount;
+    private int DebugSnapshotAssignmentCount;
+    private int DebugSnapshotResourceCount;
+    private int DebugApsTaskCount;
+    private int DebugApsPlannedTaskCount;
+    private bool ShowDebugInfoDialog;
+    private string DebugInfoText = string.Empty;
+    private string DebugApsTaskPreview = string.Empty;
+    private string DebugResourceViewMetaPreview = string.Empty;
+
+    private sealed record TaskVisualSnapshot(DateTime StartDate, DateTime EndDate, string ResourceSignature);
+
+    private enum UiDialogType
+    {
+        Message,
+        Confirm
+    }
+
+    private sealed class UiDialogState
+    {
+        public bool Visible { get; set; }
+        public UiDialogType Type { get; set; } = UiDialogType.Message;
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
     private readonly GanttZoomTimelineSettings[] CustomZoomLevels =
     {
         new()
         {
             Level = 0,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Month, Format = "MMM yyyy", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Day, Format = "dd", Count = 2 },
-            TimelineUnitSize = 36,
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Month, Format = "yyyy年M月", Count = 1 },
+            // Keep the widest view focused on month/week structure so multi-month plans stay readable.
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Week, Format = "M月d日", Count = 1 },
+            TimelineUnitSize = 56,
             TimelineViewMode = TimelineViewMode.Month,
             WeekStartDay = 1,
             UpdateTimescaleView = true,
@@ -220,11 +373,10 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 1,
-            // Use day/day at this zoom level to keep top tick labels aligned with bottom day ticks.
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "MMM dd", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Day, Format = "dd", Count = 1 },
-            TimelineUnitSize = 52,
-            TimelineViewMode = TimelineViewMode.Day,
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Week, Format = "yyyy年M月d日", Count = 1 },
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Day, Format = "M/d", Count = 1 },
+            TimelineUnitSize = 56,
+            TimelineViewMode = TimelineViewMode.Week,
             WeekStartDay = 1,
             UpdateTimescaleView = true,
             ShowTooltip = true
@@ -232,7 +384,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 2,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "MMM dd yyyy", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "M月d日", Count = 1 },
             BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 6 },
             TimelineUnitSize = 70,
             TimelineViewMode = TimelineViewMode.Day,
@@ -243,9 +395,9 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 3,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "MMM dd yyyy", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 2 },
-            TimelineUnitSize = 95,
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "M月d日", Count = 1 },
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 1 },
+            TimelineUnitSize = 92,
             TimelineViewMode = TimelineViewMode.Day,
             WeekStartDay = 1,
             UpdateTimescaleView = true,
@@ -254,10 +406,10 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 4,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "MMM dd yyyy", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 1 },
-            TimelineUnitSize = 120,
-            TimelineViewMode = TimelineViewMode.Day,
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Hour, Format = "M月d日 HH:mm", Count = 1 },
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Minutes, Format = "mm", Count = 15 },
+            TimelineUnitSize = 36,
+            TimelineViewMode = TimelineViewMode.Hour,
             WeekStartDay = 1,
             UpdateTimescaleView = true,
             ShowTooltip = true
@@ -271,6 +423,19 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         {
             await LoadDataAsync();
         }
+    }
+
+    private async Task SetThemeAsync(bool useDarkTheme)
+    {
+        if (UseDarkTheme == useDarkTheme)
+        {
+            return;
+        }
+
+        UseDarkTheme = useDarkTheme;
+        await InvokeAsync(StateHasChanged);
+        await RefitChartRangeToViewportAsync();
+        await NotifyResizeStableAsync();
     }
 
     private async Task LoadLatestPlanAsync()
@@ -298,7 +463,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     {
         if (PlanId <= 0)
         {
-            ErrorMessage = "PlanId must be greater than 0.";
+            ErrorMessage = "计划ID必须大于0。";
             return;
         }
 
@@ -313,9 +478,37 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             ErrorMessage = null;
             DragStatusMessage = null;
             DragWarningMessage = null;
+            RescheduleDiffMessage = null;
+            RecentlyMovedTaskIds.Clear();
+            RecentlyRescheduledTaskIds.Clear();
         }
         try
         {
+            DebugResourceViewTaskCount = 0;
+            DebugResourceViewResourceCount = 0;
+            DebugSnapshotAssignmentCount = 0;
+            DebugSnapshotResourceCount = 0;
+            DebugApsTaskCount = 0;
+            DebugApsPlannedTaskCount = 0;
+            DebugApsTaskPreview = string.Empty;
+            DebugResourceViewMetaPreview = string.Empty;
+
+            try
+            {
+                var apsTasks = await ApsApi.GetTasksAsync(PlanId, CancellationToken.None);
+                DebugApsTaskCount = apsTasks?.Count ?? 0;
+                DebugApsPlannedTaskCount = apsTasks?
+                    .Count(t => t.PlannedStart.HasValue && t.PlannedEnd.HasValue && t.PlannedEnd.Value > t.PlannedStart.Value)
+                    ?? 0;
+                DebugApsTaskPreview = BuildApsTaskPreview(apsTasks);
+            }
+            catch
+            {
+                DebugApsTaskCount = -1;
+                DebugApsPlannedTaskCount = -1;
+                DebugApsTaskPreview = "APS任务预览读取失败";
+            }
+
             if (preserveViewport)
             {
                 try
@@ -364,6 +557,9 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             DisplayResources = vm.Resources ?? new List<GanttResourceVm>();
             DisplayTasks = vm.Tasks ?? new List<GanttTaskVm>();
             DisplayLinks = vm.Links ?? new List<GanttLinkVm>();
+            DebugResourceViewMetaPreview = BuildResourceViewMetaPreview(vm);
+            DebugResourceViewTaskCount = DisplayTasks.Count;
+            DebugResourceViewResourceCount = DisplayResources.Count;
 
             // Syncfusion resource view requires positive IDs and valid time range.
             DisplayTasks = DisplayTasks
@@ -387,6 +583,16 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 .GroupBy(r => r.Id)
                 .Select(g => g.First())
                 .ToList();
+            var referencedResourceIds = DisplayTasks
+                .SelectMany(t => t.ResourceIds ?? new List<int>())
+                .Where(id => id > 0)
+                .ToHashSet();
+            if (referencedResourceIds.Count > 0)
+            {
+                DisplayResources = DisplayResources
+                    .Where(r => referencedResourceIds.Contains(r.Id))
+                    .ToList();
+            }
 
             // Backend resource-view may return tasks with empty ResourceIds.
             // Fallback to resource-snapshot mapping so official ResourceView can render bars.
@@ -419,23 +625,46 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 }
 
                 var resourceIdMap = BuildResourceIdMap(snapshot);
+                DebugSnapshotAssignmentCount = snapshot.Assignments?.Count ?? 0;
+                DebugSnapshotResourceCount = snapshot.Resources?.Count ?? 0;
                 DisplayResources = BuildResources(snapshot, resourceIdMap);
                 DisplayTasks = BuildTasks(snapshot, resourceIdMap);
                 DisplayLinks = BuildLinks(snapshot);
             }
 
             EnsurePredecessors(DisplayTasks, DisplayLinks);
+            NormalizeTaskNamesForDisplay(DisplayTasks);
             DisplayAssignments = BuildAssignments(DisplayTasks);
+            ApplyResourceDisplay(DisplayTasks);
+            ApplyTaskVisualMarkers(DisplayTasks);
+            await SynchronizeDisplayTasksWithServerTruthAsync();
+
+            if (CurrentViewType == ViewType.ProjectView)
+            {
+                DisplayLinks = vm.Links ?? new List<GanttLinkVm>();
+                DisplayResources.Clear();
+                DisplayAssignments.Clear();
+                DataSourceMode = "project-view";
+
+                EnsurePredecessors(DisplayTasks, DisplayLinks);
+                NormalizeTaskNamesForDisplay(DisplayTasks);
+                ApplyResourceDisplay(DisplayTasks);
+                ApplyTaskVisualMarkers(DisplayTasks);
+            }
+
             ApplyDefaultTimeRangeFromMeta(vm);
 
             if (focusTaskId.HasValue)
             {
                 SelectedTask = DisplayTasks.FirstOrDefault(t => t.TaskId == focusTaskId.Value);
                 ShowTaskDetailPanel = SelectedTask != null && !IsTaskDetailPanelManuallyClosed;
+                await RefreshSelectedTaskServerTruthAsync(SelectedTask?.TaskId);
             }
             else
             {
                 SelectedTask = null;
+                SelectedTaskServerTruth = null;
+                SelectedTaskServerTruthError = null;
                 ShowTaskDetailPanel = false;
                 IsTaskDetailPanelManuallyClosed = false;
             }
@@ -445,6 +674,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
             PendingScrollReset = !preserveViewport;
             PendingHeightRefresh = true;
+            LastScheduleSnapshot = CaptureTaskSnapshot(DisplayTasks);
         }
         catch (Exception ex)
         {
@@ -454,6 +684,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             DisplayTasks.Clear();
             DisplayAssignments.Clear();
             DisplayLinks.Clear();
+            LastScheduleSnapshot.Clear();
         }
         finally
         {
@@ -461,29 +692,48 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
     }
 
+    private Task OnTimeWindowInputChangedAsync()
+    {
+        HasUserDefinedTimeWindow = StartInput.HasValue || EndInput.HasValue;
+        return Task.CompletedTask;
+    }
+
     private void ApplyDefaultTimeRangeFromMeta(SyncfusionResourceViewResponseVm vm)
     {
-        if (StartInput.HasValue || EndInput.HasValue)
+        if (HasUserDefinedTimeWindow)
         {
             return;
         }
 
+        var taskStart = vm?.Tasks?
+            .Where(t => t.EndDate > t.StartDate)
+            .Select(t => t.StartDate)
+            .DefaultIfEmpty(DateTime.MinValue)
+            .Min() ?? DateTime.MinValue;
+        var taskEnd = vm?.Tasks?
+            .Where(t => t.EndDate > t.StartDate)
+            .Select(t => t.EndDate)
+            .DefaultIfEmpty(DateTime.MinValue)
+            .Max() ?? DateTime.MinValue;
         var metaStart = vm?.Meta?.Start ?? DateTime.MinValue;
         var metaEnd = vm?.Meta?.End ?? DateTime.MinValue;
-        if (metaStart <= DateTime.MinValue || metaEnd <= DateTime.MinValue || metaEnd <= metaStart)
+        var effectiveStart = taskStart > DateTime.MinValue ? taskStart.AddDays(-1) : metaStart;
+        var effectiveEnd = taskEnd > DateTime.MinValue ? taskEnd.AddDays(1) : metaEnd;
+        if (effectiveStart <= DateTime.MinValue || effectiveEnd <= DateTime.MinValue || effectiveEnd <= effectiveStart)
         {
             return;
         }
 
-        StartInput = metaStart;
-        EndInput = metaEnd;
+        StartInput = effectiveStart;
+        EndInput = effectiveEnd;
+        HasUserDefinedTimeWindow = false;
     }
     private async Task ZoomInAsync()
     {
         if (GanttRef != null)
         {
             await GanttRef.ZoomInAsync();
-            await RefocusSelectedTaskAsync();
+            await CenterSelectedTaskLightAsync();
         }
     }
 
@@ -492,42 +742,83 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         if (GanttRef != null)
         {
             await GanttRef.ZoomOutAsync();
-            await RefocusSelectedTaskAsync();
+            await CenterSelectedTaskLightAsync();
         }
     }
 
     private async Task ZoomToFitAsync()
     {
-        await TryUpdateViewportWidthAsync();
-        SetChartRange(DisplayTasks);
-        await InvokeAsync(StateHasChanged);
-        if (GanttRef != null)
+        if (DisplayTasks.Count == 0)
         {
-            await GanttRef.ZoomToFitAsync();
-            for (var i = 0; i < 3; i++)
+            DragWarningMessage = "当前没有可显示的任务，无法执行适应窗口。";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (GanttRef == null)
+        {
+            return;
+        }
+
+        try
+        {
+            ErrorMessage = null;
+            DragWarningMessage = null;
+            SetChartRange(DisplayTasks);
+            await InvokeAsync(StateHasChanged);
+            await NotifyResizeStableAsync();
+
+            for (var i = 0; i < 6; i++)
             {
-                await Task.Delay(50);
-                var hasScroll = false;
+                var hasHorizontalScroll = false;
                 try
                 {
-                    hasScroll = await JS.InvokeAsync<bool>("ganttAsprova.hasHorizontalScroll");
+                    hasHorizontalScroll = await JS.InvokeAsync<bool>("ganttAsprova.hasHorizontalScroll");
                 }
                 catch
                 {
-                    // ignore JS timing errors
+                    hasHorizontalScroll = false;
                 }
 
-                // ZoomToFit may clip right edge when fully packed into one viewport.
-                // If no horizontal overflow exists, zoom out until a small right margin appears.
-                if (hasScroll)
+                if (!hasHorizontalScroll)
                 {
                     break;
                 }
 
                 await GanttRef.ZoomOutAsync();
+                await NotifyResizeStableAsync();
+                await Task.Delay(60);
             }
 
-            await RefocusSelectedTaskAsync();
+            await CenterSelectedTaskLightAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "ZoomToFit failed.");
+            ErrorMessage = $"适应窗口失败：{ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task CenterSelectedTaskLightAsync()
+    {
+        var task = SelectedTask;
+        if (task == null || task.TaskId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "ganttAsprova.centerSelectedTaskIfNeeded",
+                task.TaskId,
+                task.StartDate,
+                task.EndDate);
+        }
+        catch
+        {
+            // Keep zoom path native-fast even if lightweight focus helper is unavailable.
         }
     }
 
@@ -565,21 +856,91 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
         if (!focused)
         {
-            DragWarningMessage = $"定位失败：Task {task.TaskId} 当前未能滚动到可视区。";
+            DragWarningMessage = $"定位失败：任务 {task.TaskId} 当前未能滚动到可视区域。";
         }
         else
         {
-            DragWarningMessage = $"已定位到 Task {task.TaskId}";
+            DragWarningMessage = $"已定位到任务 {task.TaskId}";
         }
 
         await InvokeAsync(StateHasChanged);
     }
 
-    private Task CloseTaskDetailPanel()
+    private async Task CloseTaskDetailPanel()
     {
         ShowTaskDetailPanel = false;
         IsTaskDetailPanelManuallyClosed = true;
-        return InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
+        await RefitChartRangeToViewportAsync();
+        await NotifyResizeStableAsync();
+    }
+
+    private async Task RefitChartRangeToViewportAsync()
+    {
+        if (DisplayTasks.Count == 0)
+        {
+            return;
+        }
+
+        await TryUpdateViewportWidthAsync();
+        try
+        {
+            var metrics = await JS.InvokeAsync<System.Text.Json.JsonElement>("ganttAsprova.getMetrics");
+            if (metrics.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                if (metrics.TryGetProperty("contentClientWidth", out var widthElement) &&
+                    widthElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                {
+                    var width = widthElement.GetDouble();
+                    if (width > 200)
+                    {
+                        LastViewportClientWidth = width;
+                    }
+                }
+
+                if (metrics.TryGetProperty("pxPerDay", out var dayElement) &&
+                    dayElement.ValueKind == System.Text.Json.JsonValueKind.Number)
+                {
+                    var pxPerDay = dayElement.GetDouble();
+                    if (pxPerDay > 0)
+                    {
+                        LastViewportPxPerDay = pxPerDay;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // no-op
+        }
+
+        var maxEnd = DisplayTasks.Max(t => t.EndDate);
+        var padding = ComputeViewportAwareRightPadding(maxEnd - ChartStart);
+        var requiredEnd = maxEnd.Add(padding);
+        if (requiredEnd > ChartEnd.AddMinutes(1))
+        {
+            ChartEnd = requiredEnd;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task NotifyResizeStableAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("ganttAsprova.notifyResizeDeep");
+        }
+        catch
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("ganttAsprova.notifyResize");
+            }
+            catch
+            {
+                // no-op
+            }
+        }
     }
 
     private async Task<bool> RefocusSelectedTaskByGanttApiAsync(int taskId)
@@ -675,8 +1036,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 }
 
                 var taskName = string.IsNullOrWhiteSpace(a.OrderNo)
-                    ? $"Task-{a.TaskId}"
-                    : (a.OpSeq > 0 ? $"{a.OrderNo} | Op-{a.OpSeq}" : a.OrderNo);
+                    ? $"任务-{a.TaskId}"
+                    : (a.OpSeq > 0 ? $"{a.OrderNo} | 工序-{a.OpSeq}" : a.OrderNo);
 
                 return new GanttTaskVm
                 {
@@ -697,7 +1058,21 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             .Where(t => t != null && t.TaskId > 0)
             .Cast<GanttTaskVm>()
             .GroupBy(t => t.TaskId)
-            .Select(g => g.First())
+            .Select(g =>
+            {
+                var first = g.OrderBy(x => x.StartDate).First();
+                var minStart = g.Min(x => x.StartDate);
+                var maxEnd = g.Max(x => x.EndDate);
+                first.StartDate = minStart;
+                first.EndDate = maxEnd > minStart ? maxEnd : minStart.AddMinutes(1);
+                first.DurationValue = Math.Max(1d, (first.EndDate - first.StartDate).TotalMinutes);
+                first.ResourceIds = g
+                    .SelectMany(x => x.ResourceIds ?? new List<int>())
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList();
+                return first;
+            })
             .OrderBy(t => t.TaskId)
             .ToList();
     }
@@ -745,6 +1120,293 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             }
         }
         return result;
+    }
+
+    private static void NormalizeTaskNamesForDisplay(IEnumerable<GanttTaskVm> tasks)
+    {
+        foreach (var task in tasks)
+        {
+            if (!string.IsNullOrWhiteSpace(task.DisplayName))
+            {
+                // Backend DisplayName is the canonical business-facing label; do not re-normalize on frontend.
+                task.TaskName = task.DisplayName;
+                continue;
+            }
+
+            var normalized = NormalizeTaskNameForDisplay(task.TaskName);
+            if (LooksLikeOperationOnlyLabel(normalized) && task.TaskId > 0)
+            {
+                task.TaskName = $"任务{task.TaskId} / {normalized}";
+                continue;
+            }
+
+            task.TaskName = normalized;
+        }
+    }
+
+    private void ApplyTaskVisualMarkers(IEnumerable<GanttTaskVm> tasks)
+    {
+        foreach (var task in tasks)
+        {
+            task.CssClass = BuildTaskCssClass(task.TaskId, task.IsLocked);
+        }
+    }
+
+    private string BuildTaskCssClass(int taskId, bool isLocked)
+    {
+        var classes = new List<string>();
+        if (RecentlyMovedTaskIds.Contains(taskId))
+        {
+            classes.Add("sync-taskbar-moved");
+        }
+
+        if (RecentlyRescheduledTaskIds.Contains(taskId))
+        {
+            classes.Add("sync-taskbar-rescheduled");
+        }
+
+        if (isLocked)
+        {
+            classes.Add("sync-taskbar-locked");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private string BuildTaskbarTemplateClass(GanttTaskVm task)
+    {
+        var cssClass = BuildTaskCssClass(task.TaskId, task.IsLocked);
+        return string.IsNullOrWhiteSpace(cssClass)
+            ? "sync-taskbar-inner"
+            : $"sync-taskbar-inner {cssClass}";
+    }
+
+    private static string BuildTaskbarLabel(GanttTaskVm task)
+    {
+        if (!string.IsNullOrWhiteSpace(task.TaskName))
+        {
+            return task.TaskName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(task.DisplayName))
+        {
+            return task.DisplayName;
+        }
+
+        return $"任务 {task.TaskId}";
+    }
+
+    private Dictionary<int, TaskVisualSnapshot> CaptureTaskSnapshot(IEnumerable<GanttTaskVm> tasks)
+    {
+        return tasks
+            .Where(t => t.TaskId > 0)
+            .ToDictionary(
+                t => t.TaskId,
+                t => new TaskVisualSnapshot(
+                    t.StartDate,
+                    t.EndDate,
+                    BuildResourceSignature(t.ResourceIds)));
+    }
+
+    private void ApplyRescheduleDiffMarkers(
+        IReadOnlyDictionary<int, TaskVisualSnapshot> beforeSnapshot,
+        IEnumerable<GanttTaskVm> tasks,
+        int movedTaskId)
+    {
+        RecentlyMovedTaskIds = movedTaskId > 0
+            ? new HashSet<int> { movedTaskId }
+            : new HashSet<int>();
+        RecentlyRescheduledTaskIds = new HashSet<int>();
+
+        foreach (var task in tasks)
+        {
+            if (task.TaskId <= 0)
+            {
+                continue;
+            }
+
+            if (!beforeSnapshot.TryGetValue(task.TaskId, out var before))
+            {
+                continue;
+            }
+
+            if (HasMeaningfulTaskVisualChange(before, task))
+            {
+                if (task.TaskId != movedTaskId)
+                {
+                    RecentlyRescheduledTaskIds.Add(task.TaskId);
+                }
+            }
+        }
+
+        ApplyTaskVisualMarkers(tasks);
+        LastScheduleSnapshot = CaptureTaskSnapshot(tasks);
+        RescheduleDiffMessage = BuildRescheduleDiffMessage(movedTaskId);
+    }
+
+    private static bool HasMeaningfulTaskVisualChange(TaskVisualSnapshot before, GanttTaskVm task)
+    {
+        var resourceSignature = BuildResourceSignature(task.ResourceIds);
+        return RoundToMinute(before.StartDate) != RoundToMinute(task.StartDate) ||
+               RoundToMinute(before.EndDate) != RoundToMinute(task.EndDate) ||
+               !string.Equals(before.ResourceSignature, resourceSignature, StringComparison.Ordinal);
+    }
+
+    private static DateTime RoundToMinute(DateTime value)
+    {
+        return new DateTime(
+            value.Year,
+            value.Month,
+            value.Day,
+            value.Hour,
+            value.Minute,
+            0,
+            value.Kind);
+    }
+
+    private string? BuildRescheduleDiffMessage(int movedTaskId)
+    {
+        var movedText = movedTaskId > 0 ? $"手工移动任务ID：[{movedTaskId}]" : null;
+        var changedIds = RecentlyRescheduledTaskIds.OrderBy(id => id).ToList();
+        var changedText = changedIds.Count == 0
+            ? "自动重排后未检测到其他任务时间/资源变化。"
+            : $"自动重排变化任务ID：[{string.Join(", ", changedIds)}]";
+
+        if (LastAutoScheduleAffectedTaskCount.HasValue && LastAutoScheduleAffectedTaskCount.Value > 0)
+        {
+            changedText = $"{changedText}（后端影响任务数={LastAutoScheduleAffectedTaskCount.Value}）";
+        }
+
+        return string.IsNullOrWhiteSpace(movedText)
+            ? changedText
+            : $"{movedText}；{changedText}";
+    }
+
+    private static string BuildResourceSignature(IEnumerable<int>? resourceIds)
+    {
+        if (resourceIds == null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(",", resourceIds.Where(id => id > 0).Distinct().OrderBy(id => id));
+    }
+
+    private static bool LooksLikeOperationOnlyLabel(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var value = text.Trim();
+        return value.StartsWith("第", StringComparison.Ordinal) && value.EndsWith("道工序", StringComparison.Ordinal);
+    }
+
+    private static string NormalizeTaskNameForDisplay(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        var slashIndex = raw.IndexOf(" / ", StringComparison.Ordinal);
+        if (slashIndex >= 0 && slashIndex + 3 < raw.Length)
+        {
+            var orderPart = raw[..slashIndex].Trim();
+            var opPart = raw[(slashIndex + 3)..].Trim();
+            var orderLabel = GetFriendlyOrderLabel(orderPart) ?? orderPart;
+            var opLabel = NormalizeOperationLabel(opPart);
+            return string.IsNullOrWhiteSpace(opLabel) ? orderLabel : $"{orderLabel} / {opLabel}";
+        }
+
+        var friendlyOrderLabel = GetFriendlyOrderLabel(raw);
+        if (!string.IsNullOrWhiteSpace(friendlyOrderLabel))
+        {
+            return friendlyOrderLabel;
+        }
+
+        return NormalizeOperationLabel(raw);
+    }
+
+    private static string NormalizeOrderNoForDisplay(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return "-";
+        }
+
+        return GetFriendlyOrderLabel(raw) ?? raw;
+    }
+
+    private string BuildResourceDisplayText(GanttTaskVm task)
+    {
+        var resourceIds = task.ResourceIds?.Where(x => x > 0).Distinct().ToList() ?? new List<int>();
+        if (resourceIds.Count == 0)
+        {
+            return "-";
+        }
+
+        var labels = resourceIds
+            .Select(id =>
+            {
+                var resource = DisplayResources.FirstOrDefault(r => r.Id == id);
+                return resource == null ? $"资源{id}" : $"{resource.Name} ({resource.Type})";
+            })
+            .Distinct()
+            .ToList();
+
+        return labels.Count == 0 ? "-" : string.Join(", ", labels);
+    }
+
+    private void ApplyResourceDisplay(IEnumerable<GanttTaskVm> tasks)
+    {
+        foreach (var task in tasks)
+        {
+            task.ResourceDisplay = BuildResourceDisplayText(task);
+        }
+    }
+
+    private static string FormatUrgentFlag(bool value) => value ? "是" : "-";
+
+    private static string? GetFriendlyOrderLabel(string raw)
+    {
+        if (raw.IndexOf("WO-RAND-", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return $"随机测试工单 {raw}";
+        }
+
+        if (raw.IndexOf("WO-CODEX-", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return $"测试工单 {raw}";
+        }
+
+        if (raw.IndexOf("SIM-WO-", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return $"模拟工单 {raw}";
+        }
+
+        return null;
+    }
+
+    private static string NormalizeOperationLabel(string opRaw)
+    {
+        if (string.IsNullOrWhiteSpace(opRaw))
+        {
+            return string.Empty;
+        }
+
+        const string opPrefix = "Op-";
+        if (opRaw.StartsWith(opPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var seqText = opRaw[opPrefix.Length..].Trim();
+            if (int.TryParse(seqText, out var seq) && seq > 0)
+            {
+                return $"第{seq}道工序";
+            }
+        }
+
+        return opRaw;
     }
 
     private static void EnsurePredecessors(List<GanttTaskVm> tasks, IReadOnlyList<GanttLinkVm> links)
@@ -818,6 +1480,25 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
 
         return TimeSpan.FromSeconds(seconds);
+    }
+
+    private TimeSpan ComputeViewportAwareRightPadding(TimeSpan visibleSpan)
+    {
+        var dynamicPadding = ComputeDynamicRightPadding(visibleSpan);
+        if (LastViewportPxPerDay <= 0 || LastViewportClientWidth <= 0)
+        {
+            return dynamicPadding < TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : dynamicPadding;
+        }
+
+        var visibleDays = LastViewportClientWidth / LastViewportPxPerDay;
+        if (!double.IsFinite(visibleDays) || visibleDays <= 0)
+        {
+            return dynamicPadding < TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : dynamicPadding;
+        }
+
+        var padDays = Math.Clamp(visibleDays * 0.22, 1.0, 14.0);
+        var viewportPadding = TimeSpan.FromDays(padDays);
+        return viewportPadding > dynamicPadding ? viewportPadding : dynamicPadding;
     }
 
     private async Task TryUpdateViewportWidthAsync()
@@ -933,6 +1614,13 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 // no-op
             }
         }
+
+        if (InitialLoadRefreshPending && PlanId > 0 && DisplayTasks.Count > 0 && !Loading)
+        {
+            InitialLoadRefreshPending = false;
+            await LoadDataAsync(clearMessages: false, preserveViewport: false);
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private Task OnViewTypeChanged()
@@ -958,9 +1646,10 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         ShowTaskDetailPanel = SelectedTask != null;
         if (SelectedTask != null)
         {
-            DragWarningMessage = $"已选中 Task {SelectedTask.TaskId}";
+            DragWarningMessage = $"已选中任务 {SelectedTask.TaskId}";
         }
-        return InvokeAsync(StateHasChanged);
+        _ = RefreshSelectedTaskServerTruthSafeAsync(taskId);
+        return Task.CompletedTask;
     }
 
     private Task OnRowSelected(RowSelectEventArgs<GanttTaskVm> args)
@@ -985,86 +1674,23 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 IsTaskDetailPanelManuallyClosed = false;
                 ShowTaskDetailPanel = true;
             }
-            DragWarningMessage = $"已选中 Task {SelectedTask.TaskId}";
+            DragWarningMessage = $"已选中任务 {SelectedTask.TaskId}";
         }
         else
         {
             ShowTaskDetailPanel = false;
         }
 
-        return InvokeAsync(StateHasChanged);
+        _ = RefreshSelectedTaskServerTruthSafeAsync(SelectedTask?.TaskId ?? 0);
+        return Task.CompletedTask;
     }
 
     [JSInvokable]
-    public async Task OnGanttZoomCommand(string? command)
+    public Task OnGanttZoomCommand(string? command)
     {
-        // Toolbar zoom actions are async inside Syncfusion; wait for layout settle and refocus selected task.
-        await Task.Delay(90);
-        await RefocusSelectedTaskAsync();
-        await Task.Delay(220);
-        await RefocusSelectedTaskAsync();
-    }
-
-    [JSInvokable]
-    public async Task OnGanttViewportChanged(System.Text.Json.JsonElement metrics)
-    {
-        double width = 0;
-        double pxPerDay = 0;
-        if (metrics.ValueKind == System.Text.Json.JsonValueKind.Object)
-        {
-            if (metrics.TryGetProperty("contentClientWidth", out var widthElement) &&
-                widthElement.ValueKind == System.Text.Json.JsonValueKind.Number)
-            {
-                width = widthElement.GetDouble();
-            }
-
-            if (metrics.TryGetProperty("pxPerDay", out var dayElement) &&
-                dayElement.ValueKind == System.Text.Json.JsonValueKind.Number)
-            {
-                pxPerDay = dayElement.GetDouble();
-            }
-        }
-
-        var scaleChanged = false;
-        if (HasViewportMetrics)
-        {
-            if (width > 0 && LastViewportClientWidth > 0 && Math.Abs(width - LastViewportClientWidth) > 24)
-            {
-                scaleChanged = true;
-            }
-
-            if (pxPerDay > 0 && LastViewportPxPerDay > 0 && Math.Abs(pxPerDay - LastViewportPxPerDay) > 0.2)
-            {
-                scaleChanged = true;
-            }
-        }
-
-        if (width > 0)
-        {
-            LastViewportClientWidth = width;
-        }
-
-        if (pxPerDay > 0)
-        {
-            LastViewportPxPerDay = pxPerDay;
-        }
-
-        HasViewportMetrics = true;
-
-        if (!scaleChanged || SelectedTask == null || SelectedTask.TaskId <= 0)
-        {
-            return;
-        }
-
-        var now = DateTime.UtcNow;
-        if ((now - LastViewportRefocusAt).TotalMilliseconds < 300)
-        {
-            return;
-        }
-
-        LastViewportRefocusAt = now;
-        await Task.Delay(80);
-        await RefocusSelectedTaskAsync();
+        // Keep JS callback for compatibility, but avoid refocus loops:
+        // zoom -> relayout -> scroll -> viewportChanged -> refocus -> relayout.
+        return Task.CompletedTask;
     }
 
     private void OnTaskbarEditing(TaskbarEditingEventArgs<GanttTaskVm> args)
@@ -1086,7 +1712,16 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             args.Cancel = true;
             DragStatusMessage = null;
             DragWarningMessage = null;
-            ErrorMessage = $"Taskbar drag rejected: {reason}";
+            ErrorMessage = $"任务条拖拽被拒绝：{reason}";
+            return;
+        }
+
+        if (TryPreviewMoveFeasibility(args, out var previewReason))
+        {
+            args.Cancel = true;
+            DragStatusMessage = null;
+            DragWarningMessage = $"预判不可行：{previewReason}";
+            ErrorMessage = null;
         }
     }
 
@@ -1099,7 +1734,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
         if (TryGetDragRejectReason(args.Data, out var reason))
         {
-            ErrorMessage = $"Taskbar drag rejected: {reason}";
+            ErrorMessage = $"任务条拖拽被拒绝：{reason}";
             await ShowDragDialogAsync(ErrorMessage);
             await InvokeAsync(StateHasChanged);
             return;
@@ -1137,8 +1772,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 NewStart = deltaMinutes.HasValue ? null : args.Data.StartDate,
                 NewEnd = deltaMinutes.HasValue ? null : args.Data.EndDate,
                 AllowPush = DragAllowPush,
-                Reason = "syncfusion-taskbar-drag",
-                ChangedBy = "blazor",
+                Reason = "syncfusion-gantt-任务条拖拽",
+                ChangedBy = "blazor-ui",
                 Source = "syncfusion-gantt"
             };
 
@@ -1157,35 +1792,28 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                     ? $" ... (+{impactedTaskIds.Count - 12})"
                     : string.Empty;
                 var estimatedAffected = impactedTaskIds.Count;
-                var confirmed = await ConfirmGlobalRescheduleAsync(
-                    $"Task {result.TaskId} moved successfully. Estimated affected tasks: ~{estimatedAffected}. Impact preview taskIds: [{impactedPreview}{impactedMore}]. Run global auto-reschedule now?");
-                if (!confirmed)
+                if (TryApplyLocalMoveResult(result, impactedTaskIds))
                 {
-                    DragWarningMessage = $"Task {result.TaskId} moved. Global auto-reschedule canceled by user.";
-                    await LoadDataAsync(
-                        clearMessages: false,
-                        preserveViewport: true,
-                        focusTaskId: args.Data.TaskId);
+                    DragStatusMessage = estimatedAffected <= 1
+                        ? $"任务 {result.TaskId} 已移动。当前仅更新该任务；如需系统整体重排，请点击上方“自动排程”。"
+                        : $"任务 {result.TaskId} 已移动。影响任务ID预览：[{impactedPreview}{impactedMore}]；如需查看系统整体重排结果，请点击上方“自动排程”。";
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(80);
+                    await RefocusSelectedTaskAsync();
+                    await RefreshSelectedTaskServerTruthAsync(args.Data.TaskId);
                     return;
                 }
 
-                var scheduleRequest = new PlanAutoScheduleRequest
-                {
-                    StartAt = StartInput,
-                    EndAt = EndInput,
-                    AllowOutsource = false
-                };
-                var autoResult = await ApsApi.AutoScheduleAsync(
-                    PlanId,
-                    "ortools",
-                    true,
-                    scheduleRequest,
-                    CancellationToken.None);
-                DragStatusMessage = $"Task {result.TaskId} moved. global-reschedule={autoResult.Engine}, scheduled={autoResult.ScheduledCount}, unscheduled={autoResult.UnscheduledCount}";
+                DragWarningMessage = $"任务 {result.TaskId} 已移动。若有加急订单插入或需刷新整体排程结果，请手动点击“自动排程”。";
+                await LoadDataAsync(
+                    clearMessages: false,
+                    preserveViewport: true,
+                    focusTaskId: args.Data.TaskId);
+                return;
             }
             else
             {
-                DragWarningMessage = $"Task {result.TaskId} unchanged by scheduler (no effective move).";
+                DragWarningMessage = $"任务 {result.TaskId} 未被排程器实际移动（无有效变化）。";
             }
 
             // Reload from server to keep chart and backend state consistent.
@@ -1196,23 +1824,17 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
         catch (ApsApiException ex)
         {
-            ErrorMessage = $"Taskbar drag rejected: {MapMoveError(ex)}";
+            ErrorMessage = $"任务条拖拽被拒绝：{MapMoveError(ex)}";
             await ShowDragDialogAsync(ErrorMessage);
             // Roll back to server truth when save fails.
-            await LoadDataAsync(
-                clearMessages: false,
-                preserveViewport: true,
-                focusTaskId: args.Data.TaskId);
+            await ReloadAndRefocusTaskAsync(args.Data.TaskId);
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Taskbar drag save failed: {ex.Message}";
+            ErrorMessage = $"任务条拖拽保存失败：{ex.Message}";
             await ShowDragDialogAsync(ErrorMessage);
             // Roll back to server truth when save fails.
-            await LoadDataAsync(
-                clearMessages: false,
-                preserveViewport: true,
-                focusTaskId: args.Data.TaskId);
+            await ReloadAndRefocusTaskAsync(args.Data.TaskId);
         }
         finally
         {
@@ -1221,23 +1843,354 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
     }
 
+    private async Task RunAutoScheduleAsync()
+    {
+        if (Loading)
+        {
+            DragWarningMessage = "当前仍在加载或执行其他操作，请稍后再试自动排程。";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (PlanId <= 0)
+        {
+            ErrorMessage = "计划ID必须大于0。";
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        Loading = true;
+        ErrorMessage = null;
+        DragStatusMessage = "正在执行自动排程，请稍候...";
+        DragWarningMessage = null;
+        await InvokeAsync(StateHasChanged);
+
+        var focusTaskId = SelectedTask?.TaskId;
+        var beforeAutoScheduleSnapshot = CaptureTaskSnapshot(DisplayTasks);
+        LastAutoScheduleAffectedTaskCount = null;
+
+        try
+        {
+            var scheduleRequest = new PlanAutoScheduleRequest
+            {
+                StartAt = StartInput,
+                EndAt = EndInput,
+                AllowOutsource = false
+            };
+
+            var autoResult = await ApsApi.AutoScheduleAsync(
+                PlanId,
+                "ortools",
+                true,
+                scheduleRequest,
+                CancellationToken.None);
+
+            DragStatusMessage = $"自动排程完成。引擎={autoResult.Engine}，已排={autoResult.ScheduledCount}，未排={autoResult.UnscheduledCount}";
+            LastAutoScheduleAffectedTaskCount = autoResult.AffectedTaskCount;
+
+            await LoadDataAsync(
+                clearMessages: false,
+                preserveViewport: true,
+                focusTaskId: focusTaskId);
+            ApplyRescheduleDiffMarkers(beforeAutoScheduleSnapshot, DisplayTasks, movedTaskId: 0);
+            await RefitChartRangeToViewportAsync();
+            await NotifyResizeStableAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ApsApiException ex)
+        {
+            ErrorMessage = $"自动排程失败：{ex.Message}";
+            await ShowDragDialogAsync(ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"自动排程失败：{ex.Message}";
+            await ShowDragDialogAsync(ErrorMessage);
+        }
+        finally
+        {
+            Loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private bool TryApplyLocalMoveResult(MoveScheduleTaskResult result, IReadOnlyCollection<long> impactedTaskIds)
+    {
+        if (result.TaskId <= 0 ||
+            !result.NewStart.HasValue ||
+            !result.NewEnd.HasValue ||
+            impactedTaskIds.Count != 1)
+        {
+            return false;
+        }
+
+        var taskId = (int)result.TaskId;
+        var task = DisplayTasks.FirstOrDefault(t => t.TaskId == taskId);
+        if (task == null)
+        {
+            return false;
+        }
+
+        task.StartDate = result.NewStart.Value;
+        task.EndDate = result.NewEnd.Value;
+        task.DurationValue = Math.Max(1d, (task.EndDate - task.StartDate).TotalMinutes);
+        RecentlyMovedTaskIds = new HashSet<int> { taskId };
+        RecentlyRescheduledTaskIds.Clear();
+        ApplyTaskVisualMarkers(DisplayTasks);
+        LastScheduleSnapshot = CaptureTaskSnapshot(DisplayTasks);
+        RescheduleDiffMessage = $"手工移动任务ID：[{taskId}]；尚未执行全局自动重排。";
+
+        SelectedTask = task;
+        IsTaskDetailPanelManuallyClosed = false;
+        ShowTaskDetailPanel = true;
+        SetChartRange(DisplayTasks);
+        return true;
+    }
+
+    private async Task ReloadAndRefocusTaskAsync(int taskId)
+    {
+        await LoadDataAsync(
+            clearMessages: false,
+            preserveViewport: true,
+            focusTaskId: taskId);
+
+        if (taskId <= 0)
+        {
+            return;
+        }
+
+        await Task.Delay(120);
+        await RefocusSelectedTaskAsync();
+    }
+
+    private async Task RefreshSelectedTaskServerTruthAsync(int? taskId)
+    {
+        if (!taskId.HasValue || taskId.Value <= 0 || PlanId <= 0)
+        {
+            SelectedTaskServerTruth = null;
+            SelectedTaskServerTruthError = null;
+            return;
+        }
+
+        try
+        {
+            var tasks = await ApsApi.GetTasksAsync(PlanId, CancellationToken.None);
+            SelectedTaskServerTruth = tasks.FirstOrDefault(t => t.TaskId == taskId.Value);
+            SelectedTaskServerTruthError = SelectedTaskServerTruth == null
+                ? $"后端任务列表中未找到任务 {taskId.Value}"
+                : null;
+            ApplyServerTruthToSelectedTask();
+        }
+        catch (Exception ex)
+        {
+            SelectedTaskServerTruth = null;
+            SelectedTaskServerTruthError = $"后端真值读取失败：{ex.Message}";
+        }
+    }
+
+    private async Task RefreshSelectedTaskServerTruthSafeAsync(int? taskId)
+    {
+        try
+        {
+            // RowSelected may fire during the initial pointer gesture of a drag operation.
+            // Avoid forcing an immediate rerender on that path; let the component finish the
+            // gesture, then update diagnostics in the background.
+            await Task.Delay(180);
+            if (Loading || IsApplyingTaskbarMove)
+            {
+                return;
+            }
+
+            await RefreshSelectedTaskServerTruthAsync(taskId);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // Best-effort diagnostics should never block drag gestures.
+        }
+    }
+
+    private void ApplyServerTruthToSelectedTask()
+    {
+        if (SelectedTask == null || SelectedTaskServerTruth == null)
+        {
+            return;
+        }
+
+        if (SelectedTask.TaskId != SelectedTaskServerTruth.TaskId ||
+            !SelectedTaskServerTruth.PlannedStart.HasValue ||
+            !SelectedTaskServerTruth.PlannedEnd.HasValue)
+        {
+            return;
+        }
+
+        SelectedTask.StartDate = SelectedTaskServerTruth.PlannedStart.Value;
+        SelectedTask.EndDate = SelectedTaskServerTruth.PlannedEnd.Value;
+        SelectedTask.DurationValue = Math.Max(1d, (SelectedTask.EndDate - SelectedTask.StartDate).TotalMinutes);
+
+        var displayTask = DisplayTasks.FirstOrDefault(t => t.TaskId == SelectedTask.TaskId);
+        if (displayTask != null)
+        {
+            displayTask.StartDate = SelectedTask.StartDate;
+            displayTask.EndDate = SelectedTask.EndDate;
+            displayTask.DurationValue = SelectedTask.DurationValue;
+        }
+    }
+
+    private async Task SynchronizeDisplayTasksWithServerTruthAsync()
+    {
+        if (PlanId <= 0 || DisplayTasks.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var serverTasks = await ApsApi.GetTasksAsync(PlanId, CancellationToken.None);
+            var serverTaskMap = serverTasks
+                .Where(t => t.TaskId > 0)
+                .ToDictionary(t => (int)t.TaskId, t => t);
+
+            foreach (var task in DisplayTasks)
+            {
+                if (!serverTaskMap.TryGetValue(task.TaskId, out var serverTask))
+                {
+                    continue;
+                }
+
+                if (!serverTask.PlannedStart.HasValue || !serverTask.PlannedEnd.HasValue)
+                {
+                    continue;
+                }
+
+                task.StartDate = serverTask.PlannedStart.Value;
+                task.EndDate = serverTask.PlannedEnd.Value;
+                task.DurationValue = Math.Max(1d, (task.EndDate - task.StartDate).TotalMinutes);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Sync display tasks with server truth failed for plan {PlanId}.", PlanId);
+        }
+    }
+
+    private string BuildTimeConsistencyText()
+    {
+        if (SelectedTask == null)
+        {
+            return "-";
+        }
+
+        if (SelectedTaskServerTruth == null)
+        {
+            return string.IsNullOrWhiteSpace(SelectedTaskServerTruthError) ? "未读取" : "无法判定";
+        }
+
+        return AreTaskTimesConsistent(SelectedTask, SelectedTaskServerTruth)
+            ? "一致"
+            : "不一致";
+    }
+
+    private static bool AreTaskTimesConsistent(GanttTaskVm uiTask, GanttTaskDto serverTask)
+    {
+        if (!serverTask.PlannedStart.HasValue || !serverTask.PlannedEnd.HasValue)
+        {
+            return false;
+        }
+
+        return RoundToMinute(uiTask.StartDate) == RoundToMinute(serverTask.PlannedStart.Value) &&
+               RoundToMinute(uiTask.EndDate) == RoundToMinute(serverTask.PlannedEnd.Value);
+    }
+
+    private static string FormatBackendTaskTime(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("yyyy-MM-dd HH:mm") : "-";
+    }
+
+    private bool TryPreviewMoveFeasibility(TaskbarEditingEventArgs<GanttTaskVm> args, out string reason)
+    {
+        reason = string.Empty;
+        var task = args.Data;
+        if (task == null || task.TaskId <= 0)
+        {
+            return false;
+        }
+
+        var start = task.StartDate;
+        var end = task.EndDate;
+        if (end <= start)
+        {
+            reason = "开始时间不能晚于或等于结束时间。";
+            return true;
+        }
+
+        if (HasUserDefinedTimeWindow && StartInput.HasValue && start < StartInput.Value)
+        {
+            reason = $"早于计划窗口开始时间（{StartInput.Value:yyyy-MM-dd HH:mm}）。";
+            return true;
+        }
+
+        if (HasUserDefinedTimeWindow && EndInput.HasValue && end > EndInput.Value)
+        {
+            reason = $"晚于计划窗口结束时间（{EndInput.Value:yyyy-MM-dd HH:mm}）。";
+            return true;
+        }
+
+        // When push is enabled, let the server-authoritative move API decide whether
+        // downstream tasks can be shifted. Frontend overlap checks are too strict for
+        // dense plans and block valid drag+reschedule demos before save.
+        if (DragAllowPush)
+        {
+            return false;
+        }
+
+        var resourceIds = task.ResourceIds?.Where(x => x > 0).Distinct().ToList() ?? new List<int>();
+        if (resourceIds.Count == 0)
+        {
+            var current = DisplayTasks.FirstOrDefault(t => t.TaskId == task.TaskId);
+            resourceIds = current?.ResourceIds?.Where(x => x > 0).Distinct().ToList() ?? new List<int>();
+        }
+
+        if (resourceIds.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var resourceId in resourceIds)
+        {
+            var conflict = DisplayTasks.FirstOrDefault(x =>
+                x.TaskId != task.TaskId &&
+                x.StartDate < end &&
+                start < x.EndDate &&
+                x.ResourceIds.Any(r => r == resourceId));
+            if (conflict != null)
+            {
+                var resourceName = DisplayResources.FirstOrDefault(r => r.Id == resourceId)?.Name ?? $"资源{resourceId}";
+                reason = $"{resourceName} 在 {conflict.StartDate:HH:mm}-{conflict.EndDate:HH:mm} 已排满（任务ID {conflict.TaskId}）。";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool TryGetDragRejectReason(GanttTaskVm task, out string reason)
     {
         if (task.IsOutsourced)
         {
-            reason = "outsourced task cannot be moved.";
+            reason = "外协任务不允许拖拽移动。";
             return true;
         }
 
         if (task.IsLocked)
         {
-            reason = "locked task cannot be moved.";
+            reason = "锁定任务不允许拖拽移动。";
             return true;
         }
 
         if (task.IsSimulated || task.TaskName.StartsWith("SIM-WO-", StringComparison.OrdinalIgnoreCase))
         {
-            reason = "simulated stress task cannot be moved.";
+            reason = "压测模拟任务不允许拖拽移动。";
             return true;
         }
 
@@ -1251,32 +2204,137 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         {
             return;
         }
+        await ShowUiDialogAsync("操作提示", message, UiDialogType.Message);
+    }
 
+    private async Task<bool> ShowUiDialogAsync(string title, string message, UiDialogType type)
+    {
+        UiDialogTcs?.TrySetCanceled();
+        UiDialog.Type = type;
+        UiDialog.Title = title;
+        UiDialog.Message = message;
+        UiDialog.Visible = true;
+        UiDialogTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await InvokeAsync(StateHasChanged);
         try
         {
-            await JS.InvokeVoidAsync("alert", message);
+            return await UiDialogTcs.Task;
         }
         catch
         {
-            // ignore dialog fallback errors
+            return false;
         }
     }
 
-    private async Task<bool> ConfirmGlobalRescheduleAsync(string message)
+    private async Task ResolveDialog(bool result)
     {
-        if (string.IsNullOrWhiteSpace(message))
+        UiDialog.Visible = false;
+        UiDialogTcs?.TrySetResult(result);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task OpenDebugInfoAsync()
+    {
+        DebugInfoText = BuildDebugInfoText();
+        ShowDebugInfoDialog = true;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task CloseDebugInfoDialog()
+    {
+        ShowDebugInfoDialog = false;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task CopyDebugInfoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(DebugInfoText))
         {
-            return true;
+            DebugInfoText = BuildDebugInfoText();
         }
 
         try
         {
-            return await JS.InvokeAsync<bool>("confirm", message);
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", DebugInfoText);
+            DragStatusMessage = "调试信息已复制到剪贴板。";
         }
-        catch
+        catch (Exception ex)
         {
-            return true;
+            DragWarningMessage = $"复制失败：{ex.Message}";
         }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string BuildDebugInfoText()
+    {
+        var lines = new List<string>
+        {
+            $"时间={DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+            $"计划={PlanId} | 资源={DisplayResources.Count} | 任务={DisplayTasks.Count} | 依赖={DisplayLinks.Count} | 分配={DisplayAssignments.Count} | 数据源={DataSourceModeDisplay}",
+            $"调试: 视图={CurrentViewTypeText} | 用户时间窗={(HasUserDefinedTimeWindow ? "是" : "否")} | APS任务={DebugApsTaskCount} | APS已排={DebugApsPlannedTaskCount} | RV任务={DebugResourceViewTaskCount} | RV资源={DebugResourceViewResourceCount} | Snapshot分配={DebugSnapshotAssignmentCount} | Snapshot资源={DebugSnapshotResourceCount} | 渲染任务={DisplayTasks.Count} | 渲染依赖={DisplayLinks.Count}",
+            $"时间窗: StartInput={(StartInput.HasValue ? StartInput.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")} | EndInput={(EndInput.HasValue ? EndInput.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")}",
+            $"图表范围: ChartStart={ChartStart:yyyy-MM-dd HH:mm:ss} | ChartEnd={ChartEnd:yyyy-MM-dd HH:mm:ss}",
+            $"缩放/性能: Virtualization={(EnableVirtualization ? "On" : "Off")} | StressTest={(StressTestEnabled ? "On" : "Off")} | CurrentTheme={(UseDarkTheme ? "Dark" : "Light")}"
+        };
+
+        if (SelectedTask != null)
+        {
+            lines.Add($"选中任务: TaskId={SelectedTask.TaskId} | Name={SelectedTask.TaskName} | Start={SelectedTask.StartDate:yyyy-MM-dd HH:mm:ss} | End={SelectedTask.EndDate:yyyy-MM-dd HH:mm:ss}");
+        }
+        else
+        {
+            lines.Add("选中任务: 无");
+        }
+
+        if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            lines.Add($"错误: {ErrorMessage}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(DragWarningMessage))
+        {
+            lines.Add($"警告: {DragWarningMessage}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(DebugResourceViewMetaPreview))
+        {
+            lines.Add("RV元数据:");
+            lines.Add(DebugResourceViewMetaPreview);
+        }
+
+        if (!string.IsNullOrWhiteSpace(DebugApsTaskPreview))
+        {
+            lines.Add("APS任务样本:");
+            lines.Add(DebugApsTaskPreview);
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string BuildApsTaskPreview(IReadOnlyList<GanttTaskDto>? tasks)
+    {
+        if (tasks == null || tasks.Count == 0)
+        {
+            return "无";
+        }
+
+        return string.Join(
+            Environment.NewLine,
+            tasks
+                .Take(8)
+                .Select(t =>
+                    $"TaskId={t.TaskId} | Order={t.OrderNo ?? "-"} | Op={t.OperationName ?? "-"} | Seq={t.Seq} | Machine={t.MachineCode ?? "-"} | PlannedStart={(t.PlannedStart.HasValue ? t.PlannedStart.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")} | PlannedEnd={(t.PlannedEnd.HasValue ? t.PlannedEnd.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")}"));
+    }
+
+    private static string BuildResourceViewMetaPreview(SyncfusionResourceViewResponseVm vm)
+    {
+        if (vm?.Meta == null)
+        {
+            return "无";
+        }
+
+        return $"PlanId={vm.Meta.PlanId} | Start={vm.Meta.Start:yyyy-MM-dd HH:mm:ss} | End={vm.Meta.End:yyyy-MM-dd HH:mm:ss} | PlanningStartTime={(vm.Meta.PlanningStartTime.HasValue ? vm.Meta.PlanningStartTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")} | GeneratedAt={vm.Meta.GeneratedAt:yyyy-MM-dd HH:mm:ss}";
     }
 
     private static string MapMoveError(ApsApiException ex)
@@ -1284,43 +2342,79 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         var code = ex.Error?.Code?.Trim().ToUpperInvariant();
         var message = ex.Error?.Message ?? ex.Message;
 
+        if (message.Contains("NewStart or DeltaMinutes is required", StringComparison.OrdinalIgnoreCase))
+        {
+            return "缺少移动参数，请提供新的开始时间或位移分钟数。";
+        }
+
+        if (message.Contains("NewEnd must be after NewStart", StringComparison.OrdinalIgnoreCase))
+        {
+            return "结束时间必须晚于开始时间。";
+        }
+
+        if (message.Contains("Task has no planned time", StringComparison.OrdinalIgnoreCase))
+        {
+            return "该任务尚未生成排程时间，暂时不能拖拽。";
+        }
+
+        if (message.Contains("Task duration is invalid", StringComparison.OrdinalIgnoreCase))
+        {
+            return "任务时长无效，请检查工序工时配置。";
+        }
+
         if (code == "CONFLICT")
         {
             if (message.Contains("locked task", StringComparison.OrdinalIgnoreCase))
             {
-                return "task is locked and cannot be moved.";
+                return "任务已锁定，无法移动。";
             }
             if (message.Contains("Outsourced task", StringComparison.OrdinalIgnoreCase))
             {
-                return "outsourced task cannot be moved.";
+                return "外协任务无法移动。";
+            }
+            if (message.Contains("Task has no machine assigned", StringComparison.OrdinalIgnoreCase))
+            {
+                return "该任务尚未分配机台，无法拖拽移动。";
+            }
+            if (message.Contains("overlaps previous task", StringComparison.OrdinalIgnoreCase))
+            {
+                return "新开始时间与该机台上一道已排任务重叠，请拖到更晚的空闲时段或改用自动重排。";
             }
             if (message.Contains("Machine conflict", StringComparison.OrdinalIgnoreCase))
             {
-                return "machine conflict with another task.";
+                return "这台机在该时间段已排满，请调整到空闲时段或启用连带推移。";
             }
             if (message.Contains("Person conflict", StringComparison.OrdinalIgnoreCase))
             {
-                return "person conflict with another task.";
+                return "该人员在该时间段已有任务，请调整时间。";
             }
             if (message.Contains("Tool conflict", StringComparison.OrdinalIgnoreCase))
             {
-                return "tool conflict with another task.";
+                return "该工装在该时间段已被占用，请调整时间。";
             }
             if (message.Contains("Mold conflict", StringComparison.OrdinalIgnoreCase))
             {
-                return "mold conflict with another task.";
+                return "该模具在该时间段已被占用，请调整时间。";
             }
             if (message.Contains("calendar or downtime", StringComparison.OrdinalIgnoreCase))
             {
-                return "outside machine calendar or inside downtime window.";
+                return "当前时间落在停机/不可作业时段，请选择可作业窗口。";
             }
             if (message.Contains("earliestStart", StringComparison.OrdinalIgnoreCase))
             {
-                return "earlier than earliest start/material-ready constraint.";
+                return "该任务早于最早可开工时间（可能物料未到位）。";
             }
             if (message.Contains("latestEnd", StringComparison.OrdinalIgnoreCase))
             {
-                return "later than latest end constraint.";
+                return "该任务会晚于最晚完工时间，请缩短或前移。";
+            }
+            if (message.Contains("Cannot push locked task", StringComparison.OrdinalIgnoreCase))
+            {
+                return "后续存在锁定任务，无法执行连带推移。";
+            }
+            if (message.Contains("Push violates latestEnd", StringComparison.OrdinalIgnoreCase))
+            {
+                return "连带推移后会超过后续任务最晚完工时间，无法移动。";
             }
         }
 
@@ -1349,6 +2443,57 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             // keep fallback height when JS timing is not ready
         }
     }
+    public async ValueTask DisposeAsync()
+    {
+        if (DotNetRef == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("ganttAsprova.unbindSync");
+        }
+        catch
+        {
+            // no-op
+        }
+
+        DotNetRef.Dispose();
+        DotNetRef = null;
+    }
 }
+
+<style>
+    .syncfusion-topbar-card {
+        margin-bottom: 0.25rem;
+    }
+
+    .syncfusion-topbar-card .form-control,
+    .syncfusion-topbar-card .form-select {
+        min-height: 2.2rem;
+        padding-top: 0.28rem;
+        padding-bottom: 0.28rem;
+    }
+
+    .syncfusion-top-label {
+        margin-bottom: 0.2rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .syncfusion-status-alert {
+        padding-top: 0.55rem;
+        padding-bottom: 0.55rem;
+    }
+
+    .syncfusion-summary-line {
+        margin-bottom: 0.1rem;
+    }
+</style>
+
+
+
+
 
 
