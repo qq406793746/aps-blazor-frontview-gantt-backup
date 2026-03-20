@@ -165,7 +165,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                                TimelineUnitSize="70"
                                UpdateTimescaleView="false"
                                WeekStartDay="1">
-            <GanttTopTierSettings Unit="TimelineViewMode.Day" Count="1" Format="M月d日"></GanttTopTierSettings>
+            <GanttTopTierSettings Unit="TimelineViewMode.Day" Count="1" Format="dd MMM"></GanttTopTierSettings>
             <GanttBottomTierSettings Unit="TimelineViewMode.Hour" Count="6" Format="HH:mm"></GanttBottomTierSettings>
         </GanttTimelineSettings>
         <GanttTaskFields Id="TaskId"
@@ -361,9 +361,9 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 0,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Month, Format = "yyyy年M月", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Month, Format = "MMM yyyy", Count = 1 },
             // Keep the widest view focused on month/week structure so multi-month plans stay readable.
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Week, Format = "M月d日", Count = 1 },
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Week, Format = "dd MMM", Count = 1 },
             TimelineUnitSize = 56,
             TimelineViewMode = TimelineViewMode.Month,
             WeekStartDay = 1,
@@ -373,8 +373,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 1,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Week, Format = "yyyy年M月d日", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Day, Format = "M/d", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Week, Format = "dd MMM yyyy", Count = 1 },
+            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Day, Format = "dd MMM", Count = 1 },
             TimelineUnitSize = 56,
             TimelineViewMode = TimelineViewMode.Week,
             WeekStartDay = 1,
@@ -384,7 +384,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 2,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "M月d日", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "dd MMM", Count = 1 },
             BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 6 },
             TimelineUnitSize = 70,
             TimelineViewMode = TimelineViewMode.Day,
@@ -395,7 +395,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 3,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "M月d日", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "dd MMM", Count = 1 },
             BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Hour, Format = "HH:mm", Count = 1 },
             TimelineUnitSize = 92,
             TimelineViewMode = TimelineViewMode.Day,
@@ -406,7 +406,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 4,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Hour, Format = "M月d日 HH:mm", Count = 1 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Hour, Format = "dd MMM HH:mm", Count = 1 },
             BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Minutes, Format = "mm", Count = 15 },
             TimelineUnitSize = 36,
             TimelineViewMode = TimelineViewMode.Hour,

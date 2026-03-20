@@ -1341,3 +1341,35 @@
     - 确认 `Level 3` 下可按小时精查多个短工序
     - 确认 `Level 4` 下底层时间轴变为 `15 分钟` 粒度，而不是仅到整点小时
   - 回归“适应窗口”，确认仍走页面既有安全收口，不因分钟级最细档重新触发异常路径
+
+## 2026-03-20 - Syncfusion 时间轴格式串运行时异常修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 在把 `/gantt/syncfusion` 的缩放档位调整为保守版 5 档后，页面运行时抛出：
+    - `System.FormatException: The provided top or bottom tier format is invalid`
+  - 触发点不是分钟级档位本身，而是 `TopTier / BottomTier.Format` 中使用了带中文字符的格式串，例如：
+    - `yyyy年M月`
+    - `M月d日`
+    - `M月d日 HH:mm`
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 保留分钟级最细档：
+    - `Level 4 = Hour + Minutes(Count=15)`
+  - 但将所有时间轴 `Format` 改回 Syncfusion 当前运行时可接受的安全格式：
+    - `MMM yyyy`
+    - `dd MMM`
+    - `dd MMM yyyy`
+    - `dd MMM HH:mm`
+    - `HH:mm`
+    - `mm`
+- 结论：
+  - 当前页面若继续使用 `CustomZoomLevels`，时间轴格式串不要直接写中文字符；
+  - 若后续要恢复中文化时间轴，应优先评估是否改用组件支持的 formatter/template 路径，而不是继续把中文直接塞进 `Format`。
+- 验证建议：
+  - 强刷 `/gantt/syncfusion`
+  - 连续点击“放大”直到最细档
+  - 确认页面不再抛 `The provided top or bottom tier format is invalid`
+  - 确认 `Level 4` 仍能显示 `15 分钟` 粒度，而不是回退到小时级
