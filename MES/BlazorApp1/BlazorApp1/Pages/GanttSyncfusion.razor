@@ -10,8 +10,8 @@
 @inject IJSRuntime JS
 
 <div class="@($"syncfusion-gantt-page {CurrentThemeClass}")">
-<div class="card p-2 syncfusion-topbar-card">
-    <div class="row g-2 gx-2 gy-1 align-items-end">
+<div class="card p-1 syncfusion-topbar-card">
+    <div class="row g-1 gx-2 gy-1 align-items-end">
         <div class="col-md-2">
             <label class="form-label syncfusion-top-label">计划ID</label>
             <input class="form-control" type="number" @bind="PlanId" />
@@ -25,18 +25,18 @@
             <input class="form-control" type="datetime-local" @bind="EndInput" @bind:after="OnTimeWindowInputChangedAsync" />
         </div>
         <div class="col-md-4 d-flex flex-wrap gap-2">
-            <button class="btn btn-sm btn-primary" @onclick="() => LoadDataAsync()" disabled="@Loading">刷新</button>
-            <button class="btn btn-sm btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@Loading">最新计划</button>
-            <button class="btn btn-sm btn-outline-info" @onclick="OpenDebugInfoAsync" disabled="@Loading">调试信息</button>
-            <button class="btn btn-sm btn-success" @onclick="RunAutoScheduleAsync" disabled="@(Loading || PlanId <= 0)">自动排程</button>
-            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="in" @onclick="ZoomInAsync" disabled="@Loading">放大</button>
-            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="out" @onclick="ZoomOutAsync" disabled="@Loading">缩小</button>
-            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="fit" @onclick="ZoomToFitAsync" disabled="@Loading">适应窗口</button>
-            <button class="btn btn-sm @(UseDarkTheme ? "btn-outline-secondary" : "btn-primary")" @onclick="() => SetThemeAsync(false)" disabled="@Loading">工业浅色</button>
-            <button class="btn btn-sm @(UseDarkTheme ? "btn-primary" : "btn-outline-secondary")" @onclick="() => SetThemeAsync(true)" disabled="@Loading">工业深色</button>
+            <button class="btn btn-sm btn-primary" @onclick="() => LoadDataAsync()" disabled="@(Loading || IsZooming)">刷新</button>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="LoadLatestPlanAsync" disabled="@(Loading || IsZooming)">最新计划</button>
+            <button class="btn btn-sm btn-outline-info" @onclick="OpenDebugInfoAsync" disabled="@(Loading || IsZooming)">调试信息</button>
+            <button class="btn btn-sm btn-success" @onclick="RunAutoScheduleAsync" disabled="@(Loading || IsZooming || PlanId <= 0)">自动排程</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="in" @onclick="ZoomInAsync" disabled="@(Loading || IsZooming)">放大</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="out" @onclick="ZoomOutAsync" disabled="@(Loading || IsZooming)">缩小</button>
+            <button class="btn btn-sm btn-outline-secondary" data-zoom-cmd="fit" @onclick="ZoomToFitAsync" disabled="@(Loading || IsZooming)">适应窗口</button>
+            <button class="btn btn-sm @(UseDarkTheme ? "btn-outline-secondary" : "btn-primary")" @onclick="() => SetThemeAsync(false)" disabled="@(Loading || IsZooming)">工业浅色</button>
+            <button class="btn btn-sm @(UseDarkTheme ? "btn-primary" : "btn-outline-secondary")" @onclick="() => SetThemeAsync(true)" disabled="@(Loading || IsZooming)">工业深色</button>
         </div>
     </div>
-    <div class="row g-2 gx-2 gy-1 align-items-end mt-1">
+    <div class="row g-1 gx-2 gy-1 align-items-end mt-1">
         <div class="col-md-4">
             <label class="form-label syncfusion-top-label">视图类型</label>
             <select class="form-select" @bind="CurrentViewTypeText" @bind:after="OnViewTypeChanged">
@@ -52,10 +52,15 @@
             <label class="form-label d-block syncfusion-top-label">允许连带推移</label>
             <input class="form-check-input" type="checkbox" @bind="DragAllowPush" />
         </div>
+        <div class="col-md-4">
+            <div class="syncfusion-inline-summary">
+                计划=@PlanId | 资源=@DisplayResources.Count | 任务=@DisplayTasks.Count | 依赖=@DisplayLinks.Count | 分配=@DisplayAssignments.Count | 数据源=@DataSourceModeDisplay
+            </div>
+        </div>
     </div>
     @if (ShowAdvancedOptions)
     {
-        <div class="row g-2 gx-2 gy-1 align-items-end mt-1">
+        <div class="row g-1 gx-2 gy-1 align-items-end mt-1">
             <div class="col-md-2">
                 <label class="form-label d-block syncfusion-top-label">压测模式</label>
                 <input class="form-check-input" type="checkbox" @bind="StressTestEnabled" />
@@ -87,11 +92,6 @@ else if (!string.IsNullOrWhiteSpace(DragStatusMessage))
 else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 {
     <div class="alert alert-warning mt-1 mb-1 syncfusion-status-alert">@DragWarningMessage</div>
-}
-
-@if (!string.IsNullOrWhiteSpace(RescheduleDiffMessage))
-{
-    <div class="alert alert-info mt-1 mb-1 syncfusion-status-alert">@RescheduleDiffMessage</div>
 }
 
 @if (UiDialog.Visible)
@@ -129,11 +129,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     </div>
 }
 
-<div class="text-muted mt-1 small syncfusion-summary-line">
-    计划=@PlanId | 资源=@DisplayResources.Count | 任务=@DisplayTasks.Count | 依赖=@DisplayLinks.Count | 分配=@DisplayAssignments.Count | 数据源=@DataSourceModeDisplay
-</div>
-
-<div class="row g-2 mt-1 position-relative">
+<div class="row g-1 mt-1 position-relative">
     <div class="col-12">
         <div class="syncfusion-gantt-wrap" @ref="GanttContainerRef">
             <div class="syncfusion-legend">
@@ -147,6 +143,13 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                     自动重排变化
                 </span>
             </div>
+            @if (IsZooming)
+            {
+                <div class="syncfusion-zoom-overlay" aria-live="polite" aria-busy="true">
+                    <div class="syncfusion-zoom-spinner"></div>
+                    <div class="syncfusion-zoom-text">正在缩放并定位任务...</div>
+                </div>
+            }
             <SfGantt @ref="GanttRef"
                      TValue="GanttTaskVm"
                      DataSource="@DisplayTasks"
@@ -196,7 +199,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             <TaskbarTemplate>
                 @if (context is GanttTaskVm task)
                 {
-                    <div class="e-gantt-child-taskbar e-gantt-child-taskbar-inner-div sync-taskbar-shell" tabindex="-1">
+                    <div class="@BuildTaskbarShellClass(task)" tabindex="-1" data-task-id="@task.TaskId">
                         <div class="@BuildTaskbarTemplateClass(task)">
                             <span class="e-task-label sync-taskbar-label">@BuildTaskbarLabel(task)</span>
                         </div>
@@ -267,6 +270,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private const double RightPaddingPixels = 128d;
 
     private bool Loading;
+    private bool IsZooming;
     private string? ErrorMessage;
 
     private long PlanId;
@@ -338,8 +342,13 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     private int DebugApsPlannedTaskCount;
     private bool ShowDebugInfoDialog;
     private string DebugInfoText = string.Empty;
+    private string ZoomFocusDiagnostics = "未读取";
     private string DebugApsTaskPreview = string.Empty;
     private string DebugResourceViewMetaPreview = string.Empty;
+    private const int MinZoomLevel = 0;
+    private const int DefaultZoomLevel = 2;
+    private const int MaxZoomLevel = 4;
+    private int CurrentZoomLevel = DefaultZoomLevel;
 
     private sealed record TaskVisualSnapshot(DateTime StartDate, DateTime EndDate, string ResourceSignature);
 
@@ -406,10 +415,15 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         new()
         {
             Level = 4,
-            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Hour, Format = "dd MMM HH:mm", Count = 1 },
-            BottomTier = new GanttBottomTierSettings { Unit = TimelineViewMode.Minutes, Format = "mm", Count = 15 },
+            TopTier = new GanttTopTierSettings { Unit = TimelineViewMode.Day, Format = "dd MMM yyyy", Count = 1 },
+            BottomTier = new GanttBottomTierSettings
+            {
+                Unit = TimelineViewMode.Minutes,
+                Format = "mm",
+                Count = 15
+            },
             TimelineUnitSize = 36,
-            TimelineViewMode = TimelineViewMode.Hour,
+            TimelineViewMode = TimelineViewMode.Day,
             WeekStartDay = 1,
             UpdateTimescaleView = true,
             ShowTooltip = true
@@ -730,24 +744,43 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     }
     private async Task ZoomInAsync()
     {
-        if (GanttRef != null)
+        if (GanttRef == null || IsZooming)
+        {
+            return;
+        }
+
+        await SyncCurrentZoomLevelFromControlAsync();
+        if (CurrentZoomLevel >= MaxZoomLevel)
+        {
+            return;
+        }
+
+        await ExecuteZoomWorkflowAsync(async () =>
         {
             await GanttRef.ZoomInAsync();
-            await CenterSelectedTaskLightAsync();
-        }
+        });
     }
 
     private async Task ZoomOutAsync()
     {
-        if (GanttRef != null)
+        if (GanttRef == null || IsZooming)
+        {
+            return;
+        }
+
+        await ExecuteZoomWorkflowAsync(async () =>
         {
             await GanttRef.ZoomOutAsync();
-            await CenterSelectedTaskLightAsync();
-        }
+        });
     }
 
     private async Task ZoomToFitAsync()
     {
+        if (IsZooming)
+        {
+            return;
+        }
+
         if (DisplayTasks.Count == 0)
         {
             DragWarningMessage = "当前没有可显示的任务，无法执行适应窗口。";
@@ -760,13 +793,12 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             return;
         }
 
-        try
+        await ExecuteZoomWorkflowAsync(async () =>
         {
             ErrorMessage = null;
             DragWarningMessage = null;
             SetChartRange(DisplayTasks);
             await InvokeAsync(StateHasChanged);
-            await NotifyResizeStableAsync();
 
             for (var i = 0; i < 6; i++)
             {
@@ -786,17 +818,64 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 }
 
                 await GanttRef.ZoomOutAsync();
-                await NotifyResizeStableAsync();
-                await Task.Delay(60);
+                await SyncCurrentZoomLevelFromControlAsync();
             }
+        }, errorTitle: "适应窗口");
+    }
 
-            await CenterSelectedTaskLightAsync();
+    private async Task ExecuteZoomWorkflowAsync(Func<Task> zoomAction, string errorTitle = "缩放")
+    {
+        if (IsZooming)
+        {
+            return;
+        }
+
+        IsZooming = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await zoomAction();
+            await WaitForZoomLayoutStabilizeAsync();
+            await SyncCurrentZoomLevelFromControlAsync();
+            await RefocusSelectedTaskAfterZoomAsync();
+            await WaitForZoomLayoutStabilizeAsync();
+            await SyncCurrentZoomLevelFromControlAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "ZoomToFit failed.");
-            ErrorMessage = $"适应窗口失败：{ex.Message}";
+            Logger.LogWarning(ex, "{ZoomTitle} failed.", errorTitle);
+            ErrorMessage = $"{errorTitle}失败：{ex.Message}";
             await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            IsZooming = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task WaitForZoomLayoutStabilizeAsync()
+    {
+        await NotifyResizeStableAsync();
+        await Task.Delay(120);
+        await NotifyResizeStableAsync();
+        await Task.Delay(80);
+    }
+
+    private async Task SyncCurrentZoomLevelFromControlAsync()
+    {
+        try
+        {
+            var currentLevel = await JS.InvokeAsync<int>("ganttAsprova.getCurrentZoomLevel");
+            if (currentLevel >= MinZoomLevel && currentLevel <= MaxZoomLevel)
+            {
+                CurrentZoomLevel = currentLevel;
+            }
+        }
+        catch
+        {
+            // Keep local level best-effort only.
         }
     }
 
@@ -814,11 +893,66 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 "ganttAsprova.centerSelectedTaskIfNeeded",
                 task.TaskId,
                 task.StartDate,
-                task.EndDate);
+                task.EndDate,
+                ChartStart,
+                ChartEnd);
         }
         catch
         {
             // Keep zoom path native-fast even if lightweight focus helper is unavailable.
+        }
+    }
+
+    private async Task RefocusSelectedTaskAfterZoomAsync()
+    {
+        var task = SelectedTask;
+        if (task == null || task.TaskId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            await NotifyResizeStableAsync();
+            await Task.Delay(60);
+
+            var rowFocused = false;
+            for (var attempt = 0; attempt < 2 && !rowFocused; attempt++)
+            {
+                rowFocused = await RefocusSelectedTaskByGanttApiAsync(task.TaskId);
+                if (!rowFocused)
+                {
+                    continue;
+                }
+
+                await Task.Delay(80);
+                await NotifyResizeStableAsync();
+            }
+
+            var horizontallyFocused = false;
+            try
+            {
+                horizontallyFocused = await JS.InvokeAsync<bool>(
+                    "ganttAsprova.focusTaskByTimeCoordinates",
+                    task.TaskId,
+                    task.StartDate,
+                    task.EndDate,
+                    ChartStart,
+                    ChartEnd);
+            }
+            catch
+            {
+                horizontallyFocused = false;
+            }
+
+            if (!horizontallyFocused)
+            {
+                await JS.InvokeAsync<bool>("ganttAsprova.refocusTask", task.TaskId, task.StartDate, task.EndDate, ChartStart, ChartEnd);
+            }
+        }
+        catch
+        {
+            await CenterSelectedTaskLightAsync();
         }
     }
 
@@ -846,7 +980,17 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         {
             try
             {
-                focused = await JS.InvokeAsync<bool>("ganttAsprova.refocusTask", task.TaskId, task.StartDate, task.EndDate);
+                focused = await JS.InvokeAsync<bool>(
+                    "ganttAsprova.focusTaskByTimeCoordinates",
+                    task.TaskId,
+                    task.StartDate,
+                    task.EndDate,
+                    ChartStart,
+                    ChartEnd);
+                if (!focused)
+                {
+                    focused = await JS.InvokeAsync<bool>("ganttAsprova.refocusTask", task.TaskId, task.StartDate, task.EndDate, ChartStart, ChartEnd);
+                }
             }
             catch
             {
@@ -957,9 +1101,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             await GanttRef.SelectRowAsync(rowIndex);
             await GanttRef.ScrollIntoViewAsync(-1, rowIndex);
         }
-
-        await GanttRef.ScrollToTaskbarAsync(taskId);
-        return true;
+        
+        return rowIndex >= 0;
     }
 
     private static Dictionary<string, int> BuildResourceIdMap(ResourceGanttSnapshot snapshot)
@@ -1179,6 +1322,14 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         return string.IsNullOrWhiteSpace(cssClass)
             ? "sync-taskbar-inner"
             : $"sync-taskbar-inner {cssClass}";
+    }
+
+    private string BuildTaskbarShellClass(GanttTaskVm task)
+    {
+        var cssClass = BuildTaskCssClass(task.TaskId, task.IsLocked);
+        return string.IsNullOrWhiteSpace(cssClass)
+            ? "e-gantt-child-taskbar e-gantt-child-taskbar-inner-div sync-taskbar-shell"
+            : $"e-gantt-child-taskbar e-gantt-child-taskbar-inner-div sync-taskbar-shell {cssClass}";
     }
 
     private static string BuildTaskbarLabel(GanttTaskVm task)
@@ -1426,6 +1577,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
     private void SetChartRange(IReadOnlyList<GanttTaskVm> tasks)
     {
+        CurrentZoomLevel = DefaultZoomLevel;
+
         if (tasks.Count == 0)
         {
             var start = StartInput ?? DateTime.Today.AddDays(-1);
@@ -1798,9 +1951,6 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                         ? $"任务 {result.TaskId} 已移动。当前仅更新该任务；如需系统整体重排，请点击上方“自动排程”。"
                         : $"任务 {result.TaskId} 已移动。影响任务ID预览：[{impactedPreview}{impactedMore}]；如需查看系统整体重排结果，请点击上方“自动排程”。";
                     await InvokeAsync(StateHasChanged);
-                    await Task.Delay(80);
-                    await RefocusSelectedTaskAsync();
-                    await RefreshSelectedTaskServerTruthAsync(args.Data.TaskId);
                     return;
                 }
 
@@ -1868,6 +2018,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         var focusTaskId = SelectedTask?.TaskId;
         var beforeAutoScheduleSnapshot = CaptureTaskSnapshot(DisplayTasks);
         LastAutoScheduleAffectedTaskCount = null;
+        string? autoScheduleDialogMessage = null;
 
         try
         {
@@ -1893,6 +2044,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
                 preserveViewport: true,
                 focusTaskId: focusTaskId);
             ApplyRescheduleDiffMarkers(beforeAutoScheduleSnapshot, DisplayTasks, movedTaskId: 0);
+            autoScheduleDialogMessage = RescheduleDiffMessage;
+            RescheduleDiffMessage = null;
             await RefitChartRangeToViewportAsync();
             await NotifyResizeStableAsync();
             await InvokeAsync(StateHasChanged);
@@ -1911,6 +2064,11 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         {
             Loading = false;
             await InvokeAsync(StateHasChanged);
+        }
+
+        if (!string.IsNullOrWhiteSpace(autoScheduleDialogMessage))
+        {
+            await ShowUiDialogAsync("自动排程结果", autoScheduleDialogMessage, UiDialogType.Message);
         }
     }
 
@@ -2233,11 +2391,12 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         await InvokeAsync(StateHasChanged);
     }
 
-    private Task OpenDebugInfoAsync()
+    private async Task OpenDebugInfoAsync()
     {
+        await RefreshZoomFocusDiagnosticsAsync();
         DebugInfoText = BuildDebugInfoText();
         ShowDebugInfoDialog = true;
-        return InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task CloseDebugInfoDialog()
@@ -2250,6 +2409,7 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
     {
         if (string.IsNullOrWhiteSpace(DebugInfoText))
         {
+            await RefreshZoomFocusDiagnosticsAsync();
             DebugInfoText = BuildDebugInfoText();
         }
 
@@ -2275,7 +2435,8 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
             $"调试: 视图={CurrentViewTypeText} | 用户时间窗={(HasUserDefinedTimeWindow ? "是" : "否")} | APS任务={DebugApsTaskCount} | APS已排={DebugApsPlannedTaskCount} | RV任务={DebugResourceViewTaskCount} | RV资源={DebugResourceViewResourceCount} | Snapshot分配={DebugSnapshotAssignmentCount} | Snapshot资源={DebugSnapshotResourceCount} | 渲染任务={DisplayTasks.Count} | 渲染依赖={DisplayLinks.Count}",
             $"时间窗: StartInput={(StartInput.HasValue ? StartInput.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")} | EndInput={(EndInput.HasValue ? EndInput.Value.ToString("yyyy-MM-dd HH:mm:ss") : "-")}",
             $"图表范围: ChartStart={ChartStart:yyyy-MM-dd HH:mm:ss} | ChartEnd={ChartEnd:yyyy-MM-dd HH:mm:ss}",
-            $"缩放/性能: Virtualization={(EnableVirtualization ? "On" : "Off")} | StressTest={(StressTestEnabled ? "On" : "Off")} | CurrentTheme={(UseDarkTheme ? "Dark" : "Light")}"
+            $"缩放/性能: Virtualization={(EnableVirtualization ? "On" : "Off")} | StressTest={(StressTestEnabled ? "On" : "Off")} | CurrentTheme={(UseDarkTheme ? "Dark" : "Light")}",
+            $"缩放定位诊断: {ZoomFocusDiagnostics}"
         };
 
         if (SelectedTask != null)
@@ -2310,6 +2471,25 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         }
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private async Task RefreshZoomFocusDiagnosticsAsync()
+    {
+        try
+        {
+            var taskId = SelectedTask?.TaskId ?? 0;
+            var startAt = SelectedTask?.StartDate;
+            var endAt = SelectedTask?.EndDate;
+            ZoomFocusDiagnostics = await JS.InvokeAsync<string>(
+                "ganttAsprova.getFocusDiagnostics",
+                taskId,
+                startAt,
+                endAt);
+        }
+        catch (Exception ex)
+        {
+            ZoomFocusDiagnostics = $"读取失败: {ex.Message}";
+        }
     }
 
     private static string BuildApsTaskPreview(IReadOnlyList<GanttTaskDto>? tasks)
@@ -2466,20 +2646,30 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
 
 <style>
     .syncfusion-topbar-card {
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.15rem;
     }
 
     .syncfusion-topbar-card .form-control,
     .syncfusion-topbar-card .form-select {
-        min-height: 2.2rem;
-        padding-top: 0.28rem;
-        padding-bottom: 0.28rem;
+        min-height: 2rem;
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
     }
 
     .syncfusion-top-label {
-        margin-bottom: 0.2rem;
-        font-size: 0.82rem;
+        margin-bottom: 0.12rem;
+        font-size: 0.78rem;
         font-weight: 600;
+        line-height: 1.1;
+    }
+
+    .syncfusion-topbar-card .btn.btn-sm {
+        padding-top: 0.22rem;
+        padding-bottom: 0.22rem;
+    }
+
+    .syncfusion-topbar-card .form-check-input {
+        margin-top: 0.1rem;
     }
 
     .syncfusion-status-alert {
@@ -2487,8 +2677,17 @@ else if (!string.IsNullOrWhiteSpace(DragWarningMessage))
         padding-bottom: 0.55rem;
     }
 
-    .syncfusion-summary-line {
-        margin-bottom: 0.1rem;
+    .syncfusion-inline-summary {
+        min-height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        text-align: right;
+        font-size: 0.78rem;
+        color: #6b7280;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
 

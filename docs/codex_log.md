@@ -1373,3 +1373,274 @@
   - 连续点击“放大”直到最细档
   - 确认页面不再抛 `The provided top or bottom tier format is invalid`
   - 确认 `Level 4` 仍能显示 `15 分钟` 粒度，而不是回退到小时级
+
+## 2026-03-20 - Syncfusion 首次拖动后第二次拖动失灵最小修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 页面出现“第一次拖动成功后，第二次拖动不再生效”的现象；
+  - 代码排查后，`IsApplyingTaskbarMove` 在 `finally` 中能正常复位，不像是简单状态锁死；
+  - 最可疑链路出现在首次拖动成功且仅影响当前任务时的本地快路径：
+    - 先局部更新任务
+    - 再立即 `RefocusSelectedTaskAsync()`
+    - 再立即 `RefreshSelectedTaskServerTruthAsync(...)`
+  - 这组动作会在同一控件实例上二次修改当前任务对象，容易扰乱 Syncfusion 后续编辑态。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 在 `OnTaskbarEdited` 成功且命中 `TryApplyLocalMoveResult(...)` 的分支里：
+    - 保留本地任务更新时间与状态提示；
+    - 去掉紧随其后的：
+      - `Task.Delay(80)`
+      - `RefocusSelectedTaskAsync()`
+      - `RefreshSelectedTaskServerTruthAsync(...)`
+  - 目的不是改变保存契约，而是避免一次成功拖动后立刻对同一任务再做异步聚焦和真值回写。
+- 目的：
+  - 尽量恢复任务条连续多次拖动能力；
+  - 把改动限制在首次拖动成功后的前端快路径，不影响后端保存接口。
+- 结果：
+  - 用户已确认页面上“第一次拖动后第二次不能拖”的问题已解除；
+  - 当前结论是：首次拖动成功后的即时 `RefocusSelectedTaskAsync + RefreshSelectedTaskServerTruthAsync` 确实会干扰后续拖拽编辑态，移除后连续拖动恢复正常。
+
+## 2026-03-20 - Syncfusion 自动重排任务条颜色与图例不一致修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 用户反馈自动排程/自动重排后的任务条仍显示为蓝色，与右上角图例中“手工移动”“自动重排变化”的橙色/绿色不一致；
+  - 排查发现 `sync-taskbar-moved` / `sync-taskbar-rescheduled` 只挂在内层 `sync-taskbar-inner`；
+  - 外层 Syncfusion 任务条壳 `e-gantt-child-taskbar` 仍保持默认蓝色视觉，导致最终显示与图例不一致。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/css/gantt-syncfusion.css`
+  - `docs/codex_log.md`
+- 处理：
+  - 在任务条模板新增 `BuildTaskbarShellClass(...)`，把 `sync-taskbar-moved` / `sync-taskbar-rescheduled` / `sync-taskbar-locked` 同时挂到外层 `sync-taskbar-shell`；
+  - 在 `gantt-syncfusion.css` 中为外层 `e-gantt-child-taskbar.sync-taskbar-shell` 增加对应的 moved / rescheduled / moved+rescheduled 背景与边框样式；
+  - 默认情况下显式清掉外层壳的透明度/阴影干扰，避免外层继续露出蓝色。
+- 目的：
+  - 让自动排程后的任务条主视觉颜色与图例一致；
+  - 保持现有任务条模板、拖拽链和差异高亮逻辑不变，只修复颜色挂载层级错误。
+
+## 2026-03-20 - 自动重排变化任务ID 改为排程完成后弹框（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 原页面会在顶部甘特图上方额外占一行显示 `自动重排变化任务ID：[...]`；
+  - 用户希望改成自动排程完成后弹出提示框，点击确认后消失，不再长期占位。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 移除页面顶部对 `RescheduleDiffMessage` 的单独提示框渲染；
+  - 在 `RunAutoScheduleAsync` 中保留差异统计逻辑，但在自动排程完成、重载数据、套用差异标记后，把这段消息改为通过现有 `UiDialog` 弹出；
+  - 用户点击“知道了”后弹框消失，页面不再保留该提示占位。
+- 目的：
+  - 释放顶部垂直空间，让甘特图区保持更紧凑；
+  - 保留自动排程后“哪些任务发生变化”的反馈，只改变呈现方式，不改排程逻辑。
+
+## 2026-03-20 - 缩放后选中任务优先保持在视野内（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 当前缩放后会调用 `centerSelectedTaskIfNeeded`；
+  - 原逻辑在选中任务接近边缘或偏离中心较多时，容易直接把任务重新拉到中间，用户体感偏“跳”；
+  - 用户要求是：缩放后任务条能留在缩放后的视野里，不需要再手动拉滚动条寻找，同时页面不要明显卡顿。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+  - `docs/codex_log.md`
+- 处理：
+  - 把 `centerSelectedTaskIfNeeded` 的优先级改成：
+    - 先判断选中任务是否已在可视区安全边距内；
+    - 若只是部分出界或贴边，则只做“最小滚动量”的横向/纵向修正；
+    - 只有最小修正后仍无法保证可见时，才退回原来的较强定位逻辑。
+- 追加兜底：
+  - 若轻量修正后任务条仍未进入视野，则调用现有 `refocusTask(...)` 做一次强制横向定位，避免出现“行已选中但任务条仍不在甘特图视野内”的情况。
+- 进一步收口：
+  - 用户实测仍存在“行高亮但任务条未回到视野”的场景；
+  - 因此把 `ZoomIn / ZoomOut / ZoomToFit` 的收尾统一改为：缩放后先等待 `NotifyResizeStableAsync`，再固定调用一次 `refocusTask(...)`；
+  - 目标是不再依赖轻量策略能否识别到任务条，而是保证缩放按钮链本身就把选中任务重新拉回可见区域。
+- 根因补充：
+  - 继续排查后发现这类失效更像是 Syncfusion 当前页面横向滚动不止一个容器；
+  - 旧实现多数情况下只写单个 `content.scrollLeft/scrollTop`，可能导致左侧选中行已同步，但真正承载时间轴的容器没有一起滚动。
+- 追加处理：
+  - 新增 `getChartScrollers()` 与 `setChartScrollPosition(...)`；
+  - 将 `scrollTimelineToStart / restoreScroll / refocusTask / centerSelectedTaskIfNeeded / notifyResizeDeep` 中涉及滚动的位置统一改为同步写所有候选图表滚动容器。
+- 临时诊断：
+  - 已把缩放定位诊断接入页面“调试信息”弹框；
+  - 现在可直接查看：
+    - 所有候选滚动容器的 `scrollLeft / scrollWidth / clientWidth`
+    - `timelineStart / timelineEnd / pxPerDay`
+    - 当前选中任务的 `TaskId / Start / End`
+    - 当前是否存在 `.e-taskbar-selected` 对应的任务条 DOM 以及其屏幕位置
+- 根据诊断得到的结论：
+  - 在失败现场，`timelineStart=-`、`pxPerDay=0`、`selectedBar=no`；
+  - 说明缩放后不能再依赖 `.e-taskbar-selected` 或时间轴度量来做横向定位。
+- 追加修复：
+  - 改为 `TaskId -> flatData rowIndex -> .e-chart-row[rowIndex] -> 行内任务条 DOM` 这条链；
+  - `refocusTask(...)` 与 `centerSelectedTaskIfNeeded(...)` 现在优先按对应行直接找任务条，再按该任务条的 `offsetLeft / width` 做横向滚动；
+  - 只有按行找条失败时，才继续退回原来的时间轴度量和 `scrollToDate(...)` 兜底。
+- 最后兜底：
+  - 继续实测后发现失败现场仍可能同时丢失“任务条 DOM”和“时间轴度量”；
+  - 因此进一步把页面级 `ChartStart / ChartEnd` 传入 JS；
+  - 新增按当前图表时间窗比例计算 `scrollLeft` 的兜底：即使 `timelineStart=-`、`pxPerDay=0`，也能按任务时间中点相对 `ChartStart / ChartEnd` 的比例把横向滚动拉到对应位置。
+- 用户继续反馈：
+  - 当前已能把“某些任务条”带进视野，但还不能稳定命中“当前选中任务条”。
+- 继续收口：
+  - `refocusTask(...)` 改成两段式：
+    - 先纵向把目标行滚进可渲染区；
+    - 等待一帧让虚拟化行和任务条真正渲染；
+    - 再按该行中的任务条 DOM `offsetLeft / width` 做精确横向定位。
+- 新增精确命中修复：
+  - 实测发现前一版虽然能把“某个任务条”带进视野，但仍可能不是“当前选中任务条”；
+  - 根因是 JS 仍在用“目标行中的第一个任务条 DOM”做横向定位，在虚拟化/行内 DOM 结构下可能命中错误元素；
+  - 现已给前端任务条模板增加 `data-task-id`，并将 `refocusTask(...) / centerSelectedTaskIfNeeded(...)` 改为优先按 `TaskId` 精确查询 `.sync-taskbar-shell[data-task-id="..."]`；
+  - 只有精确条形尚未渲染时，才退回行内查询与其他兜底路径。
+- 再次诊断后的修复：
+  - 用户现场诊断显示三个候选滚动容器横向位置已经发生变化，但 `scrollLeft` 分别落在 `16759 / 1809 / 3495`，未保持同一比例；
+  - 说明“给所有候选容器写同一个绝对 `scrollLeft`”本身会把不同滚动宽度的容器写散，导致时间轴和任务层横向不同步；
+- 现已将 `setChartScrollPosition(left, top)` 改为：按“最大可滚动宽度”计算目标比例，再把该比例映射到每个容器各自的可滚动范围；
+- 目标是让不同宽度的图表容器保持横向同步，而不是继续把同一个像素值硬写给所有容器。
+- 最新现场结论：
+  - 调试信息已出现 `exactBar=yes`，说明当前任务条本体已经能被 `TaskId` 精确命中；
+  - 剩余问题从“命中错误任务条”收缩为“缩放重绘过程中的偶发时序抖动”。
+- 追加收口：
+  - `refocusTask(...)` 现在不会在“刚写完滚动”后立刻返回；
+  - 改为再等若干帧重新抓取 `exactBar`，并确认其真实进入可视区域后才判定定位成功；
+  - 目标是减少“多数时候正确，但放大缩小多次后偶发一次没跟上”的情况。
+- 目的：
+  - 缩放后优先保证选中任务仍在视野里；
+  - 减少每次缩放都强制居中的跳动感；
+  - 保持 JS 侧轻量处理，不引入高频前后端联动。
+- 最小交互收口：
+  - 新增 `isAtMaxZoomLevel()`，按当前时间轴设置判断是否已处于最细档 `Level 4 = Hour + Minutes(15)`；
+  - 若当前已经是最细档，再点击“放大”时只执行控件原生 `ZoomInAsync()`，不再触发后续选中任务重定位；
+  - 目的：避免用户在最细档反复点击“放大”时出现无意义的二次定位和视图抖动。
+- 进一步修正：
+  - 用户反馈“最细档再点放大”时时间轴仍会动，说明运行时读取时间轴设置来判断最大档并不稳定；
+  - 已改为前端页面自行维护 `CurrentZoomLevel`，默认档为 `Level 2`，`ZoomIn / ZoomOut / ZoomToFit` 都同步更新该值；
+  - 现在只要 `CurrentZoomLevel >= 4`，点击“放大”会直接返回，真正做到“完全不做任何操作”。
+- 缩放定位继续收口：
+  - 用户现场诊断显示已能精确命中 `exactBar=yes`，但存在 `left=-2445,right=15,width=2460` 这类“只露出极窄边缘”的情况；
+  - 根因不是没找到任务条，而是 JS 把“任务条只露出一点点”误判为已进入视野；
+  - 现已收紧 `isTaskbarInViewport(...)` 的成功条件：除上下边距外，要求任务条可见宽度至少达到约 60%，且任务条中心点落入当前视口；
+  - 目的：避免“仅剩 10~20px 挂在屏幕边缘”时停止继续校正，导致用户体感上仍像“定位不到任务条”。
+- 缩小时继续发现：
+  - 用户现场诊断出现 `exactBar=yes,left=11229,right=12800`，但 `e-chart-scroll-container.left=8126`、`e-chart-rows-container.left=1`；
+  - 说明缩放后的官方 API 主要滚动了主时间轴容器，而承载任务条的 `e-chart-rows-container` 没有同步横向位置；
+  - 现已新增 `syncHorizontalScrollersFromPrimary(...)`，在官方 API 定位后和微调滚动后，都用主容器当前比例回写其他横向容器；
+  - 目的：避免“主时间轴已滚到目标附近，但任务条层仍停在旧位置”，特别是缩小时再次出现“时间轴在目标附近、任务条仍不在视野里”的现象。
+- 再次缩小时现场诊断：
+  - 用户继续提供 `exactBar=yes,left=-3013,right=-553` 的失败现场，说明任务条这次不是停在右侧未跟上，而是被横向微调推过头，整个跑到视口左侧；
+  - 结合 `e-chart-scroll-container.left=25619`、`e-chart-rows-container.left=7528` 判断，问题更接近“把同一个 `deltaX` 同时写入多个宽度不同的横向容器”导致主容器和任务条层被一起推歪；
+  - 现已将 `nudgeHorizontalScrollersByDelta(...)` 改为只修改主图表容器，再按主容器当前滚动比例同步其它横向容器；
+  - 目的：避免缩小时的横向微调把主时间轴 overscroll 到错误位置，导致任务条整体跑到视口左侧。
+- 用户要求接受“慢一点但更稳”，因此缩放链已切到更重但更稳的执行方式：
+  - 页面新增 `IsZooming` 状态，在甘特图区内显示轻量圆圈 loading；
+  - `放大 / 缩小 / 适应窗口` 在执行期间串行化，按钮临时禁用，不再接受连续重入；
+  - 每次缩放后先等待控件布局稳定（`NotifyResizeStableAsync + 延时`），再统一执行选中任务定位；
+  - 目标是放弃高时序敏感的“缩放后立刻抢定位”，以更慢但更稳的方式减少缩放后偶发丢失任务条的问题，同时保持鼠标可移动、不冻结整个页面。
+- 用户继续提供失败现场截图：
+  - 诊断显示 `exactBar=yes,left=5,right=35,width=31`，但截图中的真实图表区左边界远不在该位置；
+  - 这说明当前 `TaskId -> DOM` 命中并非总是拿到“当前图表区内的真实任务条”，而可能拿到虚拟化/重绘过程中遗留的同 `TaskId` 其它节点；
+  - 现已把 `getTaskbarElementByTaskId(...)` 从单纯 `querySelector` 改为 `querySelectorAll + 候选评分`：优先选择最接近当前图表可视区中心、与当前主图表容器最接近的那一个任务条节点；
+  - 目的：避免在同一 `TaskId` 存在多份 DOM 候选时，误用错误节点做定位，导致诊断显示“已找到任务条”，但实际用户看到的并不是当前视图中的那一根。
+- 继续按“根治”方向调整：
+  - 用户确认接受“慢一点但更稳”，并提出直接保留任务条时间轴坐标的思路；
+  - 现已将缩放后的横向定位主链改为“时间坐标驱动”：官方 API 只保留 `SelectRowAsync + ScrollIntoViewAsync` 处理纵向选中与滚到对应行，不再依赖 `ScrollToTaskbarAsync` 做横向定位；
+  - JS 新增 `focusTaskByTimeCoordinates(taskId, startAt, endAt, chartStart, chartEnd)`，直接根据任务 `Start/End` 和当前 `ChartStart/ChartEnd` 计算任务中点应落到的 `scrollLeft`，再同步其它横向容器；
+  - DOM 任务条查询只保留在最后一步做轻量校正和诊断，不再担任横向主定位真值来源；
+  - 目标：让横向定位主要依赖任务时间真值，而不是依赖虚拟化和重绘下不稳定的任务条 DOM。
+- 缩放档位状态继续收口：
+  - 用户现场发现改了时间窗后，视觉上还没到最细档，但“放大”按钮已经不再生效；
+  - 根因是页面自维护的 `CurrentZoomLevel` 只在按钮缩放链里递增/递减，未在 `SetChartRange(...)` 这种“时间窗/数据重载导致图表范围重算”的路径中复位；
+  - 现已在 `SetChartRange(...)` 开始时统一把 `CurrentZoomLevel` 复位为 `DefaultZoomLevel`；
+  - 目的：避免改时间窗、刷新、自动排程重载后，视觉档位与页面内记录的缩放档位脱节，导致“看起来还能放大，但按钮误判已到最大档”。
+- 再次现场反馈表明：
+  - 仅在 `SetChartRange(...)` 重置 `CurrentZoomLevel` 还不够，因为控件有时会忽略一次 `ZoomInAsync()` / `ZoomOutAsync()`，但页面仍然按成功处理去做本地 `+1 / -1`，最终继续把缩放档位记漂；
+  - 现已新增 `ganttAsprova.getCurrentZoomLevel()`，直接按 Syncfusion 当前时间轴设置映射到 0..4 五档；
+  - Razor 侧 `ZoomIn / ZoomOut / ZoomToFit / ExecuteZoomWorkflowAsync` 都改成在缩放前后向控件回读真实档位，不再盲目本地递增或递减；
+  - 目标：让“是否还能继续放大/缩小”的判断以控件当前真实档位为准，避免按钮因为本地状态漂移而提前失效。
+- 时间坐标主链继续收口：
+  - 用户继续提供 `exactBar=yes,left=1633,right=1789` 这类现场，说明当前主视口仍被带到错误横向位置，任务条层还停在右侧；
+  - 进一步判断后发现：横向主滚动不该优先写给时间轴层，而应优先写给真正承载任务条的 `e-chart-rows-container`；
+  - 现已新增 `getHorizontalPrimaryScroller()`，横向主容器优先选择 `e-chart-rows-container`，其次才是 `e-chart-scroll-container`；
+  - `setChartScrollPosition(left, top)` 也已改为：先把 `left` 写入横向主容器，再按主容器当前位置同步其它横向层，而不是继续按“最大宽度比例”给所有层同时分发；
+  - 目标：让“按时间坐标算出来的横向位置”先落到任务条实际承载层，再让时间轴头部去跟随，而不是反过来。
+- 2026-03-20 继续现场回归后确认：上述“任务条层优先为横向主容器”的判断不成立。
+  - 用户继续提供 `exactBar=yes,left=-13158,right=-10698` 这类现场，同时 `e-chart-scroll-container.sw=22118`、`e-chart-rows-container.sw=7061`；
+  - 说明 `e-chart-rows-container` 与主时间轴容器并不共享同一横向滚动坐标系，把它提升为主容器会直接把时间坐标定位带偏；
+  - 现已回退 `getHorizontalPrimaryScroller()` 的优先级：恢复以 `e-chart-scroll-container` 为横向主容器，`e-chart-rows-container` 只做跟随同步；
+  - 结论：时间坐标驱动仍应落在主时间轴滚动容器上，任务条层不能作为横向真值源。
+- 2026-03-20 当日总结：
+  - 已完成：`/gantt/syncfusion` 缩放档位调整为 5 档，最细档为 `Hour + Minutes(15)`；顶部布局收紧；摘要提示右移；“自动重排变化任务ID”改为弹框；自动排程后的任务条颜色已与图例对齐。
+  - 已完成：拖拽链最小修复，移除首次拖动成功后的即时 `RefocusSelectedTaskAsync + RefreshSelectedTaskServerTruthAsync`，用户已确认“第一次拖动后第二次不能拖”的问题解除。
+  - 已完成：缩放按钮链已改为串行化并显示轻量 loading，最细档再点“放大”走 no-op；缩放档位状态改为从控件真实时间轴设置回读，不再盲目本地递增/递减。
+  - 已完成：缩放后选中任务定位主链改为“纵向走官方 API、横向走时间坐标”，DOM 任务条只保留轻量校正和诊断；同时确认 `e-chart-rows-container` 不能作为横向主容器，当前已回退为 `e-chart-scroll-container` 主导。
+  - 已完成：后端中文工序名问题已在另一仓库收口，包括 UTF-8 安全导入、坏数据恢复、显示兜底和历史乱码字面量清理；前端任务条已不再显示 `???`。
+  - 当前状态：缩放后选中任务定位相比最差阶段已有明显改善，但仍未完全稳定；用户 2026-03-20 最后一次现场反馈表明，当前版本仍可能出现“左侧已选中、右侧任务条未进入视野”的场景，后续应继续沿“主时间轴容器为横向真值”这条线收口，不再回到任务条层主导方案。
+
+## 2026-03-23 - Syncfusion 最细缩放档年份显示异常修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 用户在 `/gantt/syncfusion` 选中 `TaskId=22122` 时反馈：任务真实开始时间为 `2026-03-19 12:30`，但最细缩放档上方时间轴却出现了 `2025`；
+  - 联调核对后端真值：
+    - `GET /api/plans/10096/tasks` 中 `TaskId=22122.plannedStart = 2026-03-19T12:30:00`
+    - `GET /api/gantt/syncfusion/resource-view?planId=10096` 中 `meta.start = 2026-03-18T00:00:00`
+  - 结论：不是后端返回成了 2025，而是前端最细时间轴显示与缩放档位识别存在问题。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `MES/BlazorApp1/BlazorApp1/wwwroot/js/gantt-asprova.js`
+  - `docs/codex_log.md`
+- 处理：
+  - 将最细缩放档从 `Hour + Minutes(15)` 调整为更稳定的 `Day + Minutes(15)`：
+    - `TopTier: Day / dd MMM yyyy`
+    - `BottomTier: Minutes / HH:mm / Count=15`
+    - `TimelineViewMode: Day`
+  - 修正 `gantt-asprova.js` 中 `isAtMaxZoomLevel()` 与 `getCurrentZoomLevel()` 的档位识别常量，使其与 Razor 中实际定义一致：
+    - Level 1 `TimelineUnitSize` 改回 `56`
+    - Level 3 `TimelineUnitSize` 改回 `92`
+    - Level 4 改为识别 `Day + Minutes(15)`
+- 目的：
+  - 避免最细档在头部时间轴上混出错误年份；
+  - 同时消除“控件实际缩放档位”和前端 JS 自己识别的档位不一致”带来的边界问题。
+- 验证：
+  - 后端真值核对：
+    - `PlanId=10096`
+    - `TaskId=22122`
+    - `plannedStart = 2026-03-19 12:30:00`
+    - `resource-view meta.start = 2026-03-18 00:00:00`
+  - 前端回归建议：
+    - 打开 `/gantt/syncfusion`
+    - 输入 `PlanId=10096`
+    - 选中 `TaskId=22122`
+    - 连续点击“放大”到最细档
+    - 确认顶部时间轴显示为 `2026`，且底部 15 分钟刻度仍正常
+
+## 2026-03-23 - Syncfusion 最细缩放档刻度过密修复（前端）
+
+- 作用域：`frontend`
+- 背景：
+  - 用户在修复年份异常后继续反馈：`/gantt/syncfusion` 放大到最细档时，底部时间轴在每个 `15 分钟` 单元格都显示完整 `HH:mm`，导致出现一整排密密麻麻的时间；
+  - 本地包文档虽然能看到 `GanttTimelineTierSettings.Formatter / FormatterTemplate` 说明，但在当前项目实际运行时，`BottomTier.Formatter` 会触发 `Microsoft.CSharp.RuntimeBinder.RuntimeBinderException`；
+  - 结论：当前版本先不要把 formatter 挂到最细档时间轴，优先回到不触发运行时异常的稳定格式组合。
+- 改了哪些文件：
+  - `MES/BlazorApp1/BlazorApp1/Pages/GanttSyncfusion.razor`
+  - `docs/codex_log.md`
+- 处理：
+  - 保留最细档时间粒度与时间轴层级不变：
+    - `TopTier: Day / dd MMM yyyy`
+    - `BottomTier: Minutes / Count=15`
+  - 移除会触发运行时异常的 formatter 尝试；
+  - 将最细档底部时间轴文案从 `HH:mm` 收窄为 `mm`，让同样的 `15 分钟` 网格只显示 `00 / 15 / 30 / 45`。
+- 目的：
+  - 保持 `15 分钟` 观察粒度，方便短工序边界检查；
+  - 避免最细档时间轴出现整排重复完整时间文本，同时避开当前 Syncfusion 版本的 formatter 运行时异常。
+- 验证建议：
+  - 打开 `/gantt/syncfusion`
+  - 输入 `PlanId=10096`
+  - 连续点击“放大”到最细档
+  - 确认页面不再抛 `RuntimeBinderException`
+  - 确认底部时间轴显示为 `00 / 15 / 30 / 45`
+  - 确认 `15 分钟` 网格仍存在，任务条位置不受影响
